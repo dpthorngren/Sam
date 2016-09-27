@@ -20,6 +20,14 @@ cdef extern from "gsl/gsl_randist.h":
 cdef extern from "gsl/gsl_sf.h":
     double gsl_sf_psi(double x)
     double gsl_sf_beta_inc(double a, double b, double x)
+    double gsl_sf_gamma(double x)
+    double gsl_sf_gamma_inc(double a, double x)
+    double gsl_sf_beta(double a, double b)
+
+cdef extern from "gsl/gsl_math.h":
+    double gsl_asinh(const double x)
+    double gsl_acosh(const double x)
+    double gsl_atanh(const double x)
 
 cdef extern from "math.h":
     double log(double x)
@@ -29,6 +37,22 @@ cdef extern from "math.h":
     double sin(double x)
     double cos(double x)
     double tan(double x)
+    double acos(double x)
+    double asin(double x)
+    double atan(double x)
+    double atan2(double y,double x)
+    double sinh(double x)
+    double cosh(double x)
+    double tanh(double x)
+
+# Wrapper functions
+cdef double asinh(double x)
+cdef double acosh(double x)
+cdef double atanh(double x)
+cdef double gamma(double x)
+cdef double incGamma(double x, double a)
+cdef double beta(double a, double b)
+cdef double incBeta(double a, double b, double x)
 
 ctypedef Py_ssize_t Size
 

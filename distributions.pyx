@@ -1,4 +1,26 @@
 
+# Wrapper functions
+cdef double asinh(double x):
+    return gsl_asinh(x)
+
+cdef double acosh(double x):
+    return gsl_acosh(x)
+
+cdef double atanh(double x):
+    return gsl_atanh(x)
+
+cdef double gamma(double x):
+    return gsl_sf_gamma(x)
+
+cdef double incGamma(double x, double a):
+    return gsl_sf_gamma_inc(a, x)
+
+cdef double beta(double a, double b):
+    return gsl_sf_beta(a,b)
+
+cdef double incBeta(double x, double a, double b):
+    return gsl_sf_beta_inc(a,b,x)
+
 cdef class _normal:
     cpdef double pdf(self,double x, double mean, double sigma):
         return gsl_ran_gaussian_pdf(x-mean,sigma)
