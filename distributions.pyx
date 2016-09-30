@@ -110,8 +110,8 @@ cdef class _invGamma:
         return 2.*rate/x - (shape + 1.)/x
 
     cpdef double rand(self,double shape, double rate):
-        self._rand.param(gamma_rng.param_type(shape,rate))
-        return self._rand(self._generator)
+        self._rand.param(gamma_rng.param_type(shape,1./rate))
+        return 1.0/self._rand(self._generator)
 
     cpdef double mean(self, double shape, double rate):
         return rate / (shape - 1)

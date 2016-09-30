@@ -128,12 +128,16 @@ cdef class HMCSampler:
 def subTest(name, double a, double b, double prec=.0001):
     # Low standard so I can use only a few significant digits.
     if abs(2.*(a - b)/(a+b)) < prec:
-        print " PASS ", "{:10s}".format(name), "{:10f}".format(a), "{:10f}".format(b)
+        print " PASS ", "{:15s}".format(name), "{:10f}".format(a), "{:10f}".format(b)
     else:
-        print "*FAIL*", "{:10s}".format(name), "{:10f}".format(a), "{:10f}".format(b)
+        print "*FAIL*", "{:15s}".format(name), "{:10f}".format(a), "{:10f}".format(b)
     return
 
 def test():
+    '''
+    Note that some of these functions are probabilistic,
+    and can fail by sheer bad luck.
+    '''
     print "===== Testing System ====="
     print "First, the following should fail:"
     subTest("Want Fail",-1,1.00000001)
@@ -141,7 +145,7 @@ def test():
     subTest("Want Pass",8,8.00000001)
     print ""
     print "===== Basic Functions ====="
-    print "State  Name         Value      Expected"
+    print "State  Name              Value      Expected"
     subTest("Sin", sin(3.45),-.303542)
     subTest("Cos", cos(3.45),-.952818)
     subTest("Tan", tan(1.25),3.009569)
@@ -156,20 +160,20 @@ def test():
     subTest("Arctanh", atanh(1/3.),.34657359)
     print ""
     print "===== Special Functions ====="
-    print "State  Name         Value      Expected"
+    print "State  Name              Value      Expected"
     subTest("Beta",beta(.7,2.5),0.711874)
     subTest("Gamma", gamma(2.5),1.32934)
     subTest("Digamma", digamma(12.5),2.48520)
     print ""
     print "===== Distributions ====="
-    print "State  Name         Value      Expected"
+    print "State  Name              Value      Expected"
     # Normal distribution
-    subTest("NormMean",Normal.mean(3,4),3.)
-    subTest("NormVar",Normal.var(3,4),16.)
-    subTest("NormStd",Normal.std(3,4),4.)
-    subTest("NormPDF",Normal.pdf(1,3,4),0.08801633)
-    subTest("NormLPDF",Normal.logPDF(1,3,4),log(0.08801633))
-    subTest("NormCDF",Normal.cdf(1,3,4),0.30853754)
+    subTest("NormalMean",Normal.mean(3,4),3.)
+    subTest("NormalVar",Normal.var(3,4),16.)
+    subTest("NormalStd",Normal.std(3,4),4.)
+    subTest("NormalPDF",Normal.pdf(1,3,4),0.08801633)
+    subTest("NormalLPDF",Normal.logPDF(1,3,4),log(0.08801633))
+    subTest("NormalCDF",Normal.cdf(1,3,4),0.30853754)
     a = [Normal.rand(3,4) for i in range(1000000)]
     subTest("NormRand",np.mean(a),3.,.01)
     # Gamma distribution
@@ -181,6 +185,15 @@ def test():
     subTest("GammaCDF",Gamma.cdf(1,3,4),.7618966)
     a = [Gamma.rand(3,4) for i in range(1000000)]
     subTest("GammaRand",np.mean(a),3./4,.01)
+    # InvGamma distribution
+    subTest("InvGammaMean",InvGamma.mean(3,4),2.)
+    subTest("InvGammaVar",InvGamma.var(3,4),4.)
+    subTest("InvGammaStd",InvGamma.std(3,4),2.)
+    subTest("InvGammaPDF",InvGamma.pdf(1,3,4),.006084)
+    subTest("InvGammaLPDF",InvGamma.logPDF(1,3,4),log(.006084))
+    subTest("InvGammaCDF",InvGamma.cdf(1,3,4),.002161,.001)
+    a = [InvGamma.rand(3,4) for i in range(1000000)]
+    subTest("InvGammaRand",np.mean(a),2.,.01)
     # Beta distribution
     subTest("BetaMean",Beta.mean(3,4),3./7)
     subTest("BetaVar",Beta.var(3,4),.0306122)
