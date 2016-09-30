@@ -3,10 +3,13 @@ import numpy as np
 import time
 cimport numpy as np
 
-Normal = _normal(<unsigned long int>(1*1000*time.time()))
-Gamma = _gamma(<unsigned long int>(2*1000*time.time()))
-InvGamma = _invGamma(<unsigned long int>(3*1000*time.time()))
+Uniform = _uniform(<unsigned long int>(1*1000*time.time()))
+Normal = _normal(<unsigned long int>(2*1000*time.time()))
+Gamma = _gamma(<unsigned long int>(3*1000*time.time()))
+InvGamma = _invGamma(<unsigned long int>(4*1000*time.time()))
 Beta = _beta(<unsigned long int>(5*1000*time.time()))
+Poisson = _poisson(<unsigned long int>(6*1000*time.time()))
+Exponential = _expon(<unsigned long int>(7*1000*time.time()))
 
 
 cdef class HMCSampler:
@@ -140,9 +143,9 @@ def test():
     '''
     print "===== Testing System ====="
     print "First, the following should fail:"
-    subTest("Want Fail",-1,1.00000001)
+    subTest("Should Fail",-1,1.00000001)
     print "Now, the following should pass:"
-    subTest("Want Pass",8,8.00000001)
+    subTest("Should Pass",8,8.00000001)
     print ""
     print "===== Basic Functions ====="
     print "State  Name              Value      Expected"
@@ -158,6 +161,7 @@ def test():
     subTest("Arcsinh", asinh(3.),1.8184464)
     subTest("Arccosh", acosh(3.),1.7627471)
     subTest("Arctanh", atanh(1/3.),.34657359)
+    # subTest("Choose", binomial_coefficient(16,13),560.)
     print ""
     print "===== Special Functions ====="
     print "State  Name              Value      Expected"
@@ -166,7 +170,17 @@ def test():
     subTest("Digamma", digamma(12.5),2.48520)
     print ""
     print "===== Distributions ====="
+    # TODO: Test gradients
     print "State  Name              Value      Expected"
+    # Uniform distribution
+    subTest("UniformMean",Uniform.mean(2,4),3.)
+    subTest("UniformVar",Uniform.var(2,4),4./12.)
+    subTest("UniformStd",Uniform.std(2,4),2./sqrt(12.))
+    subTest("UniformPDF",Uniform.pdf(3,2,4),0.5)
+    subTest("UniformLPDF",Uniform.logPDF(3,2,4),log(0.5))
+    subTest("UniformCDF",Uniform.cdf(2.5,2,4),0.25)
+    a = [Uniform.rand(3,4) for i in range(1000000)]
+    subTest("UniformRand",np.mean(a),3.5,.01)
     # Normal distribution
     subTest("NormalMean",Normal.mean(3,4),3.)
     subTest("NormalVar",Normal.var(3,4),16.)
@@ -203,4 +217,22 @@ def test():
     subTest("BetaCDF",Beta.cdf(.5,3,4),.65625)
     a = [Beta.rand(3,4) for i in range(1000000)]
     subTest("BetaRand",np.mean(a),3./7,.01)
+    # Poisson distribution
+    subTest("PoissonMean",Poisson.mean(2.4),2.4)
+    subTest("PoissonVar",Poisson.var(2.4),2.4)
+    subTest("PoissonStd",Poisson.std(2.4),sqrt(2.4))
+    subTest("PoissonPDF",Poisson.pdf(3,2.4),.209014)
+    subTest("PoissonLPDF",Poisson.logPDF(3,2.4),log(.209014))
+    subTest("PoissonCDF",Poisson.cdf(3.2,2.4),0.7787229)
+    a = [Poisson.rand(3.4) for i in range(1000000)]
+    subTest("PoissonRand",np.mean(a),3.4,.01)
+    # Exponential distribution
+    subTest("ExpMean",Exponential.mean(2.4),1./2.4)
+    subTest("ExpVar",Exponential.var(2.4),2.4**-2)
+    subTest("ExpStd",Exponential.std(2.4),1./2.4)
+    subTest("ExpPDF",Exponential.pdf(1,2.4),.217723)
+    subTest("ExpLPDF",Exponential.logPDF(1,2.4),log(.217723))
+    subTest("ExpCDF",Exponential.cdf(1,2.4),0.9092820)
+    a = [Exponential.rand(3.4) for i in range(1000000)]
+    subTest("ExpRand",np.mean(a),1./3.4,.01)
     return

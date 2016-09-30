@@ -1,3 +1,6 @@
+# Type definition
+ctypedef Py_ssize_t Size
+
 # Boost special functions
 cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
     cdef double asinh(double x) except +
@@ -8,6 +11,7 @@ cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
     # cdef double incBeta "ibetac"(double a, double b, double x) except +
     cdef double gamma "tgamma"(double x) except +
     cdef double digamma(double x) except +
+    # cdef double binomial_coefficient[double](unsigned int n, unsigned int k) except +
 
 # Boost random variable distribtions (Descriptive functions -- not RNGs)
 cdef extern from "<boost/math/distributions.hpp>" namespace "boost::math":
@@ -26,6 +30,11 @@ cdef extern from "<boost/math/distributions.hpp>" namespace "boost::math":
         beta_info(double shape, double scale) except +
     double pdf(beta_info d, double x) except +
     double cdf(beta_info d, double x) except +
+    # Poisson
+    cdef cppclass pois_info "boost::math::poisson_distribution"[double]:
+        pois_info(double lamb) except +
+    double pdf(pois_info d, double x) except +
+    double cdf(pois_info d, double x) except +
 
 # Random number generator
 cdef extern from "<boost/random.hpp>":
@@ -40,17 +49,30 @@ cdef extern from "<boost/random.hpp>":
         cppclass param_type:
             param_type(double, double)
         param_type param(param_type)
+cdef extern from "<boost/random/uniform_01.hpp>":
+    cdef cppclass uniform_rng "boost::uniform_01"[double]:
+        double operator()(mTwister generator)
 cdef extern from "<boost/random/beta_distribution.hpp>":
     cdef cppclass beta_rng "boost::random::beta_distribution"[double]:
         double operator()(mTwister generator)
         cppclass param_type:
             param_type(double, double)
         param_type param(param_type)
+cdef extern from "<boost/random/poisson_distribution.hpp>":
+    cdef cppclass pois_rng "boost::random::poisson_distribution"[int]:
+        double operator()(mTwister generator)
+        cppclass param_type:
+            param_type(double)
+        param_type param(param_type)
+cdef extern from "<boost/random/exponential_distribution.hpp>":
+    cdef cppclass expon_rng "boost::random::exponential_distribution"[double]:
+        double operator()(mTwister generator)
+        cppclass param_type:
+            param_type(double)
+        param_type param(param_type)
 
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi
-
-ctypedef Py_ssize_t Size
 
 cdef class HMCSampler:
     # Parameters
@@ -75,6 +97,21 @@ cdef class HMCSampler:
     cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps)
 
 # Distribution classes
+cdef class _uniform:
+    cdef mTwister _generator
+    cdef uniform_rng _rand
+    cpdef double pdf(self,double x, double lower=?, double upper=?)
+    cpdef double logPDF(self,double x, double lower=?, double upper=?)
+    cpdef double cdf(self,double x, double lower=?, double upper=?)
+    cpdef double dldu(self,double x, double lower=?, double upper=?)
+    cpdef double dldl(self,double x, double lower=?, double upper=?)
+    cpdef double dldx(self,double x, double lower=?, double upper=?)
+    cpdef double rand(self,double lower=?, double upper=?)
+    cpdef double mean(self, double lower=?, double upper=?)
+    cpdef double var(self, double lower=?, double upper=?)
+    cpdef double std(self, double lower=?, double upper=?)
+    cpdef double mode(self, double lower=?, double upper=?)
+
 cdef class _normal:
     cdef mTwister _generator
     cdef normal_rng _rand
@@ -133,3 +170,29 @@ cdef class _beta:
     cpdef double var(self, double alpha, double beta)
     cpdef double std(self, double alpha, double beta)
     cpdef double mode(self, double alpha, double beta)
+
+cdef class _poisson:
+    cdef mTwister _generator
+    cdef pois_rng _rand
+    cpdef double pdf(self, int x, double lamb)
+    cpdef double logPDF(self, int x, double lamb)
+    cpdef double cdf(self, double x, double lamb)
+    cpdef double dldl(self, int x, double lamb)
+    cpdef double rand(self,double lamb)
+    cpdef double mean(self, double lamb)
+    cpdef double var(self, double lamb)
+    cpdef double std(self, double lamb)
+    cpdef double mode(self, double lamb)
+
+cdef class _expon:
+    cdef mTwister _generator
+    cdef expon_rng _rand
+    cpdef double pdf(self, double x, double lamb)
+    cpdef double logPDF(self, double x, double lamb)
+    cpdef double cdf(self, double x, double lamb)
+    cpdef double dldl(self, double x, double lamb)
+    cpdef double rand(self,double lamb)
+    cpdef double mean(self, double lamb)
+    cpdef double var(self, double lamb)
+    cpdef double std(self, double lamb)
+    cpdef double mode(self, double lamb)
