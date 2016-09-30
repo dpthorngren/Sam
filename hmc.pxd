@@ -35,6 +35,11 @@ cdef extern from "<boost/math/distributions.hpp>" namespace "boost::math":
         pois_info(double lamb) except +
     double pdf(pois_info d, double x) except +
     double cdf(pois_info d, double x) except +
+    # Binomial
+    cdef cppclass binom_info "boost::math::binomial_distribution"[double]:
+        binom_info(int n, double probability) except +
+    double pdf(binom_info d, int x) except +
+    double cdf(binom_info d, double x) except +
 
 # Random number generator
 cdef extern from "<boost/random.hpp>":
@@ -48,7 +53,7 @@ cdef extern from "<boost/random.hpp>":
         double operator()(mTwister generator)
         cppclass param_type:
             param_type(double, double)
-        param_type param(param_type)
+        void param(param_type)
 cdef extern from "<boost/random/uniform_01.hpp>":
     cdef cppclass uniform_rng "boost::uniform_01"[double]:
         double operator()(mTwister generator)
@@ -57,19 +62,25 @@ cdef extern from "<boost/random/beta_distribution.hpp>":
         double operator()(mTwister generator)
         cppclass param_type:
             param_type(double, double)
-        param_type param(param_type)
+        void param(param_type)
 cdef extern from "<boost/random/poisson_distribution.hpp>":
     cdef cppclass pois_rng "boost::random::poisson_distribution"[int]:
         double operator()(mTwister generator)
         cppclass param_type:
             param_type(double)
-        param_type param(param_type)
+        void param(param_type)
 cdef extern from "<boost/random/exponential_distribution.hpp>":
     cdef cppclass expon_rng "boost::random::exponential_distribution"[double]:
         double operator()(mTwister generator)
         cppclass param_type:
             param_type(double)
-        param_type param(param_type)
+        void param(param_type)
+cdef extern from "<boost/random/binomial_distribution.hpp>":
+    cdef cppclass binom_rng "boost::random::binomial_distribution"[int,double]:
+        double operator()(mTwister generator)
+        cppclass param_type:
+            param_type(int,double)
+        void param(param_type)
 
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi
@@ -196,3 +207,16 @@ cdef class _expon:
     cpdef double var(self, double lamb)
     cpdef double std(self, double lamb)
     cpdef double mode(self, double lamb)
+
+cdef class _binomial:
+    cdef mTwister _generator
+    cdef binom_rng _rand
+    cpdef double pdf(self, int x, int n, double probability)
+    cpdef double logPDF(self, int x, int n, double probability)
+    cpdef double cdf(self, double x, int n, double probability)
+    cpdef double dldp(self, int x, int n, double probability)
+    cpdef double rand(self,int n, double probability)
+    cpdef double mean(self, int n, double probability)
+    cpdef double var(self, int n, double probability)
+    cpdef double std(self, int n, double probability)
+    cpdef double mode(self, int n, double probability)

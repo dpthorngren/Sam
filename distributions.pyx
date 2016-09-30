@@ -244,7 +244,7 @@ cdef class _poisson:
         return return_value
 
     cpdef double dldl(self, int x, double lamb):
-        return 0.
+        return x/lamb - 1.
 
     cpdef double rand(self,double lamb):
         self._rand.param(pois_rng.param_type(lamb))
@@ -284,7 +284,7 @@ cdef class _expon:
         return 0
 
     cpdef double dldl(self, double x, double lamb):
-        return 0.
+        return 1./lamb - x
 
     cpdef double rand(self,double lamb):
         self._rand.param(expon_rng.param_type(lamb))
@@ -304,3 +304,48 @@ cdef class _expon:
 
     def __cinit__(self,unsigned long int seed):
         self._generator = mTwister(seed)
+
+
+cdef class _binomial:
+    cpdef double pdf(self, int x, int n, double probability):
+        cdef binom_info* temp = new binom_info(n,probability)
+        cdef double return_value = pdf(temp[0],x)
+        del temp
+        return return_value
+
+    cpdef double logPDF(self, int x, int n, double probability):
+        return log(self.pdf(x,n,probability))
+
+    cpdef double cdf(self, double x, int n, double probability):
+        cdef binom_info* temp = new binom_info(n,probability)
+        cdef double return_value = cdf(temp[0],<int>x)
+        del temp
+        return return_value
+
+    cpdef double dldp(self, int x, int n, double probability):
+        return x/probability - (1-x)/(1.-probability)
+
+    cpdef double rand(self,int n, double probability):
+        self._rand.param(binom_rng.param_type(n,probability))
+        return self._rand(self._generator)
+
+    cpdef double mean(self, int n, double probability):
+        return n*probability
+
+    cpdef double var(self, int n, double probability):
+        return n*probability*(1.-probability)
+
+    cpdef double std(self, int n, double probability):
+        return sqrt(n*probability*(1.-probability))
+
+    cpdef double mode(self, int n, double probability):
+        cdef int x = <int>(n*probability)
+        if self.pdf(x,n,probability) >= self.pdf(x,n,probability):
+            return x
+        else:
+            return x+1
+
+    def __cinit__(self,unsigned long int seed):
+        self._generator = mTwister(seed)
+
+

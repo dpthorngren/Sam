@@ -10,6 +10,7 @@ InvGamma = _invGamma(<unsigned long int>(4*1000*time.time()))
 Beta = _beta(<unsigned long int>(5*1000*time.time()))
 Poisson = _poisson(<unsigned long int>(6*1000*time.time()))
 Exponential = _expon(<unsigned long int>(7*1000*time.time()))
+Binomial = _binomial(<unsigned long int>(7*1000*time.time()))
 
 
 cdef class HMCSampler:
@@ -179,7 +180,7 @@ def test():
     subTest("UniformPDF",Uniform.pdf(3,2,4),0.5)
     subTest("UniformLPDF",Uniform.logPDF(3,2,4),log(0.5))
     subTest("UniformCDF",Uniform.cdf(2.5,2,4),0.25)
-    a = [Uniform.rand(3,4) for i in range(1000000)]
+    a = [Uniform.rand(3,4) for i in range(100000)]
     subTest("UniformRand",np.mean(a),3.5,.01)
     # Normal distribution
     subTest("NormalMean",Normal.mean(3,4),3.)
@@ -188,7 +189,7 @@ def test():
     subTest("NormalPDF",Normal.pdf(1,3,4),0.08801633)
     subTest("NormalLPDF",Normal.logPDF(1,3,4),log(0.08801633))
     subTest("NormalCDF",Normal.cdf(1,3,4),0.30853754)
-    a = [Normal.rand(3,4) for i in range(1000000)]
+    a = [Normal.rand(3,4) for i in range(100000)]
     subTest("NormRand",np.mean(a),3.,.01)
     # Gamma distribution
     subTest("GammaMean",Gamma.mean(3,4),.75)
@@ -197,7 +198,7 @@ def test():
     subTest("GammaPDF",Gamma.pdf(1,3,4),.5861004)
     subTest("GammaLPDF",Gamma.logPDF(1,3,4),log(.5861004))
     subTest("GammaCDF",Gamma.cdf(1,3,4),.7618966)
-    a = [Gamma.rand(3,4) for i in range(1000000)]
+    a = [Gamma.rand(3,4) for i in range(100000)]
     subTest("GammaRand",np.mean(a),3./4,.01)
     # InvGamma distribution
     subTest("InvGammaMean",InvGamma.mean(3,4),2.)
@@ -206,7 +207,7 @@ def test():
     subTest("InvGammaPDF",InvGamma.pdf(1,3,4),.006084)
     subTest("InvGammaLPDF",InvGamma.logPDF(1,3,4),log(.006084))
     subTest("InvGammaCDF",InvGamma.cdf(1,3,4),.002161,.001)
-    a = [InvGamma.rand(3,4) for i in range(1000000)]
+    a = [InvGamma.rand(3,4) for i in range(100000)]
     subTest("InvGammaRand",np.mean(a),2.,.01)
     # Beta distribution
     subTest("BetaMean",Beta.mean(3,4),3./7)
@@ -215,7 +216,7 @@ def test():
     subTest("BetaPDF",Beta.pdf(.5,3,4),1.875)
     subTest("BetaLPDF",Beta.logPDF(.5,3,4),log(1.875))
     subTest("BetaCDF",Beta.cdf(.5,3,4),.65625)
-    a = [Beta.rand(3,4) for i in range(1000000)]
+    a = [Beta.rand(3,4) for i in range(100000)]
     subTest("BetaRand",np.mean(a),3./7,.01)
     # Poisson distribution
     subTest("PoissonMean",Poisson.mean(2.4),2.4)
@@ -224,7 +225,7 @@ def test():
     subTest("PoissonPDF",Poisson.pdf(3,2.4),.209014)
     subTest("PoissonLPDF",Poisson.logPDF(3,2.4),log(.209014))
     subTest("PoissonCDF",Poisson.cdf(3.2,2.4),0.7787229)
-    a = [Poisson.rand(3.4) for i in range(1000000)]
+    a = [Poisson.rand(3.4) for i in range(100000)]
     subTest("PoissonRand",np.mean(a),3.4,.01)
     # Exponential distribution
     subTest("ExpMean",Exponential.mean(2.4),1./2.4)
@@ -233,6 +234,15 @@ def test():
     subTest("ExpPDF",Exponential.pdf(1,2.4),.217723)
     subTest("ExpLPDF",Exponential.logPDF(1,2.4),log(.217723))
     subTest("ExpCDF",Exponential.cdf(1,2.4),0.9092820)
-    a = [Exponential.rand(3.4) for i in range(1000000)]
+    a = [Exponential.rand(3.4) for i in range(100000)]
     subTest("ExpRand",np.mean(a),1./3.4,.01)
+    # Binomial distribution
+    subTest("BinMean",Binomial.mean(10,.4),4.)
+    subTest("BinVar",Binomial.var(10,.4),.4*.6*10.)
+    subTest("BinStd",Binomial.std(10,.4),sqrt(.4*.6*10.))
+    subTest("BinPDF",Binomial.pdf(3,10,.4),.2149908)
+    subTest("BinLPDF",Binomial.logPDF(3,10,.4),log(.2149908))
+    subTest("BinCDF",Binomial.cdf(3.4,10,.4),0.3822806)
+    a = [Binomial.rand(10,.74) for i in range(100000)]
+    subTest("BinRand",np.mean(a),7.4,.01)
     return
