@@ -5,7 +5,7 @@ import numpy as np
 
 extension = Extension("hmc",["hmc.pyx"],
                       include_dirs=[np.get_include()],
-                      libraries=["gsl","gslcblas","m"])
+                      language="c++")
 
 setup(
     ext_modules=cythonize(extension)

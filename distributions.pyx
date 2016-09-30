@@ -1,77 +1,60 @@
-
-# Wrapper functions
-cdef double asinh(double x):
-    return gsl_asinh(x)
-
-cdef double acosh(double x):
-    return gsl_acosh(x)
-
-cdef double atanh(double x):
-    return gsl_atanh(x)
-
-cdef double gamma(double x):
-    return gsl_sf_gamma(x)
-
-cdef double incGamma(double x, double a):
-    return gsl_sf_gamma_inc(a, x)
-
-cdef double beta(double a, double b):
-    return gsl_sf_beta(a,b)
-
-cdef double incBeta(double x, double a, double b):
-    return gsl_sf_beta_inc(a,b,x)
-
 cdef class _normal:
-    cpdef double pdf(self,double x, double mean, double sigma):
-        return gsl_ran_gaussian_pdf(x-mean,sigma)
+    cpdef double pdf(self,double x, double mean=1, double sigma=1):
+        return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
 
-    cpdef double logPDF(self,double x, double mean, double sigma):
-        return log(gsl_ran_gaussian_pdf(x-mean,sigma))
+    cpdef double logPDF(self,double x, double mean=1, double sigma=1):
+        return log(self.pdf(x,mean,sigma))
 
-    cpdef double cdf(self,double x, double mean, double sigma):
-        return gsl_cdf_gaussian_P(x-mean,sigma)
+    cpdef double cdf(self,double x, double mean=1, double sigma=1):
+        return cdf(normal(mean,sigma),x)
 
-    cpdef double dldm(self,double x, double mean, double sigma):
+    cpdef double dldm(self,double x, double mean=1, double sigma=1):
         return (x-mean)/(sigma*sigma)
 
-    cpdef double dldv(self,double x, double mean, double sigma):
+    cpdef double dldv(self,double x, double mean=1, double sigma=1):
         return (x-mean)**2 / (2*sigma**4) - .5/sigma**2
 
-    cpdef double dlds(self,double x, double mean, double sigma):
+    cpdef double dlds(self,double x, double mean=1, double sigma=1):
         return (x-mean)**2 / sigma**3 - 1./sigma
 
-    cpdef double rand(self,double mean, double sigma):
-        return gsl_ran_gaussian(self._RNG,sigma)+mean
+    cpdef double rand(self,double mean=1, double sigma=1):
+        return self._rand(self._generator)*sigma+mean
 
-    cpdef double mean(self, double mean, double sigma):
+    cpdef double mean(self, double mean=1, double sigma=1):
         return mean
 
-    cpdef double var(self, double mean, double sigma):
+    cpdef double var(self, double mean=1, double sigma=1):
         return sigma*sigma
 
-    cpdef double std(self, double mean, double sigma):
+    cpdef double std(self, double mean=1, double sigma=1):
         return sigma
 
-    cpdef double mode(self, double mean, double sigma):
+    cpdef double mode(self, double mean=1, double sigma=1):
         return mean
 
-    def __init__(self,unsigned long int seed):
-        self._RNG = gsl_rng_alloc(gsl_rng_mt19937)
-        gsl_rng_set(self._RNG,seed)
+    def __cinit__(self,unsigned long int seed):
+        self._generator = mTwister(seed)
+        return
 
 
 cdef class _gamma:
     cpdef double pdf(self,double x, double shape, double rate):
-        return gsl_ran_gamma_pdf(x,shape, 1./rate)
+        cdef gamma_info* temp = new gamma_info(shape,1./rate)
+        cdef double return_value = pdf(temp[0],x)
+        del temp
+        return return_value
 
     cpdef double logPDF(self,double x, double shape, double rate):
-        return log(gsl_ran_gamma_pdf(x,shape, 1./rate))
+        return log(self.pdf(x,shape,rate))
 
     cpdef double cdf(self,double x, double shape, double rate):
-        return gsl_cdf_gamma_P(x,shape,1./rate)
+        cdef gamma_info* temp = new gamma_info(shape,1./rate)
+        cdef double return_value = cdf(temp[0],x)
+        del temp
+        return return_value
 
     cpdef double dlda(self,double x, double shape, double rate):
-        return log(rate) + log(x) - gsl_sf_psi(shape)
+        return log(rate) + log(x) - digamma(shape)
 
     cpdef double dldb(self,double x, double shape, double rate):
         return shape/rate - x
@@ -80,7 +63,8 @@ cdef class _gamma:
         return (shape-1)/x - rate
 
     cpdef double rand(self,double shape, double rate):
-        return gsl_ran_gamma(self._RNG, shape, 1./rate)
+        self._rand.param(gamma_rng.param_type(shape,1./rate))
+        return self._rand(self._generator)
 
     cpdef double mean(self, double shape, double rate):
         return shape/rate
@@ -96,24 +80,38 @@ cdef class _gamma:
             return 0
         return (shape-1)/rate
 
-    def __init__(self,unsigned long int seed):
-        self._RNG = gsl_rng_alloc(gsl_rng_mt19937)
-        gsl_rng_set(self._RNG,seed)
+    def __cinit__(self,unsigned long int seed):
+        self._generator = mTwister(seed)
 
 
 cdef class _invGamma:
     cpdef double pdf(self,double x, double shape, double rate):
-        return gsl_ran_gamma_pdf(1./x,shape, 1./rate)
+        cdef gamma_info* temp = new gamma_info(shape,rate)
+        cdef double return_value = pdf(temp[0],1./x)
+        del temp
+        return return_value
 
     cpdef double logPDF(self,double x, double shape, double rate):
-        return log(gsl_ran_gamma_pdf(1./x,shape, 1./rate))
+        return log(self.pdf(x,shape,rate))
 
-    # cpdef double dlda(self,double x, double shape, double rate)
+    cpdef double cdf(self,double x, double shape, double rate):
+        cdef gamma_info* temp = new gamma_info(shape,rate)
+        cdef double return_value = cdf(temp[0],1./x)
+        del temp
+        return return_value
 
-    # cpdef double dldb(self,double x, double shape, double rate)
+    cpdef double dlda(self,double x, double shape, double rate):
+        return log(rate) - log(x) - digamma(shape)
+
+    cpdef double dldb(self,double x, double shape, double rate):
+        return shape/rate - 1./x
+
+    cpdef double dldx(self,double x, double shape, double rate):
+        return 2.*rate/x - (shape + 1.)/x
 
     cpdef double rand(self,double shape, double rate):
-        return 1./gsl_ran_gamma(self._RNG, shape, 1./rate)
+        self._rand.param(gamma_rng.param_type(shape,rate))
+        return self._rand(self._generator)
 
     cpdef double mean(self, double shape, double rate):
         return rate / (shape - 1)
@@ -131,47 +129,34 @@ cdef class _invGamma:
         return rate/(shape+1.)
 
     def __init__(self,unsigned long int seed):
-        self._RNG = gsl_rng_alloc(gsl_rng_mt19937)
-        gsl_rng_set(self._RNG,seed)
-
-
-cdef class _invChiSq:
-    cpdef double pdf(self,double x, double nu, double tau):
-        return gsl_ran_gamma_pdf(1./x,nu/2.0, 2./(nu*tau*tau))
-
-    cpdef double logPDF(self,double x, double nu, double tau):
-        return log(gsl_ran_gamma_pdf(1./x,nu/2.0, 2./(nu*tau*tau)))
-
-    # cpdef double dlda(self,double x, double nu, double tau)
-
-    # cpdef double dldb(self,double x, double nu, double tau)
-
-    cpdef double rand(self,double nu, double tau):
-        return 1./gsl_ran_gamma(self._RNG, nu/2.0, 1./tau)
-
-    def __init__(self,unsigned long int seed):
-        self._RNG = gsl_rng_alloc(gsl_rng_mt19937)
-        gsl_rng_set(self._RNG,seed)
+        self._generator = mTwister(seed)
 
 
 cdef class _beta:
     cpdef double pdf(self,double x, double alpha, double beta):
-        return gsl_ran_beta_pdf(x,alpha, beta)
+        cdef beta_info* temp = new beta_info(alpha,beta)
+        cdef double return_value = pdf(temp[0],x)
+        del temp
+        return return_value
 
     cpdef double logPDF(self,double x, double alpha, double beta):
-        return log(gsl_ran_beta_pdf(x,alpha, beta))
+        return log(self.pdf(x,alpha, beta))
 
     cpdef double cdf(self,double x, double alpha, double beta):
-        return gsl_sf_beta_inc(alpha,beta,x)
+        cdef beta_info* temp = new beta_info(alpha,beta)
+        cdef double return_value = cdf(temp[0],x)
+        del temp
+        return return_value
 
     cpdef double dlda(self,double x, double alpha, double beta):
-        return log(x) + gsl_sf_psi(alpha+beta) - gsl_sf_psi(alpha)
+        return log(x) + digamma(alpha+beta) - digamma(alpha)
 
     cpdef double dldb(self,double x, double alpha, double beta):
-        return log(1-x) + gsl_sf_psi(alpha+beta) - gsl_sf_psi(alpha)
+        return log(1-x) + digamma(alpha+beta) - digamma(alpha)
 
     cpdef double rand(self,double alpha, double beta):
-        return gsl_ran_beta(self._RNG, alpha, beta)
+        self._rand.param(beta_rng.param_type(alpha,beta))
+        return self._rand(self._generator)
 
     cpdef double mean(self, double alpha, double beta):
         return alpha / (alpha+beta)
@@ -192,6 +177,5 @@ cdef class _beta:
                 return .5
         return (alpha - 1) / (alpha + beta - 2)
 
-    def __init__(self,unsigned long int seed):
-        self._RNG = gsl_rng_alloc(gsl_rng_mt19937)
-        gsl_rng_set(self._RNG,seed)
+    def __cinit__(self,unsigned long int seed):
+        self._generator = mTwister(seed)
