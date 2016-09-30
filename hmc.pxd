@@ -99,12 +99,20 @@ cdef class HMCSampler:
 
     # Output
     cdef object samples
+    cdef double[:,:] sampleView
 
-    # Functions
+    # Mandatory user Defined Functions
     cpdef double logProbability(self, double[:] position)
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
+
+    # Structural functions
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
+    cdef void sample(self)
+    cdef void record(self,Size i)
+
+    # Sampling functions
+    cdef void hmcStep(self,Size nSteps)
     cdef void simTrajectory(self, Size nSteps)
-    cpdef object run(self, Size nSamples, Size nSteps, double[:] x0, Size burnIn=?)
     cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps)
 
 # Distribution classes

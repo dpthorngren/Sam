@@ -10,7 +10,7 @@ InvGamma = _invGamma(<unsigned long int>(4*1000*time.time()))
 Beta = _beta(<unsigned long int>(5*1000*time.time()))
 Poisson = _poisson(<unsigned long int>(6*1000*time.time()))
 Exponential = _expon(<unsigned long int>(7*1000*time.time()))
-Binomial = _binomial(<unsigned long int>(7*1000*time.time()))
+Binomial = _binomial(<unsigned long int>(8*1000*time.time()))
 
 
 cdef class HMCSampler:
@@ -47,7 +47,35 @@ cdef class HMCSampler:
                 self.vPropose[d] -= self.stepSize * self.gradient[d] / 2.0
         return
 
-    cpdef object run(self, Size nSamples, Size nSteps, double[:] x0,Size burnIn=0):
+    cdef void sample(self):
+        self.hmcStep(200)
+        return
+
+    cdef void hmcStep(self,Size nSteps):
+        cdef Size d
+        cdef double vMag2, vMagPropose2
+        for d in range(self.nDim):
+            self.vPropose[d] = Normal.rand()
+        self.simTrajectory(<int>(nSteps*(Uniform.rand()+.5)))
+        vMag2 = 0
+        vMagPropose2 = 0
+        for d in range(self.nDim):
+            vMag2 += self.v[d]*self.v[d]
+            vMagPropose2 += self.vPropose[d]*self.vPropose[d]
+        if (Uniform.rand() <
+            np.exp(self.logProbability(self.xPropose) + vMagPropose2/2.0 -
+                self.logProbability(self.x) - vMag2/2.0)):
+                for d in range(self.nDim):
+                    self.x[d] = self.xPropose[d]
+        return
+
+    cdef void record(self,Size i):
+        cdef Size d
+        for d in range(self.nDim):
+            self.sampleView[i,d] = self.x[d]
+        return
+
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0):
         '''
             Run the HMC using the given distribution and gradient.
             Arguments:
@@ -55,29 +83,18 @@ cdef class HMCSampler:
                 nSteps (int): How many steps to take during integration.
                 x0 (double[:]): The starting position of the sampler.
         '''
-        cdef Size i, d
+        cdef Size i, j, d
         cdef double vMag, vMagPropose
         self.samples = np.empty((nSamples,self.nDim),dtype=np.double)
-        cdef double[:,:] sampleView = self.samples
+        self.sampleView = self.samples
         for d in range(self.nDim):
             self.x[d] = x0[d]
         for i in range(nSamples+burnIn):
-            for d in range(self.nDim):
-                self.vPropose[d] = np.random.randn()
-            self.simTrajectory(<int>(nSteps*(np.random.rand()+.5)))
-            vMag = 0
-            vMagPropose = 0
-            for d in range(self.nDim):
-                vMag += self.v[d]*self.v[d]
-                vMagPropose += self.vPropose[d]*self.vPropose[d]
-            if (np.random.rand() <
-                np.exp(self.logProbability(self.xPropose) + vMagPropose/2.0 -
-                    self.logProbability(self.x) - vMag/2.0)):
-                    for d in range(self.nDim):
-                        self.x[d] = self.xPropose[d]
+            for j in range(thinning+1):
+                self.sample()
             if i >= burnIn: 
-                for d in range(self.nDim):
-                    sampleView[i-burnIn,d] = self.x[d]
+                self.record(i-burnIn)
+                # TODO: track statistics here
         return self.samples
 
 
