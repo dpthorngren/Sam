@@ -16,19 +16,24 @@ Binomial = _binomial(<unsigned long int>(8*1000*time.time()))
 cdef class HMCSampler:
     '''
     Prepares the HMC sampler.
-    Arguments:
+    Argument:
         nDim: Number of dimensions to the probability distribution (int).
-        stepSize: The length of a step in the  integrator (double).
     '''
     cpdef double logProbability(self, double[:] position):
-        return - (position[0] - 4.0)**2/4.0 - (position[1] - 3.0)**2/2.0
+        if self._testMode == 1:
+            return - (position[0] - 4.0)**2/4.0 - (position[1] - 3.0)**2/2.0
+        raise NotImplementedError("You haven't defined the log probability,"+
+                                  "but the sampler called it.")
 
     cpdef void gradLogProbability(self, double[:] position, double[:] output):
-        output[0] = (position[0]-4.0)/2.0
-        output[1] = (position[1]-3.0)/1.0
-        return
+        if self._testMode == 1:
+            output[0] = (position[0]-4.0)/2.0
+            output[1] = (position[1]-3.0)/1.0
+            return
+        raise NotImplementedError("You haven't defined the log probability"+
+                                  "gradient, but the sampler called it.")
 
-    cdef void simTrajectory(self, Size nSteps):
+    cdef void simTrajectory(self, Size nSteps, double stepSize):
         '''
             Computes a path taken by the particle from its current
             position and velocity, given the potential -logProbability.
@@ -39,24 +44,23 @@ cdef class HMCSampler:
         self.gradLogProbability(self.xPropose,self.gradient)
         for i in range(nSteps):
             for d in range(self.nDim):
-                # TODO: double step
-                self.vPropose[d] -= self.stepSize * self.gradient[d] / 2.0
-                self.xPropose[d] += self.vPropose[d] * self.stepSize
+                self.vPropose[d] -= stepSize * self.gradient[d] / 2.0
+                self.xPropose[d] += self.vPropose[d] * stepSize
             self.gradLogProbability(self.xPropose,self.gradient)
             for d in range(self.nDim):
-                self.vPropose[d] -= self.stepSize * self.gradient[d] / 2.0
+                self.vPropose[d] -= stepSize * self.gradient[d] / 2.0
         return
 
     cdef void sample(self):
-        self.hmcStep(200)
+        self.hmcStep(<Size>(<int>Uniform.rand(100,300)),Uniform.rand(.005,.05))
         return
 
-    cdef void hmcStep(self,Size nSteps):
+    cdef void hmcStep(self,Size nSteps, double stepSize):
         cdef Size d
         cdef double vMag2, vMagPropose2
         for d in range(self.nDim):
             self.vPropose[d] = Normal.rand()
-        self.simTrajectory(<int>(nSteps*(Uniform.rand()+.5)))
+        self.simTrajectory(nSteps,stepSize)
         vMag2 = 0
         vMagPropose2 = 0
         for d in range(self.nDim):
@@ -98,7 +102,7 @@ cdef class HMCSampler:
         return self.samples
 
 
-    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps):
+    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps, double stepSize):
         '''
         Given an initial position and velocity, returns the trajectory
         taken by a particle in the potential given by U=-log(probability).
@@ -124,20 +128,19 @@ cdef class HMCSampler:
         for d in range(self.nDim):
             output[0,d] = self.xPropose[d]
         for i in range(nSteps):
-            self.simTrajectory(1)
+            self.simTrajectory(1,stepSize)
             for d in range(self.nDim):
                 output[i,d] = self.xPropose[d]
         return output
 
-    def __init__(self,Size nDim, double stepSize):
+    def __init__(self,Size nDim):
         '''
         Prepares the HMC sampler.
         Arguments:
             nDim: Number of dimensions to the probability distribution (int).
-            stepSize: The length of a step in the  integrator (double).
         '''
         self.nDim = nDim
-        self.stepSize = stepSize
+        self._testMode = 0
         self.x = np.zeros(self.nDim,dtype=np.double)
         self.v = np.empty(self.nDim,dtype=np.double)
         self.xPropose = np.zeros(self.nDim,dtype=np.double)

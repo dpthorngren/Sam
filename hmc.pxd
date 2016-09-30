@@ -88,7 +88,7 @@ from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, a
 cdef class HMCSampler:
     # Parameters
     cdef Size nDim
-    cdef double stepSize
+    cdef int _testMode;
 
     # Working memory
     cdef double[:] x
@@ -98,7 +98,7 @@ cdef class HMCSampler:
     cdef double[:] gradient
 
     # Output
-    cdef object samples
+    cdef public object samples
     cdef double[:,:] sampleView
 
     # Mandatory user Defined Functions
@@ -111,9 +111,9 @@ cdef class HMCSampler:
     cdef void record(self,Size i)
 
     # Sampling functions
-    cdef void hmcStep(self,Size nSteps)
-    cdef void simTrajectory(self, Size nSteps)
-    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps)
+    cdef void hmcStep(self,Size nSteps, double stepSize)
+    cdef void simTrajectory(self, Size nSteps, double stepSize)
+    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps, double stepSize)
 
 # Distribution classes
 cdef class _uniform:
