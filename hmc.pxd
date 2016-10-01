@@ -228,3 +228,12 @@ cdef class _binomial:
     cpdef double var(self, int n, double probability)
     cpdef double std(self, int n, double probability)
     cpdef double mode(self, int n, double probability)
+
+cdef _uniform Uniform
+cdef _normal Normal
+cdef _gamma Gamma
+cdef _invGamma InvGamma
+cdef _beta Beta
+cdef _poisson Poisson
+cdef _expon Exponential
+cdef _binomial Binomial
