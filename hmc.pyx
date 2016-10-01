@@ -66,9 +66,9 @@ cdef class HMCSampler:
         for d in range(self.nDim):
             vMag2 += self.v[d]*self.v[d]
             vMagPropose2 += self.vPropose[d]*self.vPropose[d]
-        if (Uniform.rand() <
-            np.exp(self.logProbability(self.xPropose) + vMagPropose2/2.0 -
-                self.logProbability(self.x) - vMag2/2.0)):
+        if (log(Uniform.rand()) <
+            self.logProbability(self.xPropose) + vMagPropose2/2.0 -
+            self.logProbability(self.x) - vMag2/2.0):
                 for d in range(self.nDim):
                     self.x[d] = self.xPropose[d]
         return
