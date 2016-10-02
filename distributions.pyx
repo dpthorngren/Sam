@@ -45,37 +45,40 @@ cdef class _uniform:
 
 
 cdef class _normal:
-    cpdef double pdf(self,double x, double mean=1, double sigma=1):
+    cpdef double pdf(self,double x, double mean=0, double sigma=1):
         return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
 
-    cpdef double logPDF(self,double x, double mean=1, double sigma=1):
+    cpdef double logPDF(self,double x, double mean=0, double sigma=1):
         return log(self.pdf(x,mean,sigma))
 
-    cpdef double cdf(self,double x, double mean=1, double sigma=1):
+    cpdef double cdf(self,double x, double mean=0, double sigma=1):
         return cdf(normal(mean,sigma),x)
 
-    cpdef double dldm(self,double x, double mean=1, double sigma=1):
+    cpdef double dldm(self,double x, double mean=0, double sigma=1):
         return (x-mean)/(sigma*sigma)
 
-    cpdef double dldv(self,double x, double mean=1, double sigma=1):
+    cpdef double dldx(self,double x, double mean=0, double sigma=1):
+        return (mean-x)/(sigma*sigma)
+
+    cpdef double dldv(self,double x, double mean=0, double sigma=1):
         return (x-mean)**2 / (2*sigma**4) - .5/sigma**2
 
-    cpdef double dlds(self,double x, double mean=1, double sigma=1):
+    cpdef double dlds(self,double x, double mean=0, double sigma=1):
         return (x-mean)**2 / sigma**3 - 1./sigma
 
-    cpdef double rand(self,double mean=1, double sigma=1):
+    cpdef double rand(self,double mean=0, double sigma=1):
         return self._rand(self._generator)*sigma+mean
 
-    cpdef double mean(self, double mean=1, double sigma=1):
+    cpdef double mean(self, double mean=0, double sigma=1):
         return mean
 
-    cpdef double var(self, double mean=1, double sigma=1):
+    cpdef double var(self, double mean=0, double sigma=1):
         return sigma*sigma
 
-    cpdef double std(self, double mean=1, double sigma=1):
+    cpdef double std(self, double mean=0, double sigma=1):
         return sigma
 
-    cpdef double mode(self, double mean=1, double sigma=1):
+    cpdef double mode(self, double mean=0, double sigma=1):
         return mean
 
     def __cinit__(self,unsigned long int seed):

@@ -44,11 +44,11 @@ cdef class HMCSampler:
         self.gradLogProbability(self.xPropose,self.gradient)
         for i in range(nSteps):
             for d in range(self.nDim):
-                self.vPropose[d] -= stepSize * self.gradient[d] / 2.0
+                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
                 self.xPropose[d] += self.vPropose[d] * stepSize
             self.gradLogProbability(self.xPropose,self.gradient)
             for d in range(self.nDim):
-                self.vPropose[d] -= stepSize * self.gradient[d] / 2.0
+                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
         return
 
     cdef void sample(self):

@@ -139,6 +139,7 @@ cdef class _normal:
     cpdef double logPDF(self,double x, double mean=?, double sigma=?)
     cpdef double cdf(self,double x, double mean=?, double sigma=?)
     cpdef double dldm(self,double x, double mean=?, double sigma=?)
+    cpdef double dldx(self,double x, double mean=?, double sigma=?)
     cpdef double dldv(self,double x, double mean=?, double sigma=?)
     cpdef double dlds(self,double x, double mean=?, double sigma=?)
     cpdef double rand(self,double mean=?, double sigma=?)
