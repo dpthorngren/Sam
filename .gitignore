@@ -4,5 +4,6 @@ plots/
 *.pyc
 build/
 *.c
+*.h
 *.cpp
 *.so
