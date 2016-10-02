@@ -114,6 +114,7 @@ cdef class HMCSampler:
     cdef void hmcStep(self,Size nSteps, double stepSize)
     cdef void simTrajectory(self, Size nSteps, double stepSize)
     cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps, double stepSize)
+    cdef void metropolisStep(self, double[:] proposalStd)
 
 # Distribution classes
 cdef class _uniform:

@@ -30,7 +30,7 @@ cdef class HMCSampler:
             output[0] = (position[0]-4.0)/2.0
             output[1] = (position[1]-3.0)/1.0
             return
-        raise NotImplementedError("You haven't defined the log probability"+
+        raise NotImplementedError("You haven't defined the log probability "+
                                   "gradient, but the sampler called it.")
 
     cdef void simTrajectory(self, Size nSteps, double stepSize):
@@ -52,7 +52,7 @@ cdef class HMCSampler:
         return
 
     cdef void sample(self):
-        self.hmcStep(<Size>(<int>Uniform.rand(100,300)),Uniform.rand(.005,.05))
+        self.hmcStep(<int>Uniform.rand(100,300),Uniform.rand(.005,.05))
         return
 
     cdef void hmcStep(self,Size nSteps, double stepSize):
@@ -60,6 +60,7 @@ cdef class HMCSampler:
         cdef double vMag2, vMagPropose2
         for d in range(self.nDim):
             self.vPropose[d] = Normal.rand()
+            self.xPropose[d] = self.x[d]
         self.simTrajectory(nSteps,stepSize)
         vMag2 = 0
         vMagPropose2 = 0
@@ -67,10 +68,20 @@ cdef class HMCSampler:
             vMag2 += self.v[d]*self.v[d]
             vMagPropose2 += self.vPropose[d]*self.vPropose[d]
         if (log(Uniform.rand()) <
-            self.logProbability(self.xPropose) + vMagPropose2/2.0 -
-            self.logProbability(self.x) - vMag2/2.0):
-                for d in range(self.nDim):
-                    self.x[d] = self.xPropose[d]
+            self.logProbability(self.xPropose) - vMagPropose2/2.0 -
+            self.logProbability(self.x) + vMag2/2.0):
+            for d in range(self.nDim):
+                self.x[d] = self.xPropose[d]
+        return
+
+    cdef void metropolisStep(self, double[:] proposalStd):
+        cdef Size d
+        for d in range(self.nDim):
+            self.xPropose[d] = self.x[d] + Normal.rand(0,proposalStd[d])
+        if (log(Uniform.rand()) < self.logProbability(self.xPropose) -
+            self.logProbability(self.x)):
+            for d in range(self.nDim):
+                self.x[d] = self.xPropose[d]
         return
 
     cdef void record(self,Size i):
