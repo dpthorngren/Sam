@@ -50,7 +50,7 @@ cdef class HMCSampler:
         cdef Size d
         cdef double vMag2, vMagPropose2
         for d in range(self.nDim):
-            self.vPropose[d] = NormalRand()
+            self.vPropose[d] = self.v[d] = NormalRand()
             self.xPropose[d] = self.x[d]
         self.simTrajectory(nSteps,stepSize)
         vMag2 = 0
