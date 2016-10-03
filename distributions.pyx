@@ -1,354 +1,327 @@
-cdef class _uniform:
-    cpdef double pdf(self,double x, double lower=0, double upper=1):
+cdef class RandomEngine:
+    def __init__(self,unsigned long int i):
+        self.source = mTwister(i)
+defaultEngine = RandomEngine(<unsigned long int>(1000*time.time()))
+
+# ===== Uniform Distribution =====
+
+cpdef double UniformRand(double lower=0, double upper=1, RandomEngine engine=defaultEngine):
+    return engine.uniform_rand(engine.source)*(upper-lower) + lower
+
+cpdef double UniformPDF(double x, double lower=0, double upper=1):
         if x > lower and x < upper:
             return 1./(upper-lower)
         return 0.
 
-    cpdef double logPDF(self,double x, double lower=0, double upper=1):
-        return log(self.pdf(x,lower,upper))
+cpdef double UniformLogPDF(double x, double lower=0, double upper=1):
+    return log(UniformPDF(x,lower,upper))
 
-    cpdef double cdf(self,double x, double lower=0, double upper=1):
-        if x < lower:
-            return 0.
-        if x > upper:
-            return 1.
-        return (x-lower)/(upper-lower)
-
-    cpdef double dldu(self,double x, double lower=0, double upper=1):
+cpdef double UniformCDF(double x, double lower=0, double upper=1):
+    if x < lower:
         return 0.
+    if x > upper:
+        return 1.
+    return (x-lower)/(upper-lower)
 
-    cpdef double dldl(self,double x, double lower=0, double upper=1):
-        return 0.
+cpdef double UniformDLDU(double x, double lower=0, double upper=1):
+    # TODO: Fix
+    return 0.
 
-    cpdef double dldx(self,double x, double lower=0, double upper=1):
-        return 0.
+cpdef double UniformDLDL(double x, double lower=0, double upper=1):
+    # TODO: Fix
+    return 0.
 
-    cpdef double rand(self,double lower=0, double upper=1):
-        return self._rand(self._generator)*(upper-lower) + lower
+cpdef double UniformMean(double lower=0, double upper=1):
+    return (upper+lower)/2.
 
-    cpdef double mean(self, double lower=0, double upper=1):
-        return (upper+lower)/2.
+cpdef double UniformVar(double lower=0, double upper=1):
+    return (upper-lower)**2 / 12.
 
-    cpdef double var(self, double lower=0, double upper=1):
-        return (upper-lower)**2 / 12.
+cpdef double UniformStd(double lower=0, double upper=1):
+    return (upper-lower)/sqrt(12.)
 
-    cpdef double std(self, double lower=0, double upper=1):
-        return (upper-lower)/sqrt(12.)
+# ===== Normal Distribution =====
 
-    cpdef double mode(self, double lower=0, double upper=1):
-        # TODO: return nan?
-        return (upper+lower)/2.
+cpdef double NormalRand(double mean=0, double sigma=1, RandomEngine engine = defaultEngine):
+    return engine.normal_rand(engine.source)*sigma + mean
 
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-        return
+cpdef double NormalPDF(double x, double mean=0, double sigma=1):
+    return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
 
+cpdef double NormalLogPDF(double x, double mean=0, double sigma=1):
+    return log(NormalPDF(x,mean,sigma))
 
-cdef class _normal:
-    cpdef double pdf(self,double x, double mean=0, double sigma=1):
-        return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
+cpdef double NormalCDF(double x, double mean=0, double sigma=1):
+    return cdf(normal(mean,sigma),x)
 
-    cpdef double logPDF(self,double x, double mean=0, double sigma=1):
-        return log(self.pdf(x,mean,sigma))
+cpdef double NormalDLDM(double x, double mean=0, double sigma=1):
+    return (x-mean)/(sigma*sigma)
 
-    cpdef double cdf(self,double x, double mean=0, double sigma=1):
-        return cdf(normal(mean,sigma),x)
+cpdef double NormalDLDX(double x, double mean=0, double sigma=1):
+    return (mean-x)/(sigma*sigma)
 
-    cpdef double dldm(self,double x, double mean=0, double sigma=1):
-        return (x-mean)/(sigma*sigma)
+cpdef double NormalDLDV(double x, double mean=0, double sigma=1):
+    return (x-mean)**2 / (2*sigma**4) - .5/sigma**2
 
-    cpdef double dldx(self,double x, double mean=0, double sigma=1):
-        return (mean-x)/(sigma*sigma)
+cpdef double NormalDLDS(double x, double mean=0, double sigma=1):
+    return (x-mean)**2 / sigma**3 - 1./sigma
 
-    cpdef double dldv(self,double x, double mean=0, double sigma=1):
-        return (x-mean)**2 / (2*sigma**4) - .5/sigma**2
+cpdef double NormalMean(double mean=0, double sigma=1):
+    return mean
 
-    cpdef double dlds(self,double x, double mean=0, double sigma=1):
-        return (x-mean)**2 / sigma**3 - 1./sigma
+cpdef double NormalVar(double mean=0, double sigma=1):
+    return sigma*sigma
 
-    cpdef double rand(self,double mean=0, double sigma=1):
-        return self._rand(self._generator)*sigma+mean
+cpdef double NormalStd(double mean=0, double sigma=1):
+    return sigma
 
-    cpdef double mean(self, double mean=0, double sigma=1):
-        return mean
+cpdef double NormalMode(double mean=0, double sigma=1):
+    return mean
 
-    cpdef double var(self, double mean=0, double sigma=1):
-        return sigma*sigma
+# ===== Gamma Distribution =====
 
-    cpdef double std(self, double mean=0, double sigma=1):
-        return sigma
+cpdef double GammaRand(double shape, double rate, RandomEngine engine = defaultEngine):
+    engine.gamma_rand.param(gamma_rng.param_type(shape,1./rate))
+    return engine.gamma_rand(engine.source)
 
-    cpdef double mode(self, double mean=0, double sigma=1):
-        return mean
+cpdef double GammaPDF(double x, double shape, double rate):
+    cdef gamma_info* temp = new gamma_info(shape,1./rate)
+    cdef double return_value = pdf(temp[0],x)
+    del temp
+    return return_value
 
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-        return
+cpdef double GammaLogPDF(double x, double shape, double rate):
+    return log(GammaPDF(x,shape,rate))
 
+cpdef double GammaCDF(double x, double shape, double rate):
+    cdef gamma_info* temp = new gamma_info(shape,1./rate)
+    cdef double return_value = cdf(temp[0],x)
+    del temp
+    return return_value
 
-cdef class _gamma:
-    cpdef double pdf(self,double x, double shape, double rate):
-        cdef gamma_info* temp = new gamma_info(shape,1./rate)
-        cdef double return_value = pdf(temp[0],x)
-        del temp
-        return return_value
+cpdef double GammaDLDA(double x, double shape, double rate):
+    return log(rate) + log(x) - digamma(shape)
 
-    cpdef double logPDF(self,double x, double shape, double rate):
-        return log(self.pdf(x,shape,rate))
+cpdef double GammaDLDB(double x, double shape, double rate):
+    return shape/rate - x
 
-    cpdef double cdf(self,double x, double shape, double rate):
-        cdef gamma_info* temp = new gamma_info(shape,1./rate)
-        cdef double return_value = cdf(temp[0],x)
-        del temp
-        return return_value
+cpdef double GammaDLDX(double x, double shape, double rate):
+    return (shape-1)/x - rate
 
-    cpdef double dlda(self,double x, double shape, double rate):
-        return log(rate) + log(x) - digamma(shape)
+cpdef double GammaMean(double shape, double rate):
+    return shape/rate
 
-    cpdef double dldb(self,double x, double shape, double rate):
-        return shape/rate - x
+cpdef double GammaVar(double shape, double rate):
+    return shape/rate**2
 
-    cpdef double dldx(self,double x, double shape, double rate):
-        return (shape-1)/x - rate
+cpdef double GammaStd(double shape, double rate):
+    return sqrt(shape)/rate
 
-    cpdef double rand(self,double shape, double rate):
-        self._rand.param(gamma_rng.param_type(shape,1./rate))
-        return self._rand(self._generator)
-
-    cpdef double mean(self, double shape, double rate):
-        return shape/rate
-
-    cpdef double var(self, double shape, double rate):
-        return shape/rate**2
-
-    cpdef double std(self, double shape, double rate):
-        return sqrt(shape)/rate
-
-    cpdef double mode(self, double shape, double rate):
-        if shape < 1:
-            return 0
-        return (shape-1)/rate
-
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-
-
-cdef class _invGamma:
-    cpdef double pdf(self,double x, double shape, double rate):
-        cdef gamma_info* temp = new gamma_info(shape,rate)
-        cdef double return_value = pdf(temp[0],1./x)
-        del temp
-        return return_value
-
-    cpdef double logPDF(self,double x, double shape, double rate):
-        return log(self.pdf(x,shape,rate))
-
-    cpdef double cdf(self,double x, double shape, double rate):
-        cdef gamma_info* temp = new gamma_info(shape,rate)
-        cdef double return_value = cdf(temp[0],1./x)
-        del temp
-        return return_value
-
-    cpdef double dlda(self,double x, double shape, double rate):
-        return log(rate) - log(x) - digamma(shape)
-
-    cpdef double dldb(self,double x, double shape, double rate):
-        return shape/rate - 1./x
-
-    cpdef double dldx(self,double x, double shape, double rate):
-        return 2.*rate/x - (shape + 1.)/x
-
-    cpdef double rand(self,double shape, double rate):
-        self._rand.param(gamma_rng.param_type(shape,1./rate))
-        return 1.0/self._rand(self._generator)
-
-    cpdef double mean(self, double shape, double rate):
-        return rate / (shape - 1)
-
-    cpdef double var(self, double shape, double rate):
-        return rate**2  / ((shape-1)**2 * (shape-2))
-
-    cpdef double std(self, double shape, double rate):
-        if shape <= 2:
-            # TODO: make nan
-            return 0
-        return rate / ((shape-1)*sqrt(shape-2))
-
-    cpdef double mode(self, double shape, double rate):
-        return rate/(shape+1.)
-
-    def __init__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-
-
-cdef class _beta:
-    cpdef double pdf(self,double x, double alpha, double beta):
-        cdef beta_info* temp = new beta_info(alpha,beta)
-        cdef double return_value = pdf(temp[0],x)
-        del temp
-        return return_value
-
-    cpdef double logPDF(self,double x, double alpha, double beta):
-        return log(self.pdf(x,alpha, beta))
-
-    cpdef double cdf(self,double x, double alpha, double beta):
-        cdef beta_info* temp = new beta_info(alpha,beta)
-        cdef double return_value = cdf(temp[0],x)
-        del temp
-        return return_value
-
-    cpdef double dlda(self,double x, double alpha, double beta):
-        return log(x) + digamma(alpha+beta) - digamma(alpha)
-
-    cpdef double dldb(self,double x, double alpha, double beta):
-        return log(1-x) + digamma(alpha+beta) - digamma(alpha)
-
-    cpdef double rand(self,double alpha, double beta):
-        self._rand.param(beta_rng.param_type(alpha,beta))
-        return self._rand(self._generator)
-
-    cpdef double mean(self, double alpha, double beta):
-        return alpha / (alpha+beta)
-
-    cpdef double var(self, double alpha, double beta):
-        return alpha*beta / ((alpha+beta)**2*(alpha+beta+1))
-
-    cpdef double std(self, double alpha, double beta):
-        return sqrt(self.var(alpha,beta))
-
-    cpdef double mode(self, double alpha, double beta):
-        if alpha <= 1 or beta <= 1.:
-            if alpha < beta:
-                return 0
-            elif alpha > beta:
-                return 1
-            else:
-                return .5
-        return (alpha - 1) / (alpha + beta - 2)
-
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-
-
-cdef class _poisson:
-    cpdef double pdf(self, int x, double lamb):
-        cdef pois_info* temp = new pois_info(lamb)
-        cdef double return_value = pdf(temp[0],x)
-        del temp
-        return return_value
-
-    cpdef double logPDF(self, int x, double lamb):
-        return log(self.pdf(x,lamb))
-
-    cpdef double cdf(self, double x, double lamb):
-        cdef pois_info* temp = new pois_info(lamb)
-        cdef double return_value = cdf(temp[0],<int>x)
-        del temp
-        return return_value
-
-    cpdef double dldl(self, int x, double lamb):
-        return x/lamb - 1.
-
-    cpdef double rand(self,double lamb):
-        self._rand.param(pois_rng.param_type(lamb))
-        return self._rand(self._generator)
-
-    cpdef double mean(self, double lamb):
-        return lamb
-
-    cpdef double var(self, double lamb):
-        return lamb
-
-    cpdef double std(self, double lamb):
-        return sqrt(lamb)
-
-    cpdef double mode(self, double lamb):
-        # TODO: Decide if this is reasonable
-        return lamb-.5
-
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
-
-
-cdef class _expon:
-    cpdef double pdf(self, double x, double lamb):
-        if x > 0:
-            return lamb * exp(-lamb*x)
-        return 0.
-
-    cpdef double logPDF(self, double x, double lamb):
-        if x > 0:
-            return log(lamb)-lamb*x
-        return 0.
-
-    cpdef double cdf(self, double x, double lamb):
-        if x > 0:
-            return 1.-exp(-lamb*x)
+cpdef double GammaMode(double shape, double rate):
+    if shape < 1:
         return 0
+    return (shape-1)/rate
 
-    cpdef double dldl(self, double x, double lamb):
-        return 1./lamb - x
+# ===== Inverse-Gamma Distribution =====
 
-    cpdef double rand(self,double lamb):
-        self._rand.param(expon_rng.param_type(lamb))
-        return self._rand(self._generator)
+cpdef double InvGammaRand(double shape, double rate, RandomEngine engine=defaultEngine):
+    engine.gamma_rand.param(gamma_rng.param_type(shape,1./rate))
+    return 1.0/engine.gamma_rand(engine.source)
 
-    cpdef double mean(self, double lamb):
-        return 1./lamb
+cpdef double InvGammaPDF(double x, double shape, double rate):
+    cdef gamma_info* temp = new gamma_info(shape,rate)
+    cdef double return_value = pdf(temp[0],1./x)
+    del temp
+    return return_value
 
-    cpdef double var(self, double lamb):
-        return 1./(lamb*lamb)
+cpdef double InvGammaLogPDF(double x, double shape, double rate):
+    return log(InvGammaPDF(x,shape,rate))
 
-    cpdef double std(self, double lamb):
-        return 1./lamb
+cpdef double InvGammaCDF(double x, double shape, double rate):
+    cdef gamma_info* temp = new gamma_info(shape,rate)
+    cdef double return_value = cdf(temp[0],1./x)
+    del temp
+    return return_value
 
-    cpdef double mode(self, double lamb):
+cpdef double InvGammaDLDA(double x, double shape, double rate):
+    return log(rate) - log(x) - digamma(shape)
+
+cpdef double InvGammaDLDB(double x, double shape, double rate):
+    return shape/rate - 1./x
+
+cpdef double InvGammaDLDX(double x, double shape, double rate):
+    return 2.*rate/x - (shape + 1.)/x
+
+cpdef double InvGammaMean(double shape, double rate):
+    return rate / (shape - 1)
+
+cpdef double InvGammaVar(double shape, double rate):
+    return rate**2  / ((shape-1)**2 * (shape-2))
+
+cpdef double InvGammaStd(double shape, double rate):
+    if shape <= 2:
+        # TODO: make nan
         return 0
+    return rate / ((shape-1)*sqrt(shape-2))
 
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
+cpdef double InvGammaMode(double shape, double rate):
+    return rate/(shape+1.)
 
+# ===== Beta Distribution =====
 
-cdef class _binomial:
-    cpdef double pdf(self, int x, int n, double probability):
-        cdef binom_info* temp = new binom_info(n,probability)
-        cdef double return_value = pdf(temp[0],x)
-        del temp
-        return return_value
+cpdef double BetaRand(double alpha, double beta, RandomEngine engine = defaultEngine):
+    engine.beta_rand.param(beta_rng.param_type(alpha,beta))
+    return engine.beta_rand(engine.source)
 
-    cpdef double logPDF(self, int x, int n, double probability):
-        return log(self.pdf(x,n,probability))
+cpdef double BetaPDF(double x, double alpha, double beta):
+    cdef beta_info* temp = new beta_info(alpha,beta)
+    cdef double return_value = pdf(temp[0],x)
+    del temp
+    return return_value
 
-    cpdef double cdf(self, double x, int n, double probability):
-        cdef binom_info* temp = new binom_info(n,probability)
-        cdef double return_value = cdf(temp[0],<int>x)
-        del temp
-        return return_value
+cpdef double BetaLogPDF(double x, double alpha, double beta):
+    return log(BetaPDF(x,alpha, beta))
 
-    cpdef double dldp(self, int x, int n, double probability):
-        return x/probability - (1-x)/(1.-probability)
+cpdef double BetaCDF(double x, double alpha, double beta):
+    cdef beta_info* temp = new beta_info(alpha,beta)
+    cdef double return_value = cdf(temp[0],x)
+    del temp
+    return return_value
 
-    cpdef double rand(self,int n, double probability):
-        self._rand.param(binom_rng.param_type(n,probability))
-        return self._rand(self._generator)
+cpdef double BetaDLDA(double x, double alpha, double beta):
+    return log(x) + digamma(alpha+beta) - digamma(alpha)
 
-    cpdef double mean(self, int n, double probability):
-        return n*probability
+cpdef double BetaDLDB(double x, double alpha, double beta):
+    return log(1-x) + digamma(alpha+beta) - digamma(alpha)
 
-    cpdef double var(self, int n, double probability):
-        return n*probability*(1.-probability)
+cpdef double BetaMean(double alpha, double beta):
+    return alpha / (alpha+beta)
 
-    cpdef double std(self, int n, double probability):
-        return sqrt(n*probability*(1.-probability))
+cpdef double BetaVar(double alpha, double beta):
+    return alpha*beta / ((alpha+beta)**2*(alpha+beta+1))
 
-    cpdef double mode(self, int n, double probability):
-        cdef int x = <int>(n*probability)
-        if self.pdf(x,n,probability) >= self.pdf(x,n,probability):
-            return x
+cpdef double BetaStd(double alpha, double beta):
+    return sqrt(BetaVar(alpha,beta))
+
+cpdef double BetaMode(double alpha, double beta):
+    if alpha <= 1 or beta <= 1.:
+        if alpha < beta:
+            return 0
+        elif alpha > beta:
+            return 1
         else:
-            return x+1
+            return .5
+    return (alpha - 1) / (alpha + beta - 2)
 
-    def __cinit__(self,unsigned long int seed):
-        self._generator = mTwister(seed)
+# ===== Poisson Distribution =====
 
+cpdef double PoissonRand(double lamb, RandomEngine engine=defaultEngine):
+    engine.poisson_rand.param(pois_rng.param_type(lamb))
+    return engine.poisson_rand(engine.source)
 
+cpdef double PoissonPDF(int x, double lamb):
+    cdef pois_info* temp = new pois_info(lamb)
+    cdef double return_value = pdf(temp[0],x)
+    del temp
+    return return_value
+
+cpdef double PoissonLogPDF(int x, double lamb):
+    return log(PoissonPDF(x,lamb))
+
+cpdef double PoissonCDF(double x, double lamb):
+    cdef pois_info* temp = new pois_info(lamb)
+    cdef double return_value = cdf(temp[0],<int>x)
+    del temp
+    return return_value
+
+cpdef double PoissonDLDL(int x, double lamb):
+    return x/lamb - 1.
+
+cpdef double PoissonMean(double lamb):
+    return lamb
+
+cpdef double PoissonVar(double lamb):
+    return lamb
+
+cpdef double PoissonStd(double lamb):
+    return sqrt(lamb)
+
+cpdef int PoissonMode(double lamb):
+    # TODO: Decide if this is reasonable
+    return <int>(lamb-.5)
+
+# ===== Exponential Distribution =====
+
+cpdef double ExponentialRand(double lamb, RandomEngine engine=defaultEngine):
+    engine.exponential_rand.param(expon_rng.param_type(lamb))
+    return engine.exponential_rand(engine.source)
+
+cpdef double ExponentialPDF(double x, double lamb):
+    if x > 0:
+        return lamb * exp(-lamb*x)
+    return 0.
+
+cpdef double ExponentialLogPDF(double x, double lamb):
+    if x > 0:
+        return log(lamb)-lamb*x
+    return 0.
+
+cpdef double ExponentialCDF(double x, double lamb):
+    if x > 0:
+        return 1.-exp(-lamb*x)
+    return 0
+
+cpdef double ExponentialDLDL(double x, double lamb):
+    return 1./lamb - x
+
+cpdef double ExponentialMean(double lamb):
+    return 1./lamb
+
+cpdef double ExponentialVar(double lamb):
+    return 1./(lamb*lamb)
+
+cpdef double ExponentialStd(double lamb):
+    return 1./lamb
+
+cpdef double ExponentialMode(double lamb):
+    return 0
+
+# ===== Binomial Distribution =====
+
+cpdef double BinomialRand(int n, double probability, RandomEngine engine=defaultEngine):
+    engine.binomial_rand.param(binom_rng.param_type(n,probability))
+    return engine.binomial_rand(engine.source)
+
+cpdef double BinomialPDF(int x, int n, double probability):
+    cdef binom_info* temp = new binom_info(n,probability)
+    cdef double return_value = pdf(temp[0],x)
+    del temp
+    return return_value
+
+cpdef double BinomialLogPDF(int x, int n, double probability):
+    return log(BinomialPDF(x,n,probability))
+
+cpdef double BinomialCDF(double x, int n, double probability):
+    cdef binom_info* temp = new binom_info(n,probability)
+    cdef double return_value = cdf(temp[0],<int>x)
+    del temp
+    return return_value
+
+cpdef double BinomialDLDP(int x, int n, double probability):
+    return x/probability - (1-x)/(1.-probability)
+
+cpdef double BinomialMean(int n, double probability):
+    return n*probability
+
+cpdef double BinomialVar(int n, double probability):
+    return n*probability*(1.-probability)
+
+cpdef double BinomialStd(int n, double probability):
+    return sqrt(n*probability*(1.-probability))
+
+cpdef double BinomialMode(int n, double probability):
+    cdef int x = <int>(n*probability)
+    if BinomialPDF(x,n,probability) >= BinomialPDF(x,n,probability):
+        return x
+    else:
+        return x+1

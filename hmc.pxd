@@ -16,6 +16,7 @@ cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
 # Boost random variable distribtions (Descriptive functions -- not RNGs)
 cdef extern from "<boost/math/distributions.hpp>" namespace "boost::math":
     # Normal
+    # TODO: Rename
     cdef cppclass normal:
         normal(double mean, double std) except +
     double pdf(normal d, double x) except +
@@ -117,125 +118,114 @@ cdef class HMCSampler:
     cdef void metropolisStep(self, double[:] proposalStd)
 
 # Distribution classes
-cdef class _uniform:
-    cdef mTwister _generator
-    cdef uniform_rng _rand
-    cpdef double pdf(self,double x, double lower=?, double upper=?)
-    cpdef double logPDF(self,double x, double lower=?, double upper=?)
-    cpdef double cdf(self,double x, double lower=?, double upper=?)
-    cpdef double dldu(self,double x, double lower=?, double upper=?)
-    cpdef double dldl(self,double x, double lower=?, double upper=?)
-    cpdef double dldx(self,double x, double lower=?, double upper=?)
-    cpdef double rand(self,double lower=?, double upper=?)
-    cpdef double mean(self, double lower=?, double upper=?)
-    cpdef double var(self, double lower=?, double upper=?)
-    cpdef double std(self, double lower=?, double upper=?)
-    cpdef double mode(self, double lower=?, double upper=?)
+cdef class RandomEngine:
+    # RNG
+    cdef mTwister source
+    cdef uniform_rng uniform_rand
+    cdef normal_rng normal_rand
+    cdef gamma_rng gamma_rand
+    cdef beta_rng beta_rand
+    cdef pois_rng poisson_rand
+    cdef expon_rng exponential_rand
+    cdef binom_rng binomial_rand
 
-cdef class _normal:
-    cdef mTwister _generator
-    cdef normal_rng _rand
-    cpdef double pdf(self,double x, double mean=?, double sigma=?)
-    cpdef double logPDF(self,double x, double mean=?, double sigma=?)
-    cpdef double cdf(self,double x, double mean=?, double sigma=?)
-    cpdef double dldm(self,double x, double mean=?, double sigma=?)
-    cpdef double dldx(self,double x, double mean=?, double sigma=?)
-    cpdef double dldv(self,double x, double mean=?, double sigma=?)
-    cpdef double dlds(self,double x, double mean=?, double sigma=?)
-    cpdef double rand(self,double mean=?, double sigma=?)
-    cpdef double mean(self, double mean=?, double sigma=?)
-    cpdef double var(self, double mean=?, double sigma=?)
-    cpdef double std(self, double mean=?, double sigma=?)
-    cpdef double mode(self, double mean=?, double sigma=?)
+cdef RandomEngine defaultEngine
 
-cdef class _gamma:
-    cdef mTwister _generator
-    cdef gamma_rng _rand
-    cpdef double pdf(self,double x, double shape, double rate)
-    cpdef double logPDF(self,double x, double shape, double rate)
-    cpdef double cdf(self,double x, double shape, double rate)
-    cpdef double dlda(self,double x, double shape, double rate)
-    cpdef double dldb(self,double x, double shape, double rate)
-    cpdef double dldx(self,double x, double shape, double rate)
-    cpdef double rand(self,double shape, double rate)
-    cpdef double mean(self, double shape, double rate)
-    cpdef double var(self, double shape, double rate)
-    cpdef double std(self, double shape, double rate)
-    cpdef double mode(self, double shape, double rate)
+# Uniform Distribution
+cpdef double UniformRand(double lower=?, double upper=?, RandomEngine engine=?)
+cpdef double UniformPDF(double x, double lower=?, double upper=?)
+cpdef double UniformLogPDF(double x, double lower=?, double upper=?)
+cpdef double UniformCDF(double x, double lower=?, double upper=?)
+cpdef double UniformDLDU(double x, double lower=?, double upper=?)
+cpdef double UniformDLDL(double x, double lower=?, double upper=?)
+cpdef double UniformMean(double lower=?, double upper=?)
+cpdef double UniformVar(double lower=?, double upper=?)
+cpdef double UniformStd(double lower=?, double upper=?)
 
-cdef class _invGamma:
-    cdef mTwister _generator
-    cdef gamma_rng _rand
-    cpdef double pdf(self,double x, double shape, double rate)
-    cpdef double logPDF(self,double x, double shape, double rate)
-    cpdef double cdf(self,double x, double shape, double rate)
-    cpdef double dlda(self,double x, double shape, double rate)
-    cpdef double dldb(self,double x, double shape, double rate)
-    cpdef double dldx(self,double x, double shape, double rate)
-    cpdef double rand(self,double shape, double rate)
-    cpdef double mean(self, double shape, double rate)
-    cpdef double var(self, double shape, double rate)
-    cpdef double std(self, double shape, double rate)
-    cpdef double mode(self, double shape, double rate)
 
-cdef class _beta:
-    cdef mTwister _generator
-    cdef beta_rng _rand
-    cpdef double pdf(self,double x, double alpha, double beta)
-    cpdef double logPDF(self,double x, double alpha, double beta)
-    cpdef double cdf(self,double x, double alpha, double beta)
-    cpdef double dlda(self,double x, double alpha, double beta)
-    cpdef double dldb(self,double x, double alpha, double beta)
-    cpdef double rand(self,double alpha, double beta)
-    cpdef double mean(self, double alpha, double beta)
-    cpdef double var(self, double alpha, double beta)
-    cpdef double std(self, double alpha, double beta)
-    cpdef double mode(self, double alpha, double beta)
+# Normal Distribution
+cpdef double NormalRand(double mean=?, double sigma=?, RandomEngine engine = ?)
+cpdef double NormalPDF(double x, double mean=?, double sigma=?)
+cpdef double NormalLogPDF(double x, double mean=?, double sigma=?)
+cpdef double NormalCDF(double x, double mean=?, double sigma=?)
+cpdef double NormalDLDM(double x, double mean=?, double sigma=?)
+cpdef double NormalDLDX(double x, double mean=?, double sigma=?)
+cpdef double NormalDLDV(double x, double mean=?, double sigma=?)
+cpdef double NormalDLDS(double x, double mean=?, double sigma=?)
+cpdef double NormalMean(double mean=?, double sigma=?)
+cpdef double NormalVar(double mean=?, double sigma=?)
+cpdef double NormalStd(double mean=?, double sigma=?)
+cpdef double NormalMode(double mean=?, double sigma=?)
 
-cdef class _poisson:
-    cdef mTwister _generator
-    cdef pois_rng _rand
-    cpdef double pdf(self, int x, double lamb)
-    cpdef double logPDF(self, int x, double lamb)
-    cpdef double cdf(self, double x, double lamb)
-    cpdef double dldl(self, int x, double lamb)
-    cpdef double rand(self,double lamb)
-    cpdef double mean(self, double lamb)
-    cpdef double var(self, double lamb)
-    cpdef double std(self, double lamb)
-    cpdef double mode(self, double lamb)
+# Gamma
 
-cdef class _expon:
-    cdef mTwister _generator
-    cdef expon_rng _rand
-    cpdef double pdf(self, double x, double lamb)
-    cpdef double logPDF(self, double x, double lamb)
-    cpdef double cdf(self, double x, double lamb)
-    cpdef double dldl(self, double x, double lamb)
-    cpdef double rand(self,double lamb)
-    cpdef double mean(self, double lamb)
-    cpdef double var(self, double lamb)
-    cpdef double std(self, double lamb)
-    cpdef double mode(self, double lamb)
+cpdef double GammaRand(double shape, double rate, RandomEngine engine = ?)
+cpdef double GammaPDF(double x, double shape, double rate)
+cpdef double GammaLogPDF(double x, double shape, double rate)
+cpdef double GammaCDF(double x, double shape, double rate)
+cpdef double GammaDLDA(double x, double shape, double rate)
+cpdef double GammaDLDB(double x, double shape, double rate)
+cpdef double GammaDLDX(double x, double shape, double rate)
+cpdef double GammaMean(double shape, double rate)
+cpdef double GammaVar(double shape, double rate)
+cpdef double GammaStd(double shape, double rate)
+cpdef double GammaMode(double shape, double rate)
 
-cdef class _binomial:
-    cdef mTwister _generator
-    cdef binom_rng _rand
-    cpdef double pdf(self, int x, int n, double probability)
-    cpdef double logPDF(self, int x, int n, double probability)
-    cpdef double cdf(self, double x, int n, double probability)
-    cpdef double dldp(self, int x, int n, double probability)
-    cpdef double rand(self,int n, double probability)
-    cpdef double mean(self, int n, double probability)
-    cpdef double var(self, int n, double probability)
-    cpdef double std(self, int n, double probability)
-    cpdef double mode(self, int n, double probability)
+# Inverse-Gamma
 
-cdef _uniform Uniform
-cdef _normal Normal
-cdef _gamma Gamma
-cdef _invGamma InvGamma
-cdef _beta Beta
-cdef _poisson Poisson
-cdef _expon Exponential
-cdef _binomial Binomial
+cpdef double InvGammaRand(double shape, double rate, RandomEngine engine=?)
+cpdef double InvGammaPDF(double x, double shape, double rate)
+cpdef double InvGammaLogPDF(double x, double shape, double rate)
+cpdef double InvGammaCDF(double x, double shape, double rate)
+cpdef double InvGammaDLDA(double x, double shape, double rate)
+cpdef double InvGammaDLDB(double x, double shape, double rate)
+cpdef double InvGammaDLDX(double x, double shape, double rate)
+cpdef double InvGammaMean(double shape, double rate)
+cpdef double InvGammaVar(double shape, double rate)
+cpdef double InvGammaStd(double shape, double rate)
+cpdef double InvGammaMode(double shape, double rate)
+
+# Beta
+cpdef double BetaRand(double alpha, double beta, RandomEngine engine = ?)
+cpdef double BetaPDF(double x, double alpha, double beta)
+cpdef double BetaLogPDF(double x, double alpha, double beta)
+cpdef double BetaCDF(double x, double alpha, double beta)
+cpdef double BetaDLDA(double x, double alpha, double beta)
+cpdef double BetaDLDB(double x, double alpha, double beta)
+cpdef double BetaMean(double alpha, double beta)
+cpdef double BetaVar(double alpha, double beta)
+cpdef double BetaStd(double alpha, double beta)
+cpdef double BetaMode(double alpha, double beta)
+
+# Poisson
+cpdef double PoissonRand(double lamb, RandomEngine engine=?)
+cpdef double PoissonPDF(int x, double lamb)
+cpdef double PoissonLogPDF(int x, double lamb)
+cpdef double PoissonCDF(double x, double lamb)
+cpdef double PoissonDLDL(int x, double lamb)
+cpdef double PoissonMean(double lamb)
+cpdef double PoissonVar(double lamb)
+cpdef double PoissonStd(double lamb)
+cpdef int PoissonMode(double lamb)
+
+# Exponential
+cpdef double ExponentialRand(double lamb, RandomEngine engine=?)
+cpdef double ExponentialPDF(double x, double lamb)
+cpdef double ExponentialLogPDF(double x, double lamb)
+cpdef double ExponentialCDF(double x, double lamb)
+cpdef double ExponentialDLDL(double x, double lamb)
+cpdef double ExponentialMean(double lamb)
+cpdef double ExponentialVar(double lamb)
+cpdef double ExponentialStd(double lamb)
+cpdef double ExponentialMode(double lamb)
+
+# Binomial
+cpdef double BinomialRand(int n, double probability, RandomEngine engine=?)
+cpdef double BinomialPDF(int x, int n, double probability)
+cpdef double BinomialLogPDF(int x, int n, double probability)
+cpdef double BinomialCDF(double x, int n, double probability)
+cpdef double BinomialDLDP(int x, int n, double probability)
+cpdef double BinomialMean(int n, double probability)
+cpdef double BinomialVar(int n, double probability)
+cpdef double BinomialStd(int n, double probability)
+cpdef double BinomialMode(int n, double probability)
