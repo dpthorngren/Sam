@@ -1,3 +1,4 @@
+import time
 cdef class RandomEngine:
     def __init__(self,unsigned long int i):
         self.source = mTwister(i)

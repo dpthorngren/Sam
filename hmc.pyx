@@ -1,15 +1,8 @@
-import time
 include "distributions.pyx"
 import numpy as np
 cimport numpy as np
 
-
 cdef class HMCSampler:
-    '''
-    Prepares the HMC sampler.
-    Argument:
-        nDim: Number of dimensions to the probability distribution (int).
-    '''
     cpdef double logProbability(self, double[:] position):
         if self._testMode == 1:
             return - (position[0] - 4.0)**2/4.0 - (position[1] - 3.0)**2/2.0
@@ -24,9 +17,8 @@ cdef class HMCSampler:
         raise NotImplementedError("You haven't defined the log probability "+
                                   "gradient, but the sampler called it.")
 
-
     cdef void sample(self):
-        self.hmcStep(<int>UniformRand(100,300),UniformRand(.005,.05))
+        self.hmcStep(<int>UniformRand(5,100),UniformRand(.01,.5))
         self.metropolisStep(self.scale)
         return
 
@@ -112,6 +104,7 @@ cdef class HMCSampler:
 
 
     def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None):
+        # TODO: Better documentation
         '''
         Prepares the HMC sampler.
         Arguments:
