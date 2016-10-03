@@ -24,55 +24,57 @@ cdef class HMCSampler:
         raise NotImplementedError("You haven't defined the log probability "+
                                   "gradient, but the sampler called it.")
 
-    cdef void simTrajectory(self, Size nSteps, double stepSize):
-        '''
-            Computes a path taken by the particle from its current
-            position and velocity, given the potential -logProbability.
-            Argument:
-                nSteps (int): How many steps to take before stopping.
-        '''
-        cdef Size i, d
-        self.gradLogProbability(self.xPropose,self.gradient)
-        for i in range(nSteps):
-            for d in range(self.nDim):
-                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
-                self.xPropose[d] += self.vPropose[d] * stepSize
-            self.gradLogProbability(self.xPropose,self.gradient)
-            for d in range(self.nDim):
-                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
-        return
 
     cdef void sample(self):
         self.hmcStep(<int>UniformRand(100,300),UniformRand(.005,.05))
         return
 
-    cdef void hmcStep(self,Size nSteps, double stepSize):
-        cdef Size d
-        cdef double vMag2, vMagPropose2
+    cdef void hmcStep(self,Size nSteps, double stepSize, int ID=1):
+        cdef Size d, i
+        # Initialize velocities
         for d in range(self.nDim):
-            self.vPropose[d] = self.v[d] = NormalRand()
-            self.xPropose[d] = self.x[d]
-        self.simTrajectory(nSteps,stepSize)
-        vMag2 = 0
-        vMagPropose2 = 0
-        for d in range(self.nDim):
-            vMag2 += self.v[d]*self.v[d]
-            vMagPropose2 += self.vPropose[d]*self.vPropose[d]
-        if (log(UniformRand()) <
-            self.logProbability(self.xPropose) - vMagPropose2/2.0 -
-            self.logProbability(self.x) + vMag2/2.0):
+            if self.samplerChoice[d] == ID:
+                self.vPropose[d] = self.v[d] = NormalRand()
+                self.xPropose[d] = self.x[d]
+
+        # Simulate the trajectory
+        self.gradLogProbability(self.xPropose,self.gradient)
+        for i in range(nSteps):
             for d in range(self.nDim):
-                self.x[d] = self.xPropose[d]
+                if self.samplerChoice[d] == ID:
+                    self.vPropose[d] += stepSize * self.gradient[d] / 2.0
+                    self.xPropose[d] += self.vPropose[d] * stepSize
+            self.gradLogProbability(self.xPropose,self.gradient)
+            for d in range(self.nDim):
+                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
+
+        # Compute the kinetic energy part of the new and old Hamiltonians
+        cdef double kinetic = 0
+        cdef double kineticPropose = 0
+        for d in range(self.nDim):
+            if self.samplerChoice[d] == ID:
+                kinetic += self.v[d]*self.v[d] / 2.0
+                kineticPropose += self.vPropose[d]*self.vPropose[d] / 2.0
+
+        # Decide whether to accept the new point
+        if (log(UniformRand()) <
+            self.logProbability(self.xPropose) - kineticPropose -
+            self.logProbability(self.x) + kinetic):
+            for d in range(self.nDim):
+                if self.samplerChoice[d] == ID:
+                    self.x[d] = self.xPropose[d]
         return
 
-    cdef void metropolisStep(self, double[:] proposalStd):
+    cdef void metropolisStep(self, double[:] proposalStd, int ID=2):
         cdef Size d
         for d in range(self.nDim):
-            self.xPropose[d] = self.x[d] + NormalRand(0,proposalStd[d])
+            if self.samplerChoice[d] == ID:
+                self.xPropose[d] = self.x[d] + NormalRand(0,proposalStd[d])
         if (log(UniformRand()) < self.logProbability(self.xPropose) -
             self.logProbability(self.x)):
             for d in range(self.nDim):
-                self.x[d] = self.xPropose[d]
+                if self.samplerChoice[d] == ID:
+                    self.x[d] = self.xPropose[d]
         return
 
     cdef void record(self,Size i):
@@ -104,43 +106,13 @@ cdef class HMCSampler:
         return self.samples
 
 
-    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps, double stepSize):
-        '''
-        Given an initial position and velocity, returns the trajectory
-        taken by a particle in the potential given by U=-log(probability).
-        Not used internally, this function is for debugging the energy
-        and gradient functions.
-
-        Inputs:
-            x0 - The starting position.  Should have the same length as the
-                number of dimensions.
-            y0 - The starting velocity.  Should have the same length as the
-                number of dimensions.
-            nSteps - How many leapfrog steps to take.
-
-        Output:
-            A numpy array containing the positions after each step, including
-            the starting position.  Dimensions are [nSteps,nDimensions].
-        '''
-        cdef Size i, d
-        for d in range(self.nDim):
-            self.xPropose[d] = x0[d]
-            self.vPropose[d] = v0[d]
-        output = np.empty((nSteps,self.nDim),dtype=np.double)
-        for d in range(self.nDim):
-            output[0,d] = self.xPropose[d]
-        for i in range(nSteps):
-            self.simTrajectory(1,stepSize)
-            for d in range(self.nDim):
-                output[i,d] = self.xPropose[d]
-        return output
-
-    def __init__(self,Size nDim):
+    def __init__(self,Size nDim, int[:] samplerChoice=None):
         '''
         Prepares the HMC sampler.
         Arguments:
             nDim: Number of dimensions to the probability distribution (int).
         '''
+        cdef Size d
         self.nDim = nDim
         self._testMode = 0
         self.x = np.zeros(self.nDim,dtype=np.double)
@@ -148,6 +120,11 @@ cdef class HMCSampler:
         self.xPropose = np.zeros(self.nDim,dtype=np.double)
         self.vPropose = np.empty(self.nDim,dtype=np.double)
         self.gradient = np.empty(self.nDim,dtype=np.double)
+        if samplerChoice is None:
+            self.samplerChoice = np.ones(self.nDim,dtype=np.intc)
+        else:
+            for d in range(self.nDim):
+                self.samplerChoice[d] = samplerChoice[d]
         return
 
 

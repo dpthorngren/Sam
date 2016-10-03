@@ -90,6 +90,7 @@ cdef class HMCSampler:
     # Parameters
     cdef Size nDim
     cdef int _testMode;
+    cdef int[:] samplerChoice
 
     # Working memory
     cdef double[:] x
@@ -112,10 +113,8 @@ cdef class HMCSampler:
     cdef void record(self,Size i)
 
     # Sampling functions
-    cdef void hmcStep(self,Size nSteps, double stepSize)
-    cdef void simTrajectory(self, Size nSteps, double stepSize)
-    cpdef recordTrajectory(self,double[:] x0, double[:] v0, Size nSteps, double stepSize)
-    cdef void metropolisStep(self, double[:] proposalStd)
+    cdef void hmcStep(self,Size nSteps, double stepSize, int ID=?)
+    cdef void metropolisStep(self, double[:] proposalStd, int ID=?)
 
 # Distribution classes
 cdef class RandomEngine:
