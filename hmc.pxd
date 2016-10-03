@@ -91,12 +91,12 @@ cdef class HMCSampler:
     cdef Size nDim
     cdef int _testMode;
     cdef int[:] samplerChoice
+    cdef double[:] scale
 
     # Working memory
     cdef double[:] x
-    cdef double[:] v
     cdef double[:] xPropose
-    cdef double[:] vPropose
+    cdef double[:] momentum
     cdef double[:] gradient
 
     # Output

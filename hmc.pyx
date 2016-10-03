@@ -27,6 +27,7 @@ cdef class HMCSampler:
 
     cdef void sample(self):
         self.hmcStep(<int>UniformRand(100,300),UniformRand(.005,.05))
+        self.metropolisStep(self.scale)
         return
 
     cdef void hmcStep(self,Size nSteps, double stepSize, int ID=1):
@@ -34,27 +35,31 @@ cdef class HMCSampler:
         # Initialize velocities
         for d in range(self.nDim):
             if self.samplerChoice[d] == ID:
-                self.vPropose[d] = self.v[d] = NormalRand()
+                self.momentum[d] = NormalRand(0,1./sqrt(self.scale[d]))
                 self.xPropose[d] = self.x[d]
+
+        # Compute the kinetic energy part of the initial Hamiltonian
+        cdef double kinetic = 0
+        for d in range(self.nDim):
+            if self.samplerChoice[d] == ID:
+                kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
         self.gradLogProbability(self.xPropose,self.gradient)
         for i in range(nSteps):
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
-                    self.vPropose[d] += stepSize * self.gradient[d] / 2.0
-                    self.xPropose[d] += self.vPropose[d] * stepSize
+                    self.momentum[d] += stepSize * self.gradient[d] / 2.0
+                    self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
             self.gradLogProbability(self.xPropose,self.gradient)
             for d in range(self.nDim):
-                self.vPropose[d] += stepSize * self.gradient[d] / 2.0
+                self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
-        # Compute the kinetic energy part of the new and old Hamiltonians
-        cdef double kinetic = 0
+        # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
         for d in range(self.nDim):
             if self.samplerChoice[d] == ID:
-                kinetic += self.v[d]*self.v[d] / 2.0
-                kineticPropose += self.vPropose[d]*self.vPropose[d] / 2.0
+                kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
         if (log(UniformRand()) <
@@ -106,7 +111,7 @@ cdef class HMCSampler:
         return self.samples
 
 
-    def __init__(self,Size nDim, int[:] samplerChoice=None):
+    def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None):
         '''
         Prepares the HMC sampler.
         Arguments:
@@ -116,13 +121,14 @@ cdef class HMCSampler:
         self.nDim = nDim
         self._testMode = 0
         self.x = np.zeros(self.nDim,dtype=np.double)
-        self.v = np.empty(self.nDim,dtype=np.double)
+        self.momentum = np.empty(self.nDim,dtype=np.double)
         self.xPropose = np.zeros(self.nDim,dtype=np.double)
-        self.vPropose = np.empty(self.nDim,dtype=np.double)
         self.gradient = np.empty(self.nDim,dtype=np.double)
-        if samplerChoice is None:
-            self.samplerChoice = np.ones(self.nDim,dtype=np.intc)
-        else:
+        self.scale = np.empty(self.nDim,dtype=np.double)
+        self.samplerChoice = np.ones(self.nDim,dtype=np.intc)
+        for d in range(self.nDim):
+            self.scale[d] = scale[d]
+        if samplerChoice is not None:
             for d in range(self.nDim):
                 self.samplerChoice[d] = samplerChoice[d]
         return
