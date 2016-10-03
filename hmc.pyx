@@ -1,6 +1,6 @@
-include "distributions.pyx"
 import numpy as np
 cimport numpy as np
+include "distributions.pyx"
 
 cdef class HMCSampler:
     cpdef double logProbability(self, double[:] position):

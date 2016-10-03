@@ -142,7 +142,7 @@ cpdef double UniformVar(double lower=?, double upper=?)
 cpdef double UniformStd(double lower=?, double upper=?)
 
 
-# Normal Distribution
+# Normal
 cpdef double NormalRand(double mean=?, double sigma=?, RandomEngine engine = ?)
 cpdef double NormalPDF(double x, double mean=?, double sigma=?)
 cpdef double NormalLogPDF(double x, double mean=?, double sigma=?)
@@ -156,8 +156,11 @@ cpdef double NormalVar(double mean=?, double sigma=?)
 cpdef double NormalStd(double mean=?, double sigma=?)
 cpdef double NormalMode(double mean=?, double sigma=?)
 
-# Gamma
+# Multivariate Normal
+cpdef mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output)
+cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance)
 
+# Gamma
 cpdef double GammaRand(double shape, double rate, RandomEngine engine = ?)
 cpdef double GammaPDF(double x, double shape, double rate)
 cpdef double GammaLogPDF(double x, double shape, double rate)

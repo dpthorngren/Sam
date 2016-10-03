@@ -79,6 +79,19 @@ cpdef double NormalStd(double mean=0, double sigma=1):
 cpdef double NormalMode(double mean=0, double sigma=1):
     return mean
 
+# ===== Multivariate Normal Distribution =====
+#TODO: Re-implement this prototype without using Numpy
+cpdef mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output):
+    output = np.asarray(mean) + np.linalg.cholesky(covariance)*np.random.randn(mean.shape[0])
+    return np.asarray(output).copy()
+
+cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance):
+    cov = np.asmatrix(covariance)
+    offset = np.asmatrix(np.asarray(x)-np.asarray(mean))
+    cdef int dim = mean.shape[0]
+    return exp(-offset*cov*offset.T/2.0)/\
+            ((2.*pi)**(dim/2.) * sqrt(np.linalg.det(cov)))
+
 # ===== Gamma Distribution =====
 
 cpdef double GammaRand(double shape, double rate, RandomEngine engine = defaultEngine):
