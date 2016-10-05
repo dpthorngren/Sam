@@ -1,5 +1,6 @@
 import numpy as np
 cimport numpy as np
+from scipy.stats import multivariate_normal
 include "distributions.pyx"
 
 cdef class HMCSampler:
@@ -73,6 +74,33 @@ cdef class HMCSampler:
                 if self.samplerChoice[d] == ID:
                     self.x[d] = self.xPropose[d]
         return
+
+    # TODO: remove need for numpy
+    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None):
+        '''Computes a linear regression with normal errors on x,y.
+        x - The design matrix: columns of predictor variables stacked
+            horizontally into a matrix.
+        y - An array of variables to be fitted to.
+        output - A memoryview to write the resulting samples to.  Should be
+            size x1.shape[1] + 1, one for each coefficient plus the standard
+            deviation of the result.
+        '''
+        cdef Size d, dim
+        dim = x1.shape[1]
+        x = np.asarray(x1)
+        y = np.asarray(y1)
+        if output is None:
+            output = np.empty_like(x[0])
+        V = np.linalg.inv(x.T.dot(x))
+        beta_hat = V.dot(x.T).dot(y[:,np.newaxis])
+        ssd = (y-x.dot(beta_hat)[:,0]).T.dot(y-x.dot(beta_hat)[:,0])
+        sigmasq = 1./np.random.gamma((len(y)-np.shape(x)[1])/2.0,2.0/ssd)
+        coeffs = (multivariate_normal.rvs(np.zeros(np.shape(x)[1]),V) *
+                  np.sqrt(sigmasq[:,np.newaxis]) + beta_hat[:,0])
+        for d in range(dim):
+            output[d] = coeffs[d]
+        output[dim] = sqrt(sigmasq)
+        return output
 
     cdef void record(self,Size i):
         cdef Size d

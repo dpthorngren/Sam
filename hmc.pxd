@@ -115,6 +115,7 @@ cdef class HMCSampler:
     # Sampling functions
     cdef void hmcStep(self,Size nSteps, double stepSize, int ID=?)
     cdef void metropolisStep(self, double[:] proposalStd, int ID=?)
+    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?)
 
 # Distribution classes
 cdef class RandomEngine:
