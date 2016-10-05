@@ -110,6 +110,7 @@ cdef class HMCSampler:
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
 
     # Structural functions
+    cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
     cdef void sample(self)
     cdef void record(self,Size i)

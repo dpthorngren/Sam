@@ -146,6 +146,18 @@ cdef class HMCSampler:
         return self.samples
 
 
+    cpdef void testGradient(self, double[:] x0, double eps=1e-5):
+        cdef double central = self.logProbability(x0)
+        cdef double estimate
+        self.gradLogProbability(x0,self.gradient)
+        for d in range(self.nDim):
+            x0[d] += self.scale[d]*eps
+            estimate = (self.logProbability(x0) - central)/(self.scale[d]*eps)
+            print d, (estimate-self.gradient[d])/(estimate+self.gradient[d])
+            x0[d] -= self.scale[d]*eps
+        return
+
+
     def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         # TODO: Better documentation
         '''
