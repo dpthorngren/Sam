@@ -84,7 +84,7 @@ cdef extern from "<boost/random/binomial_distribution.hpp>":
         void param(param_type)
 
 # Standard library
-from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi
+from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity
 
 cdef class HMCSampler:
     # Parameters
@@ -92,6 +92,8 @@ cdef class HMCSampler:
     cdef int _testMode;
     cdef int[:] samplerChoice
     cdef double[:] scale
+    cdef double[:] upperBoundaries
+    cdef double[:] lowerBoundaries
 
     # Working memory
     cdef double[:] x
@@ -111,6 +113,7 @@ cdef class HMCSampler:
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
     cdef void sample(self)
     cdef void record(self,Size i)
+    cdef void bouncingMove(self, double stepSize, int ID)
 
     # Sampling functions
     cdef void hmcStep(self,Size nSteps, double stepSize, int ID=?)

@@ -43,7 +43,7 @@ cdef class HMCSampler:
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
                     self.momentum[d] += stepSize * self.gradient[d] / 2.0
-                    self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
+            self.bouncingMove(stepSize, ID)
             self.gradLogProbability(self.xPropose,self.gradient)
             for d in range(self.nDim):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
@@ -61,6 +61,21 @@ cdef class HMCSampler:
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
                     self.x[d] = self.xPropose[d]
+        return
+
+    cdef void bouncingMove(self, double stepSize, int ID):
+        cdef Size d
+        for d in range(self.nDim):
+            if self.samplerChoice[d] == ID:
+                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
+                # Enforce boundary conditions
+                if self.xPropose[d] >= self.upperBoundaries[d]:
+                    self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
+                    self.momentum[d] = -self.momentum[d]
+                if self.xPropose[d] <= self.lowerBoundaries[d]:
+                    self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
+                    self.momentum[d] = -self.momentum[d]
+
         return
 
     cdef void metropolisStep(self, double[:] proposalStd, int ID=2):
@@ -131,7 +146,7 @@ cdef class HMCSampler:
         return self.samples
 
 
-    def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None):
+    def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         # TODO: Better documentation
         '''
         Prepares the HMC sampler.
@@ -147,11 +162,25 @@ cdef class HMCSampler:
         self.gradient = np.empty(self.nDim,dtype=np.double)
         self.scale = np.empty(self.nDim,dtype=np.double)
         self.samplerChoice = np.ones(self.nDim,dtype=np.intc)
+        self.upperBoundaries = np.empty(self.nDim,dtype=np.double)
+        self.lowerBoundaries = np.empty(self.nDim,dtype=np.double)
         for d in range(self.nDim):
             self.scale[d] = scale[d]
         if samplerChoice is not None:
             for d in range(self.nDim):
                 self.samplerChoice[d] = samplerChoice[d]
+        if upperBoundaries is not None:
+            for d in range(self.nDim):
+                self.upperBoundaries[d] = upperBoundaries[d]
+        else:
+            for d in range(self.nDim):
+                self.upperBoundaries[d] = infinity
+        if lowerBoundaries is not None:
+            for d in range(self.nDim):
+                self.lowerBoundaries[d] = lowerBoundaries[d]
+        else:
+            for d in range(self.nDim):
+                self.lowerBoundaries[d] = -infinity
         return
 
 

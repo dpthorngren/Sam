@@ -50,7 +50,7 @@ cpdef double NormalPDF(double x, double mean=0, double sigma=1):
     return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
 
 cpdef double NormalLogPDF(double x, double mean=0, double sigma=1):
-    return log(NormalPDF(x,mean,sigma))
+    return -(x-mean)**2/(2*sigma*sigma) - .5*log(2*pi*sigma*sigma)
 
 cpdef double NormalCDF(double x, double mean=0, double sigma=1):
     return cdf(normal(mean,sigma),x)
