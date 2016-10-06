@@ -157,6 +157,29 @@ cdef class HMCSampler:
             x0[d] -= self.scale[d]*eps
         return
 
+    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
+        cdef Size d, i
+        cdef bint done = 0
+        cdef double xNew
+        for d in range(self.nDim):
+            self.x[d] = x0[d]
+        while not done:
+            self.gradLogProbability(self.x,self.gradient)
+            done = True
+            for d in range(self.nDim):
+                xNew = self.x[d] + step*self.scale[d]*self.scale[d]*self.gradient[d]
+                if xNew < self.lowerBoundaries[d]:
+                    xNew = self.lowerBoundaries[d]
+                if xNew > self.upperBoundaries[d]:
+                    xNew = self.upperBoundaries[d]
+                if abs(xNew - self.x[d]) > abs(eps * self.scale[d]):
+                    done = False
+                self.x[d] = xNew
+        output = np.zeros(self.nDim)
+        for d in range(self.nDim):
+            output[d] = self.x[d]
+        return output
+
 
     def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         # TODO: Better documentation

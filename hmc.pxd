@@ -109,9 +109,12 @@ cdef class HMCSampler:
     cpdef double logProbability(self, double[:] position)
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
 
-    # Structural functions
-    cpdef void testGradient(self, double[:] x0, double eps=?)
+    # User-called functions
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
+    cpdef void testGradient(self, double[:] x0, double eps=?)
+    cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
+
+    # Structural functions
     cdef void sample(self)
     cdef void record(self,Size i)
     cdef void bouncingMove(self, double stepSize, int ID)
