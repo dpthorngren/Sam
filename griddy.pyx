@@ -5,7 +5,7 @@ cdef class Griddy:
     def __init__(self,axes,values):
         cdef Size d, i, totalSize, maxPoints
         self.nDim = len(axes)
-        cdef bint[:] uniform = np.empty(self.nDim,dtype=intc)
+        cdef bint[:] uniform = np.empty(self.nDim,dtype=np.intc)
         self.nPoints = np.empty(self.nDim,dtype=int)
         strides = np.ones(self.nDim,dtype=int)
         totalSize = 1
