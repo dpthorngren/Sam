@@ -1,3 +1,6 @@
+cimport numpy as np
+cimport cython
+from scipy.stats import multivariate_normal
 # Type definition
 ctypedef Py_ssize_t Size
 
@@ -84,7 +87,7 @@ cdef extern from "<boost/random/binomial_distribution.hpp>":
         void param(param_type)
 
 # Standard library
-from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity
+from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan
 
 cdef class HMCSampler:
     # Parameters
@@ -124,6 +127,27 @@ cdef class HMCSampler:
     cdef void hmcStep(self,Size nSteps, double stepSize, int ID=?)
     cdef void metropolisStep(self, double[:] proposalStd, int ID=?)
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?)
+
+# Griddy
+cdef class Griddy:
+    # Grid information
+    cdef double[:,:] axes
+    cdef double[:] values
+    cdef Size[:] nPoints
+    cdef Size[:] strides
+    cdef Size nDim
+
+    # Working memory
+    cdef double[:] weights
+    cdef double[:] widths
+    cdef Size[:] indices
+    cdef Size[:] tempIndices
+    cdef Size ind(self, Size[:] p)
+    cdef bint locatePoints(self, double[:] point)
+    cdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?)
+    cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced)
+    cdef double findEdge(self, Size index, Size dim)
+    cdef void interpN(self,double[:,:] points, double[:] output)
 
 # Distribution classes
 cdef class RandomEngine:

@@ -1,7 +1,6 @@
-import numpy as np
-cimport numpy as np
-from scipy.stats import multivariate_normal
 include "distributions.pyx"
+include "griddy.pyx"
+import numpy as np
 
 cdef class HMCSampler:
     cpdef double logProbability(self, double[:] position):
