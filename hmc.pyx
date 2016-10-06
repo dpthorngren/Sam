@@ -181,6 +181,37 @@ cdef class HMCSampler:
         return output
 
 
+    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
+        cdef Size d, i
+        cdef double energy, energyPropose, temperature
+        for d in range(self.nDim):
+            self.x[d] = x0[d]
+        energy = self.logProbability(self.x)
+        for i in range(nSteps):
+            temperature = T0*(1. - (<double>i)/(nSteps))
+            for d in range(self.nDim):
+                self.xPropose[d] = NormalRand(self.x[d],width*self.scale[d])
+            energyPropose = self.logProbability(self.xPropose)
+            if (energyPropose - energy)/temperature > log(UniformRand(0,1)):
+                for d in range(self.nDim):
+                    self.x[d] = self.xPropose[d]
+                    energy = energyPropose
+        for i in range(nQuench):
+            for d in range(self.nDim):
+                self.xPropose[d] = NormalRand(self.x[d],width*self.scale[d]/5.)
+            energyPropose = self.logProbability(self.xPropose)
+            if (energyPropose > energy):
+                for d in range(self.nDim):
+                    self.x[d] = self.xPropose[d]
+                    energy = energyPropose
+        output = np.zeros(self.nDim)
+        for d in range(self.nDim):
+            output[d] = self.x[d]
+        return output
+
+
+
+
     def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         # TODO: Better documentation
         '''

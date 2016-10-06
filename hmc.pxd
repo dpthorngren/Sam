@@ -113,6 +113,7 @@ cdef class HMCSampler:
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
+    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
 
     # Structural functions
     cdef void sample(self)
