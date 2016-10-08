@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 
+# TODO: Fix for 2 points grids
 cdef class Griddy:
     def __init__(self,axes,values):
         cdef Size d, i, totalSize, maxPoints
@@ -16,8 +17,6 @@ cdef class Griddy:
             assert (np.diff(axes[d])>0.0).all()
             self.nPoints[d] = len(axes[d])
             totalSize *= self.nPoints[d]
-            if d > 0:
-                strides[:d] *= self.nPoints[self.nDim-d]
             # Check for uniformity
             if np.allclose(axes[d],
                            np.linspace(axes[d][0], axes[d][-1], axes[d].size),
@@ -27,6 +26,9 @@ cdef class Griddy:
                 uniform[d] = False
                 if maxPoints < self.nPoints[d]:
                     maxPoints = self.nPoints[d]
+        for d in range(self.nDim):
+            if d > 0:
+                strides[:d] *= self.nPoints[d]
 
         self.strides = strides
         self.axes = np.empty((self.nDim,maxPoints),dtype=np.double)
@@ -57,7 +59,7 @@ cdef class Griddy:
     # @cython.wraparound(False)
     # @cython.cdivision(True)
     # @cython.initializedcheck(False)
-    cdef Size ind(self,Size[:] p):
+    cpdef Size ind(self,Size[:] p):
         cdef Size d, index = 0
         for d in range(self.nDim):
             index += p[d]*self.strides[d]
@@ -67,7 +69,7 @@ cdef class Griddy:
     # @cython.wraparound(False)
     # @cython.cdivision(True)
     # @cython.initializedcheck(False)
-    cdef bint locatePoints(self, double[:] point):
+    cpdef bint locatePoints(self, double[:] point):
         # Locates the indices corresponding to the point
         # Writes to self.indices, returns whether out of bounds
         cdef Size d, i, low, high
@@ -97,6 +99,7 @@ cdef class Griddy:
                 i = <Size>((point[d]-self.axes[d,0])/self.axes[d,2])
                 self.indices[d] = i
                 self.widths[d] = self.axes[d,2]
+                #TODO: fix this 1e-10 hack
                 self.weights[d] = (point[d] - (self.axes[d,0] + i*self.axes[d,2])) / self.widths[d] + 1e-10
             else:
                 low = 0
@@ -118,9 +121,9 @@ cdef class Griddy:
     # @cython.wraparound(False)
     # @cython.cdivision(True)
     # @cython.initializedcheck(False)
-    def __call__(self,x,gradient=False):
+    def __call__(self,x,gradient=False,debug=False):
         # Using the RegularGridInterpolator system for sanity
-        cdef Size i, nInputs
+        cdef Size d, i, nInputs
         cdef double[:,:] gradsView
         cdef double[:,:] inputs = np.atleast_2d(_ndim_coords_from_arrays(x, ndim=self.nDim))
         if inputs.shape[1] != self.nDim:
@@ -132,7 +135,7 @@ cdef class Griddy:
             grads = np.empty((nInputs,self.nDim),dtype=np.double)
             gradsView = grads
             for i in range(nInputs):
-                outputsView[i] = self.interp(inputs[i],gradsView[i])
+                outputsView[i] = self.interp(inputs[i],gradsView[i],locate=True,debug=1)
             if nInputs == 1:
                 return outputs[0], grads[0]
             return outputs, grads
@@ -147,12 +150,31 @@ cdef class Griddy:
     # @cython.wraparound(False)
     # @cython.cdivision(True)
     # @cython.initializedcheck(False)
-    cdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True):
+    cpdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True, bint debug=False):
         # Locate indices and compute weights, or return nan
+        cdef Size b, d, offset
+        if debug:
+            print "Input:",
+            for d in range(self.nDim):
+                print points[d],
+            print ""
         if locate:
             if(self.locatePoints(points)):
+                if debug:
+                    print "\tOut of Bounds: ",
+                    for d in range(self.nDim):
+                        print self.indices[d],
+                    print ""
                 return nan
-        cdef Size b, d, offset
+        if debug:
+            print "\tIndices:",
+            for d in range(self.nDim):
+                print self.indices[d],
+            print ""
+            print "\tWeights:",
+            for d in range(self.nDim):
+                print self.weights[d],
+            print ""
         cdef double result = 0.0
         cdef double netWeight, gradWeight, adjustment
         if gradient is not None:
@@ -171,6 +193,11 @@ cdef class Griddy:
                 else:
                     netWeight *= 1.-self.weights[d]
             adjustment = netWeight*self.values[self.ind(self.tempIndices)]
+            if debug:
+                print "\tPoint {0} (".format(b),
+                for d in range(self.nDim):
+                    print self.indices[d] + (b>>d&1),
+                print "): {0}, {1}".format(netWeight,self.values[self.ind(self.tempIndices)])
             result += adjustment
             if gradient is not None:
                 for d in range(self.nDim):
@@ -179,6 +206,15 @@ cdef class Griddy:
                         gradient[d] += adjustment / (self.weights[d]*self.widths[d])
                     else:
                         gradient[d] -= adjustment / ((1-self.weights[d])*self.widths[d])
+        if debug:
+            print "\tOutput: {0}".format(result)
+            if gradient is None:
+                print "\tGradient: [disabled]"
+            else:
+                print "\tGradient:",
+                for d in range(self.nDim):
+                    print gradient[d],
+                print ""
         return result
 
     cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced):
@@ -214,7 +250,7 @@ cdef class Griddy:
                 bounced[d] = False
         return
 
-    cdef double findEdge(self, Size index, Size dim):
+    cpdef double findEdge(self, Size index, Size dim):
         if isnan(self.axes[dim,1]):
             return index*self.axes[dim,2] + self.axes[dim,0]
         return self.axes[dim,index]
@@ -223,11 +259,22 @@ cdef class Griddy:
     # @cython.wraparound(False)
     # @cython.cdivision(True)
     # @cython.initializedcheck(False)
-    cdef void interpN(self,double[:,:] points, double[:] output):
+    cpdef void interpN(self,double[:,:] points, double[:] output):
         cdef Size i
         assert output.shape[0] == points.shape[0]
         for i in range(points.shape[0]):
             output[i] = self.interp(points[i,:])
+        return
+
+    cpdef void printInfo(self):
+        cdef Size d, i
+        for d in range(self.nDim):
+            print "Axis {0}:".format(d),
+            if isnan(self.axes[d,1]):
+                print "{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,3])
+            else:
+                print "{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,self.nPoints[d]-1])
+        print "Strides:", np.asarray(self.strides)
         return
 
 

@@ -142,12 +142,14 @@ cdef class Griddy:
     cdef double[:] widths
     cdef Size[:] indices
     cdef Size[:] tempIndices
-    cdef Size ind(self, Size[:] p)
-    cdef bint locatePoints(self, double[:] point)
-    cdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?)
+
+    cpdef Size ind(self, Size[:] p)
+    cpdef bint locatePoints(self, double[:] point)
+    cpdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?, bint debug=?)
     cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced)
-    cdef double findEdge(self, Size index, Size dim)
-    cdef void interpN(self,double[:,:] points, double[:] output)
+    cpdef double findEdge(self, Size index, Size dim)
+    cpdef void interpN(self,double[:,:] points, double[:] output)
+    cpdef void printInfo(self)
 
 # Distribution classes
 cdef class RandomEngine:
