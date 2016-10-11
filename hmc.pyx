@@ -26,9 +26,11 @@ cdef class HMCSampler:
         cdef Size d, i
         # Initialize velocities
         for d in range(self.nDim):
+            self.xPropose[d] = self.x[d]
             if self.samplerChoice[d] == ID:
                 self.momentum[d] = NormalRand(0,1./sqrt(self.scale[d]))
-                self.xPropose[d] = self.x[d]
+            else:
+                self.momentum[d] = 0
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
@@ -45,7 +47,8 @@ cdef class HMCSampler:
             self.bouncingMove(stepSize, ID)
             self.gradLogProbability(self.xPropose,self.gradient)
             for d in range(self.nDim):
-                self.momentum[d] += stepSize * self.gradient[d] / 2.0
+                if self.samplerChoice[d] == ID:
+                    self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
         # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
