@@ -107,6 +107,7 @@ cdef class HMCSampler:
     # Output
     cdef public object samples
     cdef double[:,:] sampleView
+    cdef public double acceptanceRate
 
     # Mandatory user Defined Functions
     cpdef double logProbability(self, double[:] position)

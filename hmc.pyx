@@ -57,6 +57,7 @@ cdef class HMCSampler:
         if (log(UniformRand()) <
             self.logProbability(self.xPropose) - kineticPropose -
             self.logProbability(self.x) + kinetic):
+            self.acceptanceRate += 1.
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
                     self.x[d] = self.xPropose[d]
@@ -84,6 +85,7 @@ cdef class HMCSampler:
                 self.xPropose[d] = self.x[d] + NormalRand(0,proposalStd[d])
         if (log(UniformRand()) < self.logProbability(self.xPropose) -
             self.logProbability(self.x)):
+            self.acceptanceRate += 1.
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
                     self.x[d] = self.xPropose[d]
@@ -132,6 +134,7 @@ cdef class HMCSampler:
         '''
         cdef Size i, j, d
         cdef double vMag, vMagPropose
+        self.acceptanceRate = 0
         self.samples = np.empty((nSamples,self.nDim),dtype=np.double)
         self.sampleView = self.samples
         for d in range(self.nDim):
@@ -142,6 +145,7 @@ cdef class HMCSampler:
             if i >= burnIn: 
                 self.record(i-burnIn)
                 # TODO: track statistics here
+        self.acceptanceRate /= (nSamples + burnIn) * (thinning+1)
         return self.samples
 
 
