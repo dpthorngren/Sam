@@ -57,9 +57,14 @@ cdef class HMCSampler:
                 kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
+        # print self.logProbability(self.x), self.logProbability(self.xPropose),  kineticPropose, kinetic, self.logProbability(self.xPropose) - self.logProbability(self.x) - kineticPropose + kinetic
+        cdef double old = self.logProbability(self.x)
+        cdef double new = self.logProbability(self.xPropose)
+        # print 10**(new - old - kineticPropose + kinetic)
+        if isnan(new) or isnan(old):
+            raise ValueError("Got NaN for the log probability!")
         if (log(UniformRand()) <
-            self.logProbability(self.xPropose) - kineticPropose -
-            self.logProbability(self.x) + kinetic):
+             new - kineticPropose - old + kinetic):
             self.acceptanceRate += 1.
             for d in range(self.nDim):
                 if self.samplerChoice[d] == ID:
