@@ -116,7 +116,7 @@ cdef class HMCSampler:
         nPoints = X.shape[0]
         nDims = X.shape[1]
         if output is None:
-            output = np.empty(nDims,dtype=np.double)
+            output = np.empty(nDims+1,dtype=np.double)
         V = np.linalg.inv(X.T*X)
         beta_hat = V*X.T*y
         cdef double[:] deviation = np.array(y-X*beta_hat)[:,0]
@@ -124,9 +124,10 @@ cdef class HMCSampler:
         for i in range(nPoints):
             sigmasq += deviation[i]**2
         sigmasq = InvGammaRand((nPoints-nDims)/2.0,sigmasq/2.0)
-        output = np.array(beta_hat + np.linalg.cholesky(V)*sigmasq*np.random.randn(1,beta_hat.shape[0]).T).ravel()
-        # for i in range(nDim):
-            # output
+        deviation = np.array(beta_hat + np.linalg.cholesky(V)*sqrt(sigmasq)*np.random.randn(1,beta_hat.shape[0]).T).ravel()
+        for i in range(nDims):
+            output[i] = deviation[i]
+        output[nDims] = sqrt(sigmasq)
         return output
 
     cdef void record(self,Size i):
