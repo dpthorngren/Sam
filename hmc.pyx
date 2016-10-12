@@ -1,6 +1,7 @@
 include "distributions.pyx"
 include "griddy.pyx"
 import numpy as np
+cimport numpy as np
 
 cdef class HMCSampler:
     cpdef double logProbability(self, double[:] position):
@@ -109,21 +110,23 @@ cdef class HMCSampler:
             size x1.shape[1] + 1, one for each coefficient plus the standard
             deviation of the result.
         '''
-        cdef Size d, dim
-        dim = x1.shape[1]
-        x = np.asarray(x1)
-        y = np.asarray(y1)
+        cdef Size i, nDims, nPoints
+        X = np.asmatrix(x1)
+        y = np.asmatrix(y1).T
+        nPoints = X.shape[0]
+        nDims = X.shape[1]
         if output is None:
-            output = np.empty_like(x[0])
-        V = np.linalg.inv(x.T.dot(x))
-        beta_hat = V.dot(x.T).dot(y[:,np.newaxis])
-        ssd = (y-x.dot(beta_hat)[:,0]).T.dot(y-x.dot(beta_hat)[:,0])
-        sigmasq = 1./np.random.gamma((len(y)-np.shape(x)[1])/2.0,2.0/ssd)
-        coeffs = (multivariate_normal.rvs(np.zeros(np.shape(x)[1]),V) *
-                  np.sqrt(sigmasq[:,np.newaxis]) + beta_hat[:,0])
-        for d in range(dim):
-            output[d] = coeffs[d]
-        output[dim] = sqrt(sigmasq)
+            output = np.empty(nDims,dtype=np.double)
+        V = np.linalg.inv(X.T*X)
+        beta_hat = V*X.T*y
+        cdef double[:] deviation = np.array(y-X*beta_hat)[:,0]
+        cdef double sigmasq = 0
+        for i in range(nPoints):
+            sigmasq += deviation[i]**2
+        sigmasq = InvGammaRand((nPoints-nDims)/2.0,sigmasq/2.0)
+        output = np.array(beta_hat + np.linalg.cholesky(V)*sigmasq*np.random.randn(1,beta_hat.shape[0]).T).ravel()
+        # for i in range(nDim):
+            # output
         return output
 
     cdef void record(self,Size i):
