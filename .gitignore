@@ -1,6 +1,7 @@
 .ipynb_checkpoints
 data/
 plots/
+testing/
 *.pyc
 build/
 *.c
