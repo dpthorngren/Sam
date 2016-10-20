@@ -3,7 +3,7 @@ include "griddy.pyx"
 import numpy as np
 cimport numpy as np
 
-cdef class HMCSampler:
+cdef class Sammy:
     cpdef double logProbability(self, double[:] position):
         if self._testMode == 1:
             return - (position[0] - 4.0)**2/4.0 - (position[1] - 3.0)**2/2.0

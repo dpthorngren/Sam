@@ -89,7 +89,9 @@ cdef extern from "<boost/random/binomial_distribution.hpp>":
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan
 
-cdef class HMCSampler:
+
+
+cdef class Sammy:
     # Parameters
     cdef Size nDim
     cdef int _testMode;
