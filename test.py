@@ -1,10 +1,10 @@
 import numpy as np
-import sammy
+import sam
 
 # Griddy tests
 x = np.sin(np.linspace(0,np.pi/2,100))
 z = x*np.sin(x[:,np.newaxis])+4*np.log(x[np.newaxis,:]+1)
-f = sammy.Griddy((x,x),z)
+f = sam.Griddy((x,x),z)
 # print f((.5,np.random.rand(1000)))
 print f((.363,.634))
 points = np.array((.95,.9))
@@ -15,8 +15,8 @@ print points
 f.bounceMove(points,displacement,bounced)
 print points
 print bounced
-# sammy.test()
+# sam.test()
 
-# f = sammy.Sammy(2,.01)
+# f = sam.Sam(2,.01)
 # print f.run(100,100,np.random.rand(2))
-# sammy.test()
+# sam.test()

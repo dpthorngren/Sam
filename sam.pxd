@@ -91,7 +91,7 @@ from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, a
 
 
 
-cdef class Sammy:
+cdef class Sam:
     # Parameters
     cdef Size nDim
     cdef int _testMode;

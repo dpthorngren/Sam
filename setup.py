@@ -12,7 +12,7 @@ os.environ['OPT'] = " ".join(
     flag for flag in opt.split() if flag != '-Wstrict-prototypes'
 )
 
-extension = Extension("sammy",["sammy.pyx"],
+extension = Extension("sam",["sam.pyx"],
                       include_dirs=[np.get_include()],
                       language="c++",
                       extra_compile_args=["-Wno-cpp","-Wno-unused"])
