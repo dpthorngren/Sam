@@ -1,22 +1,7 @@
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Build import cythonize
-import numpy as np
+from distutils.core import setup, Extension
 
-# Workaround for the strict prototypes bug in distutils by subdir and daramarak at
-# http://stackoverflow.com/questions/8106258/cc1plus-warning-command-line-option-wstrict-prototypes-is-valid-for-ada-c-o
-import os
-from distutils.sysconfig import get_config_vars
-(opt,) = get_config_vars('OPT')
-os.environ['OPT'] = " ".join(
-    flag for flag in opt.split() if flag != '-Wstrict-prototypes'
-)
+samcpp = Extension('sam', sources=['sam.cpp'])
 
-extension = Extension("sam",["sam.pyx"],
-                      include_dirs=[np.get_include()],
-                      language="c++",
-                      extra_compile_args=["-Wno-cpp","-Wno-unused"])
-
-setup(
-    ext_modules=cythonize(extension)
-)
+setup(name='Sam',
+      description='An MCMC sampling system for c++, with bindings to python.',
+      ext_modules=[samcpp])
