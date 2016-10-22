@@ -5,7 +5,5 @@ testing/
 *.pyc
 build/
 *.c
-*.h
-*.cpp
 *.so
 old/
