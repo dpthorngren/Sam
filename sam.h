@@ -8,21 +8,31 @@
 
 class BaseSampler{
 public:
+    double* target;
+    size_t targetLen;
     std::string name;
     std::string getStatus();
     void sample();
 };
 
 class Sam{
-public:
+private:
     // Parameters
-    size_t nDim;
     double (*logLike)(double*, size_t);
-    std::vector<BaseSampler*> samplers;
-
+    size_t nDim;
+    // Working memory
+    double* x;
+    double* propose;
+    double* working1;
+    double* working2;
+public:
+    //Output
+    double* samples;
     // User-called Functions
+    std::vector<BaseSampler*> samplers;
     Sam(size_t, double (*)(double*,size_t));
     ~Sam();
+    void run(size_t,double*,size_t,size_t);
     std::string getStatus();
 };
 
