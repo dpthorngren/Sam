@@ -1,27 +1,13 @@
 #include "sam.h"
 
-// ===== Base Sampler Methods =====
-std::string BaseSampler::getStatus(){
-    std::string name = this->name;
-    if(name.empty()){
-        name = std::string("AnonymousSampler");
-    }
-    return name + std::string(": No further information implemented.");
-}
-
-void BaseSampler::sample(){
-    std::cout << "Warning: BaseSampler::sample called." << std::endl;
-    return;
-}
-
 // ===== Sam Methods =====
-Sam::Sam(size_t nDim, double (*logLike)(double*, size_t)){
+Sam::Sam(size_t nDim, double (*logProb)(double*)){
     this->nDim = nDim;
-    this->logLike = logLike;
+    this->logProb = logProb;
     samples = NULL;
     // Declare x and working memory in a contiguous block
     x = new double[4*nDim];
-    propose = &x[nDim*sizeof(double)];
+    xPropose = &x[nDim*sizeof(double)];
     working1 = &x[2*nDim*sizeof(double)];
     working2 = &x[3*nDim*sizeof(double)];
     return;
@@ -91,6 +77,116 @@ std::string Sam::getStatus(){
         status << "Data: [Too much to reasonably print.]" << std::endl;
     status << "===== Sampler Information =====" << std::endl;
     for(size_t i = 0; i < samplers.size(); i++)
-        status << samplers[i]->getStatus();
+        status << i << " - " << samplers[i]->getStatus();
     return std::string(status.str());
+}
+
+// ===== BaseSampler Methods =====
+BaseSampler::~BaseSampler(){
+    return;
+}
+
+// ===== Metropolis Methods =====
+Metropolis::Metropolis(){
+    man = NULL;
+    proposalStd = NULL;
+    targetStart = 0;
+    targetStop = 0;
+    return;
+}
+
+Metropolis::Metropolis(Sam *man, size_t targetStart, size_t targetStop,
+        double *proposalStd, double (*logProb)(double*)){
+    this->man = man;
+    if(logProb == NULL)
+        this->logProb = man->logProb;
+    else
+        this->logProb = logProb;
+    this->targetStart = targetStart;
+    this->targetStop = targetStop;
+    this->proposalStd = new double[targetStop-targetStart];
+    for(size_t i = 0; i < (targetStop-targetStart); i++){
+        this->proposalStd[i] = proposalStd[i];
+    }
+    return;
+}
+
+BaseSampler* Metropolis::copyToHeap(){
+    Metropolis* heapCopy = new Metropolis;
+    heapCopy->man = man;
+    heapCopy->logProb = logProb;
+    heapCopy->targetStart = targetStart;
+    heapCopy->targetStop = targetStop;
+    // Proper deep copy.  This will be less efficient in practice,
+    // but far more intuitive for the user, and helps avoid memory leaks.
+    heapCopy->proposalStd = new double[targetStop-targetStart];
+    for(size_t i = 0; i < (targetStop-targetStart); i++){
+        heapCopy->proposalStd[i] = proposalStd[i];
+    }
+    return static_cast<BaseSampler*>(heapCopy);
+}
+
+Metropolis::~Metropolis(){
+    if(proposalStd != NULL){
+        delete[] proposalStd;
+        proposalStd = NULL;
+    }
+    return;
+}
+
+std::string Metropolis::getStatus(){
+    std::stringstream status;
+    status << "Metropolis:" << std::endl;
+    bool isReady = true;
+    if(proposalStd == NULL) isReady = false;
+    if(man == NULL){
+        isReady = false;
+    }
+    else{
+        if(man->x == NULL) isReady = false;
+        if(man->xPropose == NULL) isReady = false;
+    }
+    if(isReady) status << "    Initialized: True" << std::endl;
+    else status << "    Initialized: False" << std::endl;
+    status << "    Target: (" << targetStart << ":" << targetStop
+           << "), Length = " << targetStop - targetStart << std::endl;
+    status << "    Acceptance: " << numAccepted << " / " << numProposed
+           << " (" << (double)numAccepted/numProposed << ")" << std::endl;
+    return std::string(status.str());
+}
+
+void Metropolis::sample(){
+    size_t i;
+    for(i = 0; i < man->nDim; i++){
+        man->xPropose[i] = man->x[i];
+        if(i>=targetStart and i < targetStop){
+            man->xPropose[i] = man->rng.normalRand(man->x[i],proposalStd[i-targetStart]);
+        }
+    }
+    if(log(man->rng.uniformRand()) < (logProb(man->xPropose)-logProb(man->x))){
+        for(i = targetStart; i < targetStop; i++)
+            man->x[i] = man->xPropose[i];
+            numAccepted += 1;
+    }
+    numProposed += 1;
+    return;
+}
+
+// ===== Random Number Generator Methods =====
+RNG::RNG(){
+    mTwister.seed(static_cast<unsigned int>(std::time(0)));
+    return;
+}
+
+RNG::RNG(unsigned int seed){
+    mTwister.seed(seed);
+    return;
+}
+
+double RNG::normalRand(double mean, double std){
+    return normal(mTwister)*std + mean;
+}
+
+double RNG::uniformRand(double min, double max){
+    return uniform(mTwister)*(max-min) + min;
 }
