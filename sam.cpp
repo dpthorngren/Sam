@@ -184,9 +184,39 @@ RNG::RNG(unsigned int seed){
 }
 
 double RNG::normalRand(double mean, double std){
-    return normal(mTwister)*std + mean;
+    return normal_gen(mTwister)*std + mean;
 }
 
 double RNG::uniformRand(double min, double max){
-    return uniform(mTwister)*(max-min) + min;
+    return uniform_gen(mTwister)*(max-min) + min;
+}
+
+int RNG::uniformIntRand(int min, int max){
+    uniform_int_gen.param(boost::random::uniform_int_distribution<int>::param_type(min,max));
+    return uniform_int_gen(mTwister);
+}
+
+double RNG::gammaRand(double shape, double rate){
+    gamma_gen.param(boost::random::gamma_distribution<double>::param_type(shape,1./rate));
+    return gamma_gen(mTwister);
+}
+
+double RNG::betaRand(double alpha, double beta){
+    beta_gen.param(boost::random::beta_distribution<double>::param_type(alpha,beta));
+    return beta_gen(mTwister);
+}
+
+int RNG::poissonRand(double rate){
+    poisson_gen.param(boost::random::poisson_distribution<int>::param_type(rate));
+    return poisson_gen(mTwister);
+}
+
+double RNG::exponentialRand(double rate){
+    exponential_gen.param(boost::random::exponential_distribution<double>::param_type(rate));
+    return exponential_gen(mTwister);
+}
+
+int RNG::binomialRand(int number, double probability){
+    binomial_gen.param(boost::random::binomial_distribution<int,double>::param_type(number,probability));
+    return binomial_gen(mTwister);
 }

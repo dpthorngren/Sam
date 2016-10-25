@@ -9,6 +9,11 @@
 #include <boost/math/special_functions.hpp>
 #include <boost/math/distributions.hpp>
 #include <boost/random.hpp>
+#include <boost/random/beta_distribution.hpp>
+#include <boost/random/poisson_distribution.hpp>
+#include <boost/random/exponential_distribution.hpp>
+#include <boost/random/binomial_distribution.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 
 class Sam;
 
@@ -16,13 +21,25 @@ class Sam;
 class RNG{
 private:
     boost::mt19937 mTwister;
-    boost::normal_distribution<double> normal;
-    boost::uniform_01<double> uniform;
+    boost::normal_distribution<double> normal_gen;
+    boost::uniform_01<double> uniform_gen;
+    boost::gamma_distribution<double> gamma_gen;
+    boost::random::beta_distribution<double> beta_gen;
+    boost::random::poisson_distribution<int> poisson_gen;
+    boost::random::exponential_distribution<double> exponential_gen;
+    boost::random::binomial_distribution<int,double> binomial_gen;
+    boost::random::uniform_int_distribution<int> uniform_int_gen;
 public:
     RNG();
     RNG(unsigned int);
     double normalRand(double=0, double=1);
     double uniformRand(double=0, double=1);
+    int uniformIntRand(int=0, int=1);
+    double gammaRand(double, double);
+    double betaRand(double, double);
+    int poissonRand(double);
+    double exponentialRand(double);
+    int binomialRand(int, double);
 };
 
 // Interface.  Derived classes below.
