@@ -14,6 +14,7 @@
 #include <boost/random/exponential_distribution.hpp>
 #include <boost/random/binomial_distribution.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
+#include <boost/math/distributions.hpp>
 
 class Sam;
 
@@ -32,14 +33,42 @@ private:
 public:
     RNG();
     RNG(unsigned int);
+    // Normal Distribution
     double normalRand(double=0, double=1);
+    double normalPDF(double,double,double);
+    double normalLogPDF(double, double, double);
+    // Uniform Distribution
     double uniformRand(double=0, double=1);
+    double uniformPDF(double,double,double);
+    double uniformLogPDF(double,double,double);
+    // Integer Uniform Distribution
     int uniformIntRand(int=0, int=1);
+    double uniformIntPDF(int,int,int);
+    double uniformIntLogPDF(int,int,int);
+    // Gamma Distribution
     double gammaRand(double, double);
+    double gammaPDF(double, double, double);
+    double gammaLogPDF(double, double, double);
+    // Inverse Gamma Distribution
+    double invGammaRand(double, double);
+    double invGammaPDF(double, double, double);
+    double invGammaLogPDF(double, double, double);
+    // Beta Distribution
     double betaRand(double, double);
+    double betaPDF(double, double, double);
+    double betaLogPDF(double, double, double);
+    // Poisson Distribution
     int poissonRand(double);
+    double poissonPDF(int, double);
+    double poissonLogPDF(int, double);
+    // Exponential Distribution
     double exponentialRand(double);
+    double exponentialPDF(double, double);
+    double exponentialLogPDF(double, double);
+    // Binomial Distribution
     int binomialRand(int, double);
+    double binomialPDF(int, int, double);
+    double binomialLogPDF(int, int, double);
 };
 
 // Interface.  Derived classes below.

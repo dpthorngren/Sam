@@ -183,40 +183,146 @@ RNG::RNG(unsigned int seed){
     return;
 }
 
+// === Normal Distribution ===
 double RNG::normalRand(double mean, double std){
     return normal_gen(mTwister)*std + mean;
 }
 
+double RNG::normalPDF(double x, double mean, double std){
+    return exp(-pow((x-mean)/std,2)/2.)/sqrt(2.*M_PI*std*std);
+}
+
+double RNG::normalLogPDF(double x, double mean, double std){
+    return -pow((x-mean)/std,2)/2. - .5*log(2.*M_PI*std*std);
+}
+
+// === Uniform Distribution ===
 double RNG::uniformRand(double min, double max){
     return uniform_gen(mTwister)*(max-min) + min;
 }
 
+double RNG::uniformPDF(double x, double min, double max){
+    if(x >= min and x <= max){
+        return 1./(max-min);
+    }
+    return 0.;
+}
+
+double RNG::uniformLogPDF(double x, double min, double max){
+    if(x >= min and x <= max){
+        return -log(max-min);
+    }
+    return -INFINITY;
+}
+
+// === Uniform Int Distribution ===
 int RNG::uniformIntRand(int min, int max){
     uniform_int_gen.param(boost::random::uniform_int_distribution<int>::param_type(min,max));
     return uniform_int_gen(mTwister);
 }
 
+double RNG::uniformIntPDF(int x, int min, int max){
+    if(x >= min and x <= max){
+        return 1./(1+max-min);
+    }
+    return 0.;
+}
+
+double RNG::uniformIntLogPDF(int x, int min, int max){
+    if(x >= min and x <= max){
+        return -log(1+max-min);
+    }
+    return INFINITY;
+}
+
+// === Gamma Distribution ===
 double RNG::gammaRand(double shape, double rate){
     gamma_gen.param(boost::random::gamma_distribution<double>::param_type(shape,1./rate));
     return gamma_gen(mTwister);
 }
 
+double RNG::gammaPDF(double x, double shape, double rate){
+    return pdf(boost::math::gamma_distribution<double>(shape,1./rate),x);
+}
+
+double RNG::gammaLogPDF(double x, double shape, double rate){
+    //TODO: Hand-optimize.
+    return log(this->gammaPDF(x,shape,rate));
+}
+
+// === Inverse Gamma Distribution ===
+double RNG::invGammaRand(double shape, double rate){
+    gamma_gen.param(boost::random::gamma_distribution<double>::param_type(shape,1./rate));
+    return 1./gamma_gen(mTwister);
+}
+
+double RNG::invGammaPDF(double x, double shape, double rate){
+    return pdf(boost::math::gamma_distribution<double>(shape,rate),1./x);
+}
+
+double RNG::invGammaLogPDF(double x, double shape, double rate){
+    //TODO: Hand-optimize.
+    return log(this->invGammaPDF(x,shape,rate));
+}
+
+
+// === Beta Distribution ===
 double RNG::betaRand(double alpha, double beta){
     beta_gen.param(boost::random::beta_distribution<double>::param_type(alpha,beta));
     return beta_gen(mTwister);
 }
 
+double RNG::betaPDF(double x, double alpha, double beta){
+    return pdf(boost::math::beta_distribution<double>(alpha,beta),x);
+}
+
+double RNG::betaLogPDF(double x, double alpha, double beta){
+    //TODO: Hand-optimize.
+    return log(this->betaRand(alpha,beta));
+}
+
+// === Poisson Distribution ===
 int RNG::poissonRand(double rate){
     poisson_gen.param(boost::random::poisson_distribution<int>::param_type(rate));
     return poisson_gen(mTwister);
 }
 
+double RNG::poissonPDF(int x, double rate){
+    return pdf(boost::math::poisson_distribution<int>(rate),x);
+}
+
+double RNG::poissonLogPDF(int x, double rate){
+    return log(this->poissonPDF(x,rate));
+}
+
+// === Exponential Distribution ===
 double RNG::exponentialRand(double rate){
     exponential_gen.param(boost::random::exponential_distribution<double>::param_type(rate));
     return exponential_gen(mTwister);
 }
 
+double RNG::exponentialPDF(double x, double rate){
+    if(x > 0)
+        return rate * exp(-rate*x);
+    return 0.;
+}
+
+double RNG::exponentialLogPDF(double x, double rate){
+    if(x>0)
+        return log(rate) - rate*x;
+    return -INFINITY;
+}
+
+// === Binomial Distribution ===
 int RNG::binomialRand(int number, double probability){
     binomial_gen.param(boost::random::binomial_distribution<int,double>::param_type(number,probability));
     return binomial_gen(mTwister);
+}
+
+double RNG::binomialPDF(int x, int number, double probability){
+    return pdf(boost::math::binomial_distribution<double>(number,probability),x);
+}
+
+double RNG::binomialLogPDF(int x, int number, double probability){
+    return log(this->binomialPDF(x,number,probability));
 }
