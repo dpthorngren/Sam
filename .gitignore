@@ -6,4 +6,5 @@ testing/
 build/
 *.c
 *.so
+pysam.cpp
 old/

@@ -13,6 +13,18 @@ Sam::Sam(size_t nDim, double (*logProb)(double*)){
     return;
 }
 
+Sam::Sam(){
+    nDim = 0;
+    logProb = NULL;
+    samples = NULL;
+    // Declare x and working memory in a contiguous block
+    x = NULL;
+    xPropose = NULL;
+    working1 = NULL;
+    working2 = NULL;
+    return;
+}
+
 Sam::~Sam(){
     // Deallocate samplers
     for(size_t i=0; i < samplers.size(); i++){
@@ -22,7 +34,10 @@ Sam::~Sam(){
         }
     }
     // Deallocate working memory
-    delete[] x;
+    if(x != NULL){
+        delete[] x;
+        x = NULL;
+    }
     return;
 }
 

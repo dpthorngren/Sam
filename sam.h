@@ -35,16 +35,16 @@ public:
     RNG(unsigned int);
     // Normal Distribution
     double normalRand(double=0, double=1);
-    double normalPDF(double,double,double);
-    double normalLogPDF(double, double, double);
+    double normalPDF(double,double=0,double=1);
+    double normalLogPDF(double, double=0, double=1);
     // Uniform Distribution
     double uniformRand(double=0, double=1);
-    double uniformPDF(double,double,double);
-    double uniformLogPDF(double,double,double);
+    double uniformPDF(double,double=0,double=1);
+    double uniformLogPDF(double,double=0,double=1);
     // Integer Uniform Distribution
     int uniformIntRand(int=0, int=1);
-    double uniformIntPDF(int,int,int);
-    double uniformIntLogPDF(int,int,int);
+    double uniformIntPDF(int,int=0,int=1);
+    double uniformIntLogPDF(int,int=0,int=1);
     // Gamma Distribution
     double gammaRand(double, double);
     double gammaPDF(double, double, double);
@@ -116,6 +116,7 @@ public:
     // User-called Functions
     std::vector<BaseSampler*> samplers;
     Sam(size_t, double (*)(double*));
+    Sam();
     ~Sam();
     void run(size_t,double*,size_t,size_t);
     std::string getStatus();
