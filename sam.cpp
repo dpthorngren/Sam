@@ -187,6 +187,52 @@ void Metropolis::sample(){
     return;
 }
 
+// ===== Gibbs Methods =====
+
+Gibbs::Gibbs(){
+    man = NULL;
+    update = NULL;
+    return;
+}
+
+Gibbs::Gibbs(Sam *man, void (*update)(double*, size_t, RNG&)){
+    this->man = man;
+    this->update = update;
+}
+
+Gibbs::~Gibbs(){
+    return;
+}
+
+BaseSampler* Gibbs::copyToHeap(){
+    Gibbs* heapCopy = new Gibbs;
+    heapCopy->man = man;
+    heapCopy->update = update;
+    return static_cast<BaseSampler*>(heapCopy);
+}
+
+std::string Gibbs::getStatus(){
+    std::stringstream status;
+    status << "Gibbs:" << std::endl;
+    bool isReady = true;
+    if(update == NULL) isReady = false;
+    if(man == NULL){
+        isReady = false;
+    }
+    else{
+        if(man->x == NULL) isReady = false;
+        if(man->xPropose == NULL) isReady = false;
+    }
+    if(isReady) status << "    Initialized: True" << std::endl;
+    else status << "    Initialized: False" << std::endl;
+    return std::string(status.str());
+}
+
+void Gibbs::sample(){
+    update(man->x,man->nDim,rng);
+    return;
+}
+
 // ===== Random Number Generator Methods =====
 RNG::RNG(){
     mTwister.seed(static_cast<unsigned int>(std::time(0)));

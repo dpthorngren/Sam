@@ -105,6 +105,17 @@ public:
     void sample();
 };
 
+class Gibbs: public BaseSampler{
+public:
+    void (*update)(double*, size_t, RNG&);
+    Gibbs();
+    Gibbs(Sam*, void (*)(double*, size_t, RNG&));
+    ~Gibbs();
+    BaseSampler* copyToHeap();
+    std::string getStatus();
+    void sample();
+};
+
 class Sam{
 public:
     // Random Number Generator
