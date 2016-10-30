@@ -199,6 +199,18 @@ RNG::RNG(unsigned int seed){
 }
 
 // === Normal Distribution ===
+double RNG::normalMean(double mean, double std){
+    return mean;
+}
+
+double RNG::normalVar(double mean, double std){;
+    return std*std;
+}
+
+double RNG::normalStd(double mean, double std){
+    return std;
+}
+
 double RNG::normalRand(double mean, double std){
     return normal_gen(mTwister)*std + mean;
 }
@@ -212,6 +224,18 @@ double RNG::normalLogPDF(double x, double mean, double std){
 }
 
 // === Uniform Distribution ===
+double RNG::uniformMean(double min, double max){
+    return (min+max)/2.0;
+}
+
+double RNG::uniformVar(double min, double max){
+    return pow(max-min,2)/12.;
+}
+
+double RNG::uniformStd(double min, double max){
+    return max-min/sqrt(12);
+}
+
 double RNG::uniformRand(double min, double max){
     return uniform_gen(mTwister)*(max-min) + min;
 }

@@ -34,10 +34,16 @@ public:
     RNG();
     RNG(unsigned int);
     // Normal Distribution
+    double normalMean(double=0,double=1);
+    double normalVar(double=0,double=1);
+    double normalStd(double=0,double=1);
     double normalRand(double=0, double=1);
     double normalPDF(double,double=0,double=1);
     double normalLogPDF(double, double=0, double=1);
     // Uniform Distribution
+    double uniformMean(double=0,double=1);
+    double uniformVar(double=0,double=1);
+    double uniformStd(double=0,double=1);
     double uniformRand(double=0, double=1);
     double uniformPDF(double,double=0,double=1);
     double uniformLogPDF(double,double=0,double=1);

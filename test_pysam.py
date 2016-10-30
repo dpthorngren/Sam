@@ -19,6 +19,9 @@ class SamTester(unittest.TestCase):
     # ===== Distributions =====
     def testNormalDistribution(self):
         self.assertAlmostEqual(self.rng.normalPDF(1,3,4),0.08801633)
+        # self.assertAlmostEqual(self.rng.normalMean(2,4),2.)
+        # self.assertAlmostEqual(self.rng.normalVar(2,4),16.)
+        # self.assertAlmostEqual(self.rng.normalStd(2,4),4.)
         self.assertAlmostEqual(self.rng.normalLogPDF(1,3,4),log(0.08801633))
         a = [self.rng.normalRand(3,2) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),3.,delta=3*.01)
@@ -43,7 +46,6 @@ class SamTester(unittest.TestCase):
         a = [self.rng.gammaRand(3,4) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),3./4,delta=.75*.01)
 
-    # InvGamma distribution
     def testInvGammaDistribution(self):
         # self.assertAlmostEqual(self.rng.invGammaMean(3,4),2.)
         # self.assertAlmostEqual(self.rng.invGammaVar(3,4),4.)
@@ -54,7 +56,6 @@ class SamTester(unittest.TestCase):
         a = [self.rng.invGammaRand(3,4) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),2.,delta=2*.01)
 
-    # Beta distribution
     def testBetaDistribution(self):
         # self.assertAlmostEqual(self.rng.betaMean(3,4),3./7)
         # self.assertAlmostEqual(self.rng.betaVar(3,4),.0306122)
@@ -65,7 +66,6 @@ class SamTester(unittest.TestCase):
         a = [self.rng.betaRand(3,4) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),3./7,delta=3./7.*.01)
 
-    # Poisson distribution
     def testPoissonDistribution(self):
         # self.assertAlmostEqual(self.rng.poissonMean(2.4),2.4)
         # self.assertAlmostEqual(self.rng.poissonVar(2.4),2.4)
@@ -76,7 +76,6 @@ class SamTester(unittest.TestCase):
         a = [self.rng.poissonRand(3.4) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),3.4,delta=3.4*.01)
 
-    # Exponential distribution
     def testExponentialDistribution(self):
         # self.assertAlmostEqual(self.rng.exponentialMean(2.4),1./2.4)
         # self.assertAlmostEqual(self.rng.exponentialVar(2.4),2.4**-2)
@@ -87,7 +86,6 @@ class SamTester(unittest.TestCase):
         a = [self.rng.exponentialRand(3.4) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),1./3.4,delta=1./3.4 * .01)
 
-    # # Binomial distribution
     def testBinomialDistribution(self):
         # self.assertAlmostEqual(self.rng.binomialMean(10,.4),4.)
         # self.assertAlmostEqual(self.rng.binomialVar(10,.4),.4*.6*10.)
