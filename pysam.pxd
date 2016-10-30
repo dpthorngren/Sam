@@ -1,3 +1,17 @@
+# Boost special functions
+cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
+    cpdef double asinh(double x) except +
+    cpdef double acosh(double x) except +
+    cpdef double atanh(double x) except +
+    cpdef double beta(double a, double b) except +
+    cdef double _incBeta "boost::math::beta"(double a, double b, double x) except +
+    cpdef double gamma "boost::math::tgamma"(double x) except +
+    cpdef double digamma(double x) except +
+    cpdef double binomial_coefficient[double](unsigned int n, unsigned int k) except +
+
+# Wrapper to fix ordering not matching other functions.
+cpdef double incBeta(double x, double a, double b)
+
 cdef extern from "sam.h":
     cdef cppclass Sam:
         Sam(size_t, double (*)(double*))
@@ -32,8 +46,6 @@ cdef extern from "sam.h":
         int binomialRand(int, double)
         double binomialPDF(int, int, double)
         double binomialLogPDF(int, int, double)
-
-cdef double testFunc(double* x)
 
 # Wrapper for the RNG class
 cdef class RandomNumberGenerator:

@@ -1,16 +1,9 @@
 # distutils: language = c++
 # distutils: sources = sam.cpp
-cdef double testFunc(double* x):
-    return 0
 
-cpdef test():
-    cdef Sam *a = new Sam(1,testFunc)
-    del a
-    cdef RNG b
-    cdef int i
-    for i in range(20):
-        print b.normalRand(0,1)
-    return
+# Special function wrappers
+cpdef double incBeta(double x, double a, double b):
+    return _incBeta(a,b,x)
 
 # Wrapper for the RNG class
 cdef class RandomNumberGenerator:

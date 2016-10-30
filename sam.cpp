@@ -293,7 +293,7 @@ double RNG::betaPDF(double x, double alpha, double beta){
 
 double RNG::betaLogPDF(double x, double alpha, double beta){
     //TODO: Hand-optimize.
-    return log(this->betaRand(alpha,beta));
+    return log(this->betaPDF(x,alpha,beta));
 }
 
 // === Poisson Distribution ===
@@ -303,7 +303,7 @@ int RNG::poissonRand(double rate){
 }
 
 double RNG::poissonPDF(int x, double rate){
-    return pdf(boost::math::poisson_distribution<int>(rate),x);
+    return pdf(boost::math::poisson_distribution<double>(rate),x);
 }
 
 double RNG::poissonLogPDF(int x, double rate){
