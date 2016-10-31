@@ -1,5 +1,5 @@
 # distutils: language = c++
-# distutils: sources = sam.cpp
+# distutils: sources = src/sam.cpp
 
 # Special function wrappers
 cpdef double incBeta(double x, double a, double b):
