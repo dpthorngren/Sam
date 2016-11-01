@@ -1,5 +1,4 @@
 from distutils.core import setup
-from distutils.extension import Extension
 from Cython.Build import cythonize
 import numpy as np
 
@@ -12,11 +11,8 @@ os.environ['OPT'] = " ".join(
     flag for flag in opt.split() if flag != '-Wstrict-prototypes'
 )
 
-extension = Extension("sam",["sam.pyx"],
-                      include_dirs=[np.get_include()],
-                      language="c++",
-                      extra_compile_args=["-Wno-cpp","-Wno-unused"])
-
 setup(
-    ext_modules=cythonize(extension)
+    name="sam",
+    ext_modules=cythonize('sam.pyx'),
+    include_dirs=[np.get_include()]
 )

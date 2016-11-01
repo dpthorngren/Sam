@@ -1,3 +1,4 @@
+# distutils: language = c++
 include "distributions.pyx"
 include "griddy.pyx"
 import numpy as np

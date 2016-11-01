@@ -8,3 +8,4 @@ build/
 *.h
 *.cpp
 *.so
+old/
