@@ -13,8 +13,17 @@ cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
 cpdef double incBeta(double x, double a, double b)
 
 cdef extern from "sam.h":
-    cdef cppclass Sam:
+    cdef cppclass CppSam "Sam":
         Sam(size_t, double (*)(double*))
+        Sam()
+        void setRecordOptions(bint, bint, bint)
+        void run(size_t, double*, size_t, size_t)
+        double* getSamples()
+        # void write(std::string, bool, std::string)
+        void addMetropolis(double*, size_t, size_t)
+        double getMean(size_t)
+        double getVar(size_t)
+        double getStd(size_t)
     # Random number generator
     cdef cppclass RNG:
         RNG()
@@ -77,3 +86,7 @@ cdef class RandomNumberGenerator:
     cpdef int binomialRand(self,int, double)
     cpdef double binomialPDF(self,int, int, double)
     cpdef double binomialLogPDF(self,int, int, double)
+
+cdef class Sam:
+    cdef CppSam *sam
+    cpdef void setRecordOptions(self,bint, bint, bint)

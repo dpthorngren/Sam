@@ -61,3 +61,8 @@ cdef class RandomNumberGenerator:
         return self.a.binomialPDF(x,n,probability)
     cpdef double binomialLogPDF(self, int x, int n, double probability):
         return self.a.binomialLogPDF(x,n,probability)
+
+cdef class Sam:
+    cpdef void setRecordOptions(self,bint recordSamples, bint accumulateStats, bint printSamples):
+        self.sam[0].setRecordOptions(recordSamples, accumulateStats, printSamples)
+        return
