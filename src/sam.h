@@ -2,6 +2,7 @@
 #define sam_h__
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <vector>
 #include <iostream>
 #include <cmath>
@@ -77,66 +78,58 @@ public:
     double binomialLogPDF(int, int, double);
 };
 
-// Interface.  Derived classes below.
-class BaseSampler{
-public:
-    Sam *man;
-    RNG rng;
-    double (*logProb)(double*);
-    size_t targetStart;
-    size_t targetStop;
-    virtual ~BaseSampler() = 0;
-    virtual BaseSampler* copyToHeap()=0;
-    virtual std::string getStatus() = 0;
-    virtual void sample() = 0;
-};
+typedef enum{
+    NONE,
+    METROPOLIS,
+    GIBBS,
+    HAMILTONIAN,
+    CUSTOM
+} SamplingAlgorithm;
 
-class Metropolis: public BaseSampler{
-public:
-    double* proposalStd;
-    int numProposed;
-    int numAccepted;
-    Metropolis();
-    Metropolis(Sam*, size_t, size_t, double*,
-        double (*logProb)(double*)=NULL);
-    ~Metropolis();
-    BaseSampler* copyToHeap();
-    std::string getStatus();
-    void sample();
-};
-
-class Gibbs: public BaseSampler{
-public:
-    void (*update)(double*, size_t, RNG&);
-    Gibbs();
-    Gibbs(Sam*, void (*)(double*, size_t, RNG&));
-    ~Gibbs();
-    BaseSampler* copyToHeap();
-    std::string getStatus();
-    void sample();
-};
+typedef struct{
+    SamplingAlgorithm algorithm;
+    double *dData;
+    size_t *sData;
+    size_t dDataLen, sDataLen;
+} SubSamplerData;
 
 class Sam{
-public:
-    // Random Number Generator
-    RNG rng;
-    // Parameters
-    double (*logProb)(double*);
-    size_t nDim;
+private:
     // Working memory
     double* x;
     double* xPropose;
-    double* working1;
-    double* working2;
-    //Output
     double* samples;
+    size_t nSamples;
+    std::vector<SubSamplerData> subSamplers;
+    // Parameters
+    double (*logProb)(double*);
+    size_t nDim;
+    // Helper functions
+    void subSample(SubSamplerData&);
+    std::string subStatus(SubSamplerData&);
+    bool proposeMetropolis();
+    // Sampling Algorithms
+    void metropolisSample(SubSamplerData&);
+    void gibbsSample(SubSamplerData&);
+    void hamiltonianSample(SubSamplerData&);
+    void customSample(SubSamplerData&);
+    // Printing Algorithms
+    std::string metropolisStatus(SubSamplerData&);
+    std::string gibbsStatus(SubSamplerData&);
+    std::string hamiltonianStatus(SubSamplerData&);
+    std::string customStatus(SubSamplerData&);
+public:
+    // Random Number Generator
+    RNG rng;
     // User-called Functions
-    std::vector<BaseSampler*> samplers;
     Sam(size_t, double (*)(double*));
     Sam();
     ~Sam();
     void run(size_t,double*,size_t,size_t);
     std::string getStatus();
+    double* getSamples();
+    void write(std::string, bool, std::string);
+    void addMetropolis(double*, size_t, size_t);
 };
 
 #endif // sam_h__

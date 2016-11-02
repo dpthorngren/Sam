@@ -6,10 +6,8 @@ Sam::Sam(size_t nDim, double (*logProb)(double*)){
     this->logProb = logProb;
     samples = NULL;
     // Declare x and working memory in a contiguous block
-    x = new double[4*nDim];
-    xPropose = &x[nDim*sizeof(double)];
-    working1 = &x[2*nDim*sizeof(double)];
-    working2 = &x[3*nDim*sizeof(double)];
+    x = new double[2*nDim];
+    xPropose = &x[nDim];
     return;
 }
 
@@ -17,26 +15,50 @@ Sam::Sam(){
     nDim = 0;
     logProb = NULL;
     samples = NULL;
-    // Declare x and working memory in a contiguous block
     x = NULL;
     xPropose = NULL;
-    working1 = NULL;
-    working2 = NULL;
     return;
 }
 
 Sam::~Sam(){
-    // Deallocate samplers
-    for(size_t i=0; i < samplers.size(); i++){
-        if(samplers[i] != NULL){
-            delete samplers[i];
-            samplers[i] = NULL;
-        }
-    }
     // Deallocate working memory
     if(x != NULL){
         delete[] x;
         x = NULL;
+    }
+    for(size_t i = 0; i < subSamplers.size(); i++){
+        if(subSamplers[i].dData != NULL){
+            delete[] subSamplers[i].dData;
+            subSamplers[i].dData = NULL;
+        }
+        if(subSamplers[i].sData != NULL){
+            delete[] subSamplers[i].sData;
+            subSamplers[i].sData = NULL;
+        }
+    }
+    return;
+}
+
+double* Sam::getSamples(){
+    return samples;
+}
+
+void Sam::write(std::string fileName, bool header, std::string sep){
+    std::ofstream outputFile;
+    outputFile.open(fileName.data());
+    if(header){
+        outputFile << getStatus();
+    }
+    if(samples==NULL){
+        outputFile << "[No samples taken.]" << std::endl;
+    }
+    for(size_t i = 0; i < nSamples; i++){
+        for(size_t j = 0; j < nDim; j++){
+            outputFile << samples[i*nDim + j];
+            if(j != nDim -1)
+                outputFile << sep;
+        }
+        outputFile << std::endl;
     }
     return;
 }
@@ -49,6 +71,7 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
         samples = NULL;
     }
     samples = new double[nSamples*nDim];
+    this->nSamples = nSamples;
 
     // Set initial position
     for(i = 0; i < nDim; i++)
@@ -56,16 +79,16 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
 
     // Burn-in
     for(i = 0; i < burnIn; i++){
-        for(k = 0; k < samplers.size(); k++){
-            samplers[k]->sample();
+        for(k = 0; k < subSamplers.size(); k++){
+            subSample(subSamplers[k]);
         }
     }
 
     // Collect data
     for(i = 0; i < nSamples; i++){
         for(j = 0; j <= thin; j++){
-            for(k = 0; k < samplers.size(); k++){
-                samplers[k]->sample();
+            for(k = 0; k < subSamplers.size(); k++){
+                subSample(subSamplers[k]);
             }
         }
         // Record data.
@@ -76,11 +99,133 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
     return;
 }
 
+void Sam::subSample(SubSamplerData &sub){
+    switch(sub.algorithm){
+        case NONE:
+            // TODO: Error.
+            return;
+        case METROPOLIS:
+            metropolisSample(sub);
+            return;
+        case GIBBS:
+            gibbsSample(sub);
+            return;
+        case HAMILTONIAN:
+            hamiltonianSample(sub);
+            return;
+        case CUSTOM:
+            customSample(sub);
+            return;
+    }
+    // TODO: Error
+    return;
+}
+
+std::string Sam::subStatus(SubSamplerData &sub){
+    switch(sub.algorithm){
+        case NONE:
+            // TODO: Error.
+            return std::string("Error: No algorithm specified.");
+        case METROPOLIS:
+            return metropolisStatus(sub);
+        case GIBBS:
+            return gibbsStatus(sub);
+        case HAMILTONIAN:
+            return hamiltonianStatus(sub);
+        case CUSTOM:
+            return customStatus(sub);
+    }
+    // TODO: Error
+    return std::string("Error: Algorithm not recognized.");
+}
+
+void Sam::metropolisSample(SubSamplerData& sub){
+    size_t targetStart = sub.sData[0];
+    size_t targetStop = targetStart + sub.sData[1];
+    for(size_t i = 0; i < nDim; i++){
+        if(i >= targetStart and i < targetStop){
+            xPropose[i] = rng.normalRand(x[i],sub.dData[i-targetStart]);
+        }
+        else{
+            xPropose[i] = x[i];
+        }
+    }
+    // TODO: Record acceptance rate.
+    proposeMetropolis();
+    return;
+}
+
+bool Sam::proposeMetropolis(){
+    // TODO: Add recording system for log probability.
+    // TODO: Add alternative probability calculation option.
+    double logRatio = logProb(xPropose) - logProb(x);
+    if(log(rng.uniformRand(0,1)) < logRatio){
+        for(size_t i = 0; i < nDim; i++)
+            x[i] = xPropose[i];
+        return true;
+    }
+    return false;
+}
+
+void Sam::gibbsSample(SubSamplerData& sub){
+    return; // TODO: Implement
+}
+
+void Sam::hamiltonianSample(SubSamplerData& sub){
+    return; // TODO: Implement
+}
+
+void Sam::customSample(SubSamplerData& sub){
+    return; // TODO: Implement
+}
+
+std::string Sam::metropolisStatus(SubSamplerData& sub){
+    std::stringstream status;
+    status << "Metropolis: " << sub.sData[1] << " (" << sub.sData[0] << ":";
+    status << sub.sData[0] + sub.sData[1] << ")" << std::endl;
+    status << "Proposal: ";
+    for(size_t i = 0; i < sub.dDataLen; i++){
+        status << sub.dData[i];
+        if(i != sub.dDataLen-1)
+            status << ", ";
+    }
+    status << std::endl;
+    return status.str();
+    // return std::string("Error: Not Implemented."); // TODO: Implement
+}
+
+std::string Sam::gibbsStatus(SubSamplerData& sub){
+    return std::string("Error: Not Implemented."); // TODO: Implement
+}
+
+std::string Sam::hamiltonianStatus(SubSamplerData& sub){
+    return std::string("Error: Not Implemented."); // TODO: Implement
+}
+
+std::string Sam::customStatus(SubSamplerData& sub){
+    return std::string("Error: Not Implemented."); // TODO: Implement
+}
+
+void Sam::addMetropolis(double* proposalStd, size_t targetStart, size_t targetLen){
+    SubSamplerData newSub;
+    newSub.algorithm = METROPOLIS;
+    newSub.dData = new double[targetLen];
+    newSub.dDataLen = targetLen;
+    for(size_t i = 0; i < targetLen; i++)
+        newSub.dData[i] = proposalStd[i];
+    newSub.sData = new size_t[2];
+    newSub.sDataLen = 2;
+    newSub.sData[0] = targetStart;
+    newSub.sData[1] = targetLen;
+    subSamplers.push_back(newSub);
+    return;
+}
+
 std::string Sam::getStatus(){
     std::stringstream status;
     status << "===== Sam Information =====" << std::endl;
     status << "Dimensions: " << nDim << std::endl;
-    status << "Number of samplers:" << samplers.size() << std::endl;
+    status << "Number of Sub-Samplers:" << subSamplers.size() << std::endl;
     if(nDim < 20){
         status << "Data: ";
         for(size_t i = 0; i < nDim; i++){
@@ -91,146 +236,9 @@ std::string Sam::getStatus(){
     else
         status << "Data: [Too much to reasonably print.]" << std::endl;
     status << "===== Sampler Information =====" << std::endl;
-    for(size_t i = 0; i < samplers.size(); i++)
-        status << i << " - " << samplers[i]->getStatus();
+    for(size_t i = 0; i < subSamplers.size(); i++)
+        status << i << " - " << subStatus(subSamplers[i]);
     return std::string(status.str());
-}
-
-// ===== BaseSampler Methods =====
-BaseSampler::~BaseSampler(){
-    return;
-}
-
-// ===== Metropolis Methods =====
-Metropolis::Metropolis(){
-    man = NULL;
-    proposalStd = NULL;
-    targetStart = 0;
-    targetStop = 0;
-    return;
-}
-
-Metropolis::Metropolis(Sam *man, size_t targetStart, size_t targetStop,
-        double *proposalStd, double (*logProb)(double*)){
-    this->man = man;
-    if(logProb == NULL)
-        this->logProb = man->logProb;
-    else
-        this->logProb = logProb;
-    this->targetStart = targetStart;
-    this->targetStop = targetStop;
-    this->proposalStd = new double[targetStop-targetStart];
-    for(size_t i = 0; i < (targetStop-targetStart); i++){
-        this->proposalStd[i] = proposalStd[i];
-    }
-    return;
-}
-
-BaseSampler* Metropolis::copyToHeap(){
-    Metropolis* heapCopy = new Metropolis;
-    heapCopy->man = man;
-    heapCopy->logProb = logProb;
-    heapCopy->targetStart = targetStart;
-    heapCopy->targetStop = targetStop;
-    // Proper deep copy.  This will be less efficient in practice,
-    // but far more intuitive for the user, and helps avoid memory leaks.
-    heapCopy->proposalStd = new double[targetStop-targetStart];
-    for(size_t i = 0; i < (targetStop-targetStart); i++){
-        heapCopy->proposalStd[i] = proposalStd[i];
-    }
-    return static_cast<BaseSampler*>(heapCopy);
-}
-
-Metropolis::~Metropolis(){
-    if(proposalStd != NULL){
-        delete[] proposalStd;
-        proposalStd = NULL;
-    }
-    return;
-}
-
-std::string Metropolis::getStatus(){
-    std::stringstream status;
-    status << "Metropolis:" << std::endl;
-    bool isReady = true;
-    if(proposalStd == NULL) isReady = false;
-    if(man == NULL){
-        isReady = false;
-    }
-    else{
-        if(man->x == NULL) isReady = false;
-        if(man->xPropose == NULL) isReady = false;
-    }
-    if(isReady) status << "    Initialized: True" << std::endl;
-    else status << "    Initialized: False" << std::endl;
-    status << "    Target: (" << targetStart << ":" << targetStop
-           << "), Length = " << targetStop - targetStart << std::endl;
-    status << "    Acceptance: " << numAccepted << " / " << numProposed
-           << " (" << (double)numAccepted/numProposed << ")" << std::endl;
-    return std::string(status.str());
-}
-
-void Metropolis::sample(){
-    size_t i;
-    for(i = 0; i < man->nDim; i++){
-        man->xPropose[i] = man->x[i];
-        if(i>=targetStart and i < targetStop){
-            man->xPropose[i] = man->rng.normalRand(man->x[i],proposalStd[i-targetStart]);
-        }
-    }
-    if(log(man->rng.uniformRand()) < (logProb(man->xPropose)-logProb(man->x))){
-        for(i = targetStart; i < targetStop; i++)
-            man->x[i] = man->xPropose[i];
-            numAccepted += 1;
-    }
-    numProposed += 1;
-    return;
-}
-
-// ===== Gibbs Methods =====
-
-Gibbs::Gibbs(){
-    man = NULL;
-    update = NULL;
-    return;
-}
-
-Gibbs::Gibbs(Sam *man, void (*update)(double*, size_t, RNG&)){
-    this->man = man;
-    this->update = update;
-}
-
-Gibbs::~Gibbs(){
-    return;
-}
-
-BaseSampler* Gibbs::copyToHeap(){
-    Gibbs* heapCopy = new Gibbs;
-    heapCopy->man = man;
-    heapCopy->update = update;
-    return static_cast<BaseSampler*>(heapCopy);
-}
-
-std::string Gibbs::getStatus(){
-    std::stringstream status;
-    status << "Gibbs:" << std::endl;
-    bool isReady = true;
-    if(update == NULL) isReady = false;
-    if(man == NULL){
-        isReady = false;
-    }
-    else{
-        if(man->x == NULL) isReady = false;
-        if(man->xPropose == NULL) isReady = false;
-    }
-    if(isReady) status << "    Initialized: True" << std::endl;
-    else status << "    Initialized: False" << std::endl;
-    return std::string(status.str());
-}
-
-void Gibbs::sample(){
-    update(man->x,man->nDim,rng);
-    return;
 }
 
 // ===== Random Number Generator Methods =====
