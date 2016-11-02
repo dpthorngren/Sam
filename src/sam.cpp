@@ -2,21 +2,27 @@
 
 // ===== Sam Methods =====
 Sam::Sam(size_t nDim, double (*logProb)(double*)){
+    setRecordOptions(true,true,false);
     this->nDim = nDim;
     this->logProb = logProb;
     samples = NULL;
+    nSamples = 0;
     // Declare x and working memory in a contiguous block
     x = new double[2*nDim];
     xPropose = &x[nDim];
+    acc = NULL;
     return;
 }
 
 Sam::Sam(){
+    setRecordOptions(false,false,false);
     nDim = 0;
     logProb = NULL;
     samples = NULL;
+    nSamples = 0;
     x = NULL;
     xPropose = NULL;
+    acc = NULL;
     return;
 }
 
@@ -25,6 +31,10 @@ Sam::~Sam(){
     if(x != NULL){
         delete[] x;
         x = NULL;
+    }
+    if(acc != NULL){
+        delete[] acc;
+        acc = NULL;
     }
     for(size_t i = 0; i < subSamplers.size(); i++){
         if(subSamplers[i].dData != NULL){
@@ -51,6 +61,8 @@ void Sam::write(std::string fileName, bool header, std::string sep){
     }
     if(samples==NULL){
         outputFile << "[No samples taken.]" << std::endl;
+        outputFile.close();
+        return;
     }
     for(size_t i = 0; i < nSamples; i++){
         for(size_t j = 0; j < nDim; j++){
@@ -60,6 +72,7 @@ void Sam::write(std::string fileName, bool header, std::string sep){
         }
         outputFile << std::endl;
     }
+    outputFile.close();
     return;
 }
 
@@ -70,8 +83,14 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
         delete[] samples;
         samples = NULL;
     }
-    samples = new double[nSamples*nDim];
+    if(recordSamples)
+        samples = new double[nSamples*nDim];
     this->nSamples = nSamples;
+    if(acc != NULL){
+        delete[] acc;
+        acc = NULL;
+    }
+    acc = new Accumulator[nDim];
 
     // Set initial position
     for(i = 0; i < nDim; i++)
@@ -92,10 +111,22 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
             }
         }
         // Record data.
-        for(j = 0; j < nDim; j++){
-            samples[i*nDim + j] = x[j];
-        }
+        record(i);
     }
+    return;
+}
+
+void Sam::record(size_t i){
+    for(size_t j = 0; j < nDim; j++){
+        if(recordSamples)
+            samples[i*nDim + j] = x[j];
+        if(accumulateStats)
+            acc[j](x[j]);
+        if(printSamples)
+            std::cout << x[j] << " ";
+    }
+    if(printSamples)
+        std::cout << std::endl;
     return;
 }
 
@@ -221,6 +252,13 @@ void Sam::addMetropolis(double* proposalStd, size_t targetStart, size_t targetLe
     return;
 }
 
+void Sam::setRecordOptions(bool recordSamples, bool accumulateStats, bool printSamples){
+    this->recordSamples = recordSamples;
+    this->accumulateStats = accumulateStats;
+    this->printSamples = printSamples;
+    return;
+}
+
 std::string Sam::getStatus(){
     std::stringstream status;
     status << "===== Sam Information =====" << std::endl;
@@ -235,10 +273,30 @@ std::string Sam::getStatus(){
     }
     else
         status << "Data: [Too much to reasonably print.]" << std::endl;
-    status << "===== Sampler Information =====" << std::endl;
+    if(accumulateStats){
+        status << std::endl << "===== Variable summary =====" << std::endl;
+        // TODO: Format output better.
+        status << "Mean, Std:" << std::endl;
+        for(size_t i = 0; i < subSamplers.size(); i++){
+            status << getMean(i) << " " << getStd(i);
+        }
+    }
+    status << std::endl << std::endl << "===== Sampler Information =====" << std::endl;
     for(size_t i = 0; i < subSamplers.size(); i++)
         status << i << " - " << subStatus(subSamplers[i]);
     return std::string(status.str());
+}
+
+double Sam::getMean(size_t i){
+    return boost::accumulators::mean(acc[i]);
+}
+
+double Sam::getVar(size_t i){
+    return boost::accumulators::variance(acc[i]);
+}
+
+double Sam::getStd(size_t i){
+    return sqrt(boost::accumulators::variance(acc[i]));
 }
 
 // ===== Random Number Generator Methods =====

@@ -16,6 +16,10 @@
 #include <boost/random/binomial_distribution.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/math/distributions.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
 
 class Sam;
 
@@ -78,6 +82,8 @@ public:
     double binomialLogPDF(int, int, double);
 };
 
+typedef boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::variance> > Accumulator;
+
 typedef enum{
     NONE,
     METROPOLIS,
@@ -101,13 +107,18 @@ private:
     double* samples;
     size_t nSamples;
     std::vector<SubSamplerData> subSamplers;
+    Accumulator *acc;
     // Parameters
     double (*logProb)(double*);
     size_t nDim;
+    bool recordSamples;
+    bool printSamples;
+    bool accumulateStats;;
     // Helper functions
     void subSample(SubSamplerData&);
     std::string subStatus(SubSamplerData&);
     bool proposeMetropolis();
+    void record(size_t);
     // Sampling Algorithms
     void metropolisSample(SubSamplerData&);
     void gibbsSample(SubSamplerData&);
@@ -125,11 +136,15 @@ public:
     Sam(size_t, double (*)(double*));
     Sam();
     ~Sam();
+    void setRecordOptions(bool, bool, bool);
     void run(size_t,double*,size_t,size_t);
     std::string getStatus();
     double* getSamples();
     void write(std::string, bool, std::string);
     void addMetropolis(double*, size_t, size_t);
+    double getMean(size_t);
+    double getVar(size_t);
+    double getStd(size_t);
 };
 
 #endif // sam_h__
