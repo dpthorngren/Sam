@@ -366,7 +366,27 @@ double RNG::uniformLogPDF(double x, double min, double max){
     return -INFINITY;
 }
 
+double RNG::uniformCDF(double x, double min, double max){
+    if(x <= min)
+        return 0.0;
+    if(x >= max)
+        return 1.0;
+    return (x-min)/(max-min);
+}
+
 // === Uniform Int Distribution ===
+double RNG::uniformIntMean(int min, int max){
+    return (min+max)/2.0;
+}
+
+double RNG::uniformIntVar(int min, int max){
+    return ((max-min+1)*(max-min+1)-1)/12.;
+}
+
+double RNG::uniformIntStd(int min, int max){
+    return sqrt(uniformIntVar(min,max));
+}
+
 int RNG::uniformIntRand(int min, int max){
     uniform_int_gen.param(boost::random::uniform_int_distribution<int>::param_type(min,max));
     return uniform_int_gen(mTwister);
@@ -386,7 +406,28 @@ double RNG::uniformIntLogPDF(int x, int min, int max){
     return INFINITY;
 }
 
+double RNG::uniformIntCDF(double x, int min, int max){
+    if(x < min)
+        return 0.;
+    if(x > max)
+        return 1.;
+    return (1+int(x)-min)/double(1+max-min);
+    return 0.;
+}
+
 // === Gamma Distribution ===
+double RNG::gammaMean(double shape, double rate){
+    return shape/rate;
+}
+
+double RNG::gammaVar(double shape, double rate){
+    return shape/(rate*rate);
+}
+
+double RNG::gammaStd(double shape, double rate){
+    return sqrt(shape/(rate*rate));
+}
+
 double RNG::gammaRand(double shape, double rate){
     gamma_gen.param(boost::random::gamma_distribution<double>::param_type(shape,1./rate));
     return gamma_gen(mTwister);
@@ -401,7 +442,23 @@ double RNG::gammaLogPDF(double x, double shape, double rate){
     return log(this->gammaPDF(x,shape,rate));
 }
 
+double RNG::gammaCDF(double x, double shape, double rate){
+    return cdf(boost::math::gamma_distribution<double>(shape,1./rate),x);
+}
+
 // === Inverse Gamma Distribution ===
+double RNG::invGammaMean(double shape, double rate){
+    return rate/(shape-1.);
+}
+
+double RNG::invGammaVar(double shape, double rate){
+    return rate*rate / ((shape-1)*(shape-1)*(shape-2));
+}
+
+double RNG::invGammaStd(double shape, double rate){
+    return sqrt(invGammaVar(shape,rate));
+}
+
 double RNG::invGammaRand(double shape, double rate){
     gamma_gen.param(boost::random::gamma_distribution<double>::param_type(shape,1./rate));
     return 1./gamma_gen(mTwister);
@@ -416,8 +473,24 @@ double RNG::invGammaLogPDF(double x, double shape, double rate){
     return log(this->invGammaPDF(x,shape,rate));
 }
 
+double RNG::invGammaCDF(double x, double shape, double rate){
+    return cdf(boost::math::gamma_distribution<double>(shape,rate),1./x);
+}
+
 
 // === Beta Distribution ===
+double RNG::betaMean(double alpha, double beta){
+    return alpha / (alpha + beta);
+}
+
+double RNG::betaVar(double alpha, double beta){
+    return alpha * beta / ((alpha+beta)*(alpha+beta)*(alpha+beta+1));
+}
+
+double RNG::betaStd(double alpha, double beta){
+    return sqrt(betaVar(alpha,beta));
+}
+
 double RNG::betaRand(double alpha, double beta){
     beta_gen.param(boost::random::beta_distribution<double>::param_type(alpha,beta));
     return beta_gen(mTwister);
@@ -432,7 +505,23 @@ double RNG::betaLogPDF(double x, double alpha, double beta){
     return log(this->betaPDF(x,alpha,beta));
 }
 
+double RNG::betaCDF(double x, double alpha, double beta){
+    return cdf(boost::math::beta_distribution<double>(alpha,beta),x);
+}
+
 // === Poisson Distribution ===
+double RNG::poissonMean(double rate){
+    return rate;
+}
+
+double RNG::poissonVar(double rate){
+    return rate;
+}
+
+double RNG::poissonStd(double rate){
+    return sqrt(rate);
+}
+
 int RNG::poissonRand(double rate){
     poisson_gen.param(boost::random::poisson_distribution<int>::param_type(rate));
     return poisson_gen(mTwister);
@@ -446,7 +535,23 @@ double RNG::poissonLogPDF(int x, double rate){
     return log(this->poissonPDF(x,rate));
 }
 
+double RNG::poissonCDF(double x, double rate){
+    return cdf(boost::math::poisson_distribution<double>(rate),int(x));
+}
+
 // === Exponential Distribution ===
+double RNG::exponentialMean(double rate){
+    return 1./rate;
+}
+
+double RNG::exponentialVar(double rate){
+    return 1./(rate*rate);
+}
+
+double RNG::exponentialStd(double rate){
+    return 1./rate;
+}
+
 double RNG::exponentialRand(double rate){
     exponential_gen.param(boost::random::exponential_distribution<double>::param_type(rate));
     return exponential_gen(mTwister);
@@ -464,7 +569,25 @@ double RNG::exponentialLogPDF(double x, double rate){
     return -INFINITY;
 }
 
+double RNG::exponentialCDF(double x, double rate){
+    if(x > 0)
+        return 1.-exp(-rate*x);
+    return 0.;
+}
+
 // === Binomial Distribution ===
+double RNG::binomialMean(int number, double probability){
+    return number*probability;
+}
+
+double RNG::binomialVar(int number, double probability){
+    return number*probability*(1.-probability);
+}
+
+double RNG::binomialStd(int number, double probability){
+    return sqrt(number*probability*(1.-probability));
+}
+
 int RNG::binomialRand(int number, double probability){
     binomial_gen.param(boost::random::binomial_distribution<int,double>::param_type(number,probability));
     return binomial_gen(mTwister);
@@ -476,4 +599,8 @@ double RNG::binomialPDF(int x, int number, double probability){
 
 double RNG::binomialLogPDF(int x, int number, double probability){
     return log(this->binomialPDF(x,number,probability));
+}
+
+double RNG::binomialCDF(double x, int number, double probability){
+    return cdf(boost::math::binomial_distribution<double>(number,probability),int(x));
 }

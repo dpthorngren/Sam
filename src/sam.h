@@ -51,35 +51,64 @@ public:
     double uniformStd(double=0,double=1);
     double uniformRand(double=0, double=1);
     double uniformPDF(double,double=0,double=1);
+    double uniformCDF(double, double=0, double=1);
     double uniformLogPDF(double,double=0,double=1);
     // Integer Uniform Distribution
+    double uniformIntMean(int=0,int=1);
+    double uniformIntVar(int=0,int=1);
+    double uniformIntStd(int=0,int=1);
     int uniformIntRand(int=0, int=1);
     double uniformIntPDF(int,int=0,int=1);
     double uniformIntLogPDF(int,int=0,int=1);
+    double uniformIntCDF(double,int=0,int=1);
     // Gamma Distribution
+    double gammaMean(double,double);
+    double gammaVar(double,double);
+    double gammaStd(double,double);
     double gammaRand(double, double);
     double gammaPDF(double, double, double);
     double gammaLogPDF(double, double, double);
+    double gammaCDF(double, double, double);
     // Inverse Gamma Distribution
+    double invGammaMean(double,double);
+    double invGammaVar(double,double);
+    double invGammaStd(double,double);
     double invGammaRand(double, double);
     double invGammaPDF(double, double, double);
     double invGammaLogPDF(double, double, double);
+    double invGammaCDF(double, double, double);
     // Beta Distribution
+    double betaMean(double,double);
+    double betaVar(double,double);
+    double betaStd(double,double);
     double betaRand(double, double);
     double betaPDF(double, double, double);
     double betaLogPDF(double, double, double);
+    double betaCDF(double, double, double);
     // Poisson Distribution
+    double poissonMean(double);
+    double poissonVar(double);
+    double poissonStd(double);
     int poissonRand(double);
     double poissonPDF(int, double);
     double poissonLogPDF(int, double);
+    double poissonCDF(double, double);
     // Exponential Distribution
+    double exponentialMean(double);
+    double exponentialVar(double);
+    double exponentialStd(double);
     double exponentialRand(double);
     double exponentialPDF(double, double);
     double exponentialLogPDF(double, double);
+    double exponentialCDF(double, double);
     // Binomial Distribution
+    double binomialMean(int, double);
+    double binomialVar(int, double);
+    double binomialStd(int, double);
     int binomialRand(int, double);
     double binomialPDF(int, int, double);
     double binomialLogPDF(int, int, double);
+    double binomialCDF(double, int, double);
 };
 
 typedef boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::variance> > Accumulator;
