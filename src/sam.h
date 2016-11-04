@@ -39,28 +39,28 @@ public:
     RNG();
     RNG(unsigned int);
     // Normal Distribution
-    double normalMean(double=0,double=1);
-    double normalVar(double=0,double=1);
-    double normalStd(double=0,double=1);
-    double normalRand(double=0, double=1);
-    double normalPDF(double,double=0,double=1);
-    double normalLogPDF(double, double=0, double=1);
+    double normalMean(double,double);
+    double normalVar(double,double);
+    double normalStd(double,double);
+    double normalRand(double, double);
+    double normalPDF(double,double,double);
+    double normalLogPDF(double, double, double);
     // Uniform Distribution
-    double uniformMean(double=0,double=1);
-    double uniformVar(double=0,double=1);
-    double uniformStd(double=0,double=1);
-    double uniformRand(double=0, double=1);
-    double uniformPDF(double,double=0,double=1);
-    double uniformCDF(double, double=0, double=1);
-    double uniformLogPDF(double,double=0,double=1);
+    double uniformMean(double,double);
+    double uniformVar(double,double);
+    double uniformStd(double,double);
+    double uniformRand(double, double);
+    double uniformPDF(double,double,double);
+    double uniformCDF(double, double, double);
+    double uniformLogPDF(double,double,double);
     // Integer Uniform Distribution
-    double uniformIntMean(int=0,int=1);
-    double uniformIntVar(int=0,int=1);
-    double uniformIntStd(int=0,int=1);
-    int uniformIntRand(int=0, int=1);
-    double uniformIntPDF(int,int=0,int=1);
-    double uniformIntLogPDF(int,int=0,int=1);
-    double uniformIntCDF(double,int=0,int=1);
+    double uniformIntMean(int,int);
+    double uniformIntVar(int,int);
+    double uniformIntStd(int,int);
+    int uniformIntRand(int, int);
+    double uniformIntPDF(int,int,int);
+    double uniformIntLogPDF(int,int,int);
+    double uniformIntCDF(double,int,int);
     // Gamma Distribution
     double gammaMean(double,double);
     double gammaVar(double,double);
