@@ -8,8 +8,10 @@ Sam::Sam(size_t nDim, double (*logProb)(double*)){
     samples = NULL;
     nSamples = 0;
     // Declare x and working memory in a contiguous block
-    x = new double[2*nDim];
+    x = new double[3*nDim];
     xPropose = &x[nDim];
+    working = &x[2*nDim];
+    nAccepted = new size_t[nDim];
     acc = NULL;
     return;
 }
@@ -21,7 +23,9 @@ Sam::Sam(){
     samples = NULL;
     nSamples = 0;
     x = NULL;
+    nAccepted = NULL;
     xPropose = NULL;
+    working = NULL;
     acc = NULL;
     return;
 }
@@ -32,9 +36,15 @@ Sam::~Sam(){
         delete[] x;
         x = NULL;
     }
+    xPropose = NULL;
+    working = NULL;
     if(acc != NULL){
         delete[] acc;
         acc = NULL;
+    }
+    if(nAccepted != NULL){
+        delete[] nAccepted;
+        nAccepted = NULL;
     }
     for(size_t i = 0; i < subSamplers.size(); i++){
         if(subSamplers[i].dData != NULL){
@@ -93,6 +103,7 @@ void Sam::run(size_t nSamples, double* x0, size_t burnIn, size_t thin){
     acc = new Accumulator[nDim];
 
     // Set initial position
+    nCalls = burnIn + nSamples*(thin+1);
     for(i = 0; i < nDim; i++)
         x[i] = x0[i];
 
@@ -181,21 +192,21 @@ void Sam::metropolisSample(SubSamplerData& sub){
             xPropose[i] = x[i];
         }
     }
-    // TODO: Record acceptance rate.
     proposeMetropolis();
     return;
 }
 
-bool Sam::proposeMetropolis(){
+void Sam::proposeMetropolis(){
     // TODO: Add recording system for log probability.
     // TODO: Add alternative probability calculation option.
     double logRatio = logProb(xPropose) - logProb(x);
     if(log(rng.uniformRand(0,1)) < logRatio){
-        for(size_t i = 0; i < nDim; i++)
+        for(size_t i = 0; i < nDim; i++){
             x[i] = xPropose[i];
-        return true;
+            nAccepted[i]++;
+        }
     }
-    return false;
+    return;
 }
 
 void Sam::gibbsSample(SubSamplerData& sub){
@@ -207,7 +218,8 @@ void Sam::hamiltonianSample(SubSamplerData& sub){
 }
 
 void Sam::customSample(SubSamplerData& sub){
-    return; // TODO: Implement
+    sub.func(x,xPropose,working,nAccepted,nDim,&rng,&sub);
+    return;
 }
 
 std::string Sam::metropolisStatus(SubSamplerData& sub){
@@ -222,7 +234,6 @@ std::string Sam::metropolisStatus(SubSamplerData& sub){
     }
     status << std::endl;
     return status.str();
-    // return std::string("Error: Not Implemented."); // TODO: Implement
 }
 
 std::string Sam::gibbsStatus(SubSamplerData& sub){
@@ -234,12 +245,37 @@ std::string Sam::hamiltonianStatus(SubSamplerData& sub){
 }
 
 std::string Sam::customStatus(SubSamplerData& sub){
-    return std::string("Error: Not Implemented."); // TODO: Implement
+    std::stringstream status;
+    status << "Custom: " << (void*)sub.func << std::endl;
+    if(sub.dDataLen > 0){
+        status << "Data: ";
+        for(size_t i = 0; i < sub.dDataLen; i++){
+            status << sub.dData[i];
+            if(i != sub.dDataLen-1)
+                status << ", ";
+        }
+    }
+    else
+        status << "Data: [None]";
+    status << std::endl;
+    if(sub.sDataLen > 0){
+        status << "Size Data: ";
+        for(size_t i = 0; i < sub.sDataLen; i++){
+            status << sub.sData[i];
+            if(i != sub.sDataLen-1)
+                status << ", ";
+        }
+    }
+    else
+        status << "Size Data: [None]";
+    status << std::endl;
+    return status.str();
 }
 
 void Sam::addMetropolis(double* proposalStd, size_t targetStart, size_t targetLen){
     SubSamplerData newSub;
     newSub.algorithm = METROPOLIS;
+    newSub.func = NULL;
     newSub.dData = new double[targetLen];
     newSub.dDataLen = targetLen;
     for(size_t i = 0; i < targetLen; i++)
@@ -248,6 +284,34 @@ void Sam::addMetropolis(double* proposalStd, size_t targetStart, size_t targetLe
     newSub.sDataLen = 2;
     newSub.sData[0] = targetStart;
     newSub.sData[1] = targetLen;
+    subSamplers.push_back(newSub);
+    return;
+}
+
+void Sam::addCustom(void (*func)(double*, double*, double*, size_t*, size_t, RNG*, SubSamplerData*), double* dData, size_t dDataLen, size_t* sData, size_t sDataLen){
+    SubSamplerData newSub;
+    newSub.algorithm = CUSTOM;
+    newSub.func = func;
+    if(dDataLen > 0){
+        newSub.dData = new double [dDataLen];
+        newSub.dDataLen = dDataLen;
+        for(size_t i = 0; i < dDataLen; i++)
+            newSub.dData[i] = dData[i];
+    }
+    else{
+        newSub.dData = NULL;
+        newSub.dDataLen = 0;
+    }
+    if(sDataLen > 0){
+        newSub.sData = new size_t[sDataLen];
+        newSub.sDataLen = sDataLen;
+        for(size_t i = 0; i < sDataLen; i++)
+            newSub.sData[i] = sData[i];
+    }
+    else{
+        newSub.sData = NULL;
+        newSub.sDataLen = 0;
+    }
     subSamplers.push_back(newSub);
     return;
 }
@@ -275,10 +339,9 @@ std::string Sam::getStatus(){
         status << "Data: [Too much to reasonably print.]" << std::endl;
     if(accumulateStats){
         status << std::endl << "===== Variable summary =====" << std::endl;
-        // TODO: Format output better.
-        status << "Mean, Std:" << std::endl;
-        for(size_t i = 0; i < subSamplers.size(); i++){
-            status << getMean(i) << " " << getStd(i);
+        status << "Dim    Accept %      Mean       Std" << std::endl;
+        for(size_t i = 0; i < nDim; i++){
+            status << std::left << std::setw(5) << i << std::right << std::setw(10) << double(nAccepted[i])/nCalls <<  std::setw(10) << getMean(i) << std::setw(10) << getStd(i);
         }
     }
     status << std::endl << std::endl << "===== Sampler Information =====" << std::endl;

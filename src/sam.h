@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include <ctime>
 #include <boost/math/special_functions.hpp>
@@ -121,19 +122,24 @@ typedef enum{
     CUSTOM
 } SamplingAlgorithm;
 
-typedef struct{
+typedef struct SubSamplerData SubSamplerData;
+struct SubSamplerData{
     SamplingAlgorithm algorithm;
     double *dData;
     size_t *sData;
     size_t dDataLen, sDataLen;
-} SubSamplerData;
+    void (*func)(double *x, double *xPropose, double *working, size_t *nAccepted, size_t nDim, RNG *rng, SubSamplerData *sub);
+};
 
 class Sam{
 private:
     // Working memory
     double* x;
     double* xPropose;
+    double* working;
     double* samples;
+    size_t* nAccepted;
+    size_t nCalls;
     size_t nSamples;
     std::vector<SubSamplerData> subSamplers;
     Accumulator *acc;
@@ -146,7 +152,7 @@ private:
     // Helper functions
     void subSample(SubSamplerData&);
     std::string subStatus(SubSamplerData&);
-    bool proposeMetropolis();
+    void proposeMetropolis();
     void record(size_t);
     // Sampling Algorithms
     void metropolisSample(SubSamplerData&);
@@ -171,6 +177,7 @@ public:
     double* getSamples();
     void write(std::string, bool, std::string);
     void addMetropolis(double*, size_t, size_t);
+    void addCustom(void (*)(double*, double*, double*, size_t*, size_t, RNG*, SubSamplerData*), double*, size_t, size_t*, size_t);
     double getMean(size_t);
     double getVar(size_t);
     double getStd(size_t);
