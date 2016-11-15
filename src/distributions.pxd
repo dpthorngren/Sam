@@ -1,7 +1,7 @@
 cdef extern from "sam.h":
-    cdef cppclass RNG:
-        RNG()
-        RNG(unsigned int)
+    cdef cppclass cRNG "RNG":
+        cRNG()
+        cRNG(unsigned int)
         double normalMean(double mean, double std) except +
         double normalVar(double mean, double std) except +
         double normalStd(double mean, double std) except +
@@ -65,8 +65,8 @@ cdef extern from "sam.h":
         double binomialLogPDF(int x, int number, double probability) except +
         double binomialCDF(double x, int number, double probability) except +
 
-cdef class RandomNumberGenerator:
-    cdef RNG rng
+cdef class RNG:
+    cdef cRNG rng
     cdef double _normalMean(self, double mean, double std)
     cpdef object normalMean(self, object mean, object std)
     cdef double _normalVar(self, double mean, double std)
@@ -191,15 +191,15 @@ cdef class RandomNumberGenerator:
     cpdef object binomialLogPDF(self, object x, object number, object probability)
     cdef double _binomialCDF(self, double x, int number, double probability)
     cpdef object binomialCDF(self, object x, object number, object probability)
-    cdef object wrapDD(self, double (*func)(RandomNumberGenerator, double), object arg1)
-    cdef object wrapDDD(self, double (*func)(RandomNumberGenerator, double, double), object arg1, object arg2)
-    cdef object wrapDDDD(self, double (*func)(RandomNumberGenerator, double, double, double), object arg1, object arg2, object arg3)
-    cdef object wrapDDID(self, double (*func)(RandomNumberGenerator, double, int, double), object arg1, object arg2, object arg3)
-    cdef object wrapDDII(self, double (*func)(RandomNumberGenerator, double, int, int), object arg1, object arg2, object arg3)
-    cdef object wrapDID(self, double (*func)(RandomNumberGenerator, int, double), object arg1, object arg2)
-    cdef object wrapDII(self, double (*func)(RandomNumberGenerator, int, int), object arg1, object arg2)
-    cdef object wrapDIID(self, double (*func)(RandomNumberGenerator, int, int, double), object arg1, object arg2, object arg3)
-    cdef object wrapDIII(self, double (*func)(RandomNumberGenerator, int, int, int), object arg1, object arg2, object arg3)
-    cdef object wrapID(self, int (*func)(RandomNumberGenerator, double), object arg1)
-    cdef object wrapIID(self, int (*func)(RandomNumberGenerator, int, double), object arg1, object arg2)
-    cdef object wrapIII(self, int (*func)(RandomNumberGenerator, int, int), object arg1, object arg2)
+    cdef object wrapDD(self, double (*func)(RNG, double), object arg1)
+    cdef object wrapDDD(self, double (*func)(RNG, double, double), object arg1, object arg2)
+    cdef object wrapDDDD(self, double (*func)(RNG, double, double, double), object arg1, object arg2, object arg3)
+    cdef object wrapDDID(self, double (*func)(RNG, double, int, double), object arg1, object arg2, object arg3)
+    cdef object wrapDDII(self, double (*func)(RNG, double, int, int), object arg1, object arg2, object arg3)
+    cdef object wrapDID(self, double (*func)(RNG, int, double), object arg1, object arg2)
+    cdef object wrapDII(self, double (*func)(RNG, int, int), object arg1, object arg2)
+    cdef object wrapDIID(self, double (*func)(RNG, int, int, double), object arg1, object arg2, object arg3)
+    cdef object wrapDIII(self, double (*func)(RNG, int, int, int), object arg1, object arg2, object arg3)
+    cdef object wrapID(self, int (*func)(RNG, double), object arg1)
+    cdef object wrapIID(self, int (*func)(RNG, int, double), object arg1, object arg2)
+    cdef object wrapIII(self, int (*func)(RNG, int, int), object arg1, object arg2)

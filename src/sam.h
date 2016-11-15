@@ -144,7 +144,7 @@ private:
     std::vector<SubSamplerData> subSamplers;
     Accumulator *acc;
     // Parameters
-    double (*logProb)(double*);
+    double (*logProb)(double*,size_t);
     size_t nDim;
     bool recordSamples;
     bool printSamples;
@@ -168,7 +168,7 @@ public:
     // Random Number Generator
     RNG rng;
     // User-called Functions
-    Sam(size_t, double (*)(double*));
+    Sam(size_t, double (*)(double*,size_t));
     Sam();
     ~Sam();
     void setRecordOptions(bool, bool, bool);
@@ -178,6 +178,8 @@ public:
     void write(std::string, bool, std::string);
     void addMetropolis(double*, size_t, size_t);
     void addCustom(void (*)(double*, double*, double*, size_t*, size_t, RNG*, SubSamplerData*), double*, size_t, size_t*, size_t);
+    size_t getNSamples();
+    size_t getNDim();
     double getMean(size_t);
     double getVar(size_t);
     double getStd(size_t);

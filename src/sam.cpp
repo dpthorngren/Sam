@@ -1,7 +1,7 @@
 #include "sam.h"
 
 // ===== Sam Methods =====
-Sam::Sam(size_t nDim, double (*logProb)(double*)){
+Sam::Sam(size_t nDim, double (*logProb)(double*, size_t)){
     setRecordOptions(true,true,false);
     this->nDim = nDim;
     this->logProb = logProb;
@@ -199,7 +199,7 @@ void Sam::metropolisSample(SubSamplerData& sub){
 void Sam::proposeMetropolis(){
     // TODO: Add recording system for log probability.
     // TODO: Add alternative probability calculation option.
-    double logRatio = logProb(xPropose) - logProb(x);
+    double logRatio = logProb(xPropose,nDim) - logProb(x,nDim);
     if(log(rng.uniformRand(0,1)) < logRatio){
         for(size_t i = 0; i < nDim; i++){
             x[i] = xPropose[i];
@@ -270,6 +270,14 @@ std::string Sam::customStatus(SubSamplerData& sub){
         status << "Size Data: [None]";
     status << std::endl;
     return status.str();
+}
+
+size_t Sam::getNSamples(){
+    return nSamples;
+}
+
+size_t Sam::getNDim(){
+    return nDim;
 }
 
 void Sam::addMetropolis(double* proposalStd, size_t targetStart, size_t targetLen){

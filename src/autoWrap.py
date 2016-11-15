@@ -15,12 +15,12 @@ sigs = set()
 declarations = ""
 
 pxdOut.write("""cdef extern from \"sam.h\":
-    cdef cppclass RNG:
-        RNG()
-        RNG(unsigned int)
+    cdef cppclass cRNG "RNG":
+        cRNG()
+        cRNG(unsigned int)
 """)
 pyxOut.write("""
-cdef class RandomNumberGenerator:
+cdef class RNG:
 """)
 
 for i, line in enumerate(inFile):
@@ -46,16 +46,16 @@ for i, line in enumerate(inFile):
     pyxOut.write("    cdef "+outputType+" _"+functionName+"(self, "+", ".join(arguments)+"):\n")
     pyxOut.write("        return self."+targetClass.lower()+"."+functionName+"("+", ".join(argNames)+")\n")
     pyxOut.write("    cpdef object "+functionName+"(self, object "+", object ".join(argNames)+"):\n")
-    pyxOut.write("        return self.wrap"+sig+"(RandomNumberGenerator._"+functionName+","+", ".join(argNames)+")\n")
+    pyxOut.write("        return self.wrap"+sig+"(RNG._"+functionName+","+", ".join(argNames)+")\n")
 
 pxdOut.write("""
-cdef class RandomNumberGenerator:
+cdef class RNG:
     cdef RNG rng
 """)
 pxdOut.write(declarations)
 
 # TYPECODE, RETTYPE, ARG1TYPE, ARG2TYPE, ARG3TYPE
-wrapCode3 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RandomNumberGenerator, ARG1TYPE, ARG2TYPE, ARG3TYPE), object arg1, object arg2, object arg3):
+wrapCode3 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RNG, ARG1TYPE, ARG2TYPE, ARG3TYPE), object arg1, object arg2, object arg3):
         cdef Py_ssize_t i
         cdef object outputObj
         cdef ARG1TYPE[:] view1
@@ -150,7 +150,7 @@ wrapCode3 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RandomNumberGe
 """
 
 # TYPECODE, RETTYPE, ARG1TYPE, ARG2TYPE
-wrapCode2 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RandomNumberGenerator, ARG1TYPE, ARG2TYPE), object arg1, object arg2):
+wrapCode2 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RNG, ARG1TYPE, ARG2TYPE), object arg1, object arg2):
         cdef Py_ssize_t i
         cdef object outputObj
         cdef ARG1TYPE[:] view1
@@ -190,7 +190,7 @@ wrapCode2 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RandomNumberGe
 """
 
 # TYPECODE, RETTYPE, ARGTYPE
-wrapCode1 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RandomNumberGenerator, ARGTYPE), object arg1):
+wrapCode1 = """    cdef object wrapTYPECODE(self, RETTYPE (*func)(RNG, ARGTYPE), object arg1):
         cdef Py_ssize_t i
         cdef object outputObj
         cdef ARGTYPE[:] view
@@ -220,20 +220,20 @@ for i in a:
         code = re.sub("ARG2TYPE",argsNoName[1],code)
         code = re.sub("ARG3TYPE",argsNoName[2],code)
         pyxOut.write(code)
-        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RandomNumberGenerator, "+", ".join(argsNoName)+"), object "+", object ".join(argsName)+")\n")
+        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RNG, "+", ".join(argsNoName)+"), object "+", object ".join(argsName)+")\n")
     if len(args) == 2:
         code = re.sub("TYPECODE",i,wrapCode2)
         code = re.sub("RETTYPE",ret,code)
         code = re.sub("ARG1TYPE",argsNoName[0],code)
         code = re.sub("ARG2TYPE",argsNoName[1],code)
         pyxOut.write(code)
-        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RandomNumberGenerator, "+", ".join(argsNoName)+"), object "+", object ".join(argsName)+")\n")
+        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RNG, "+", ".join(argsNoName)+"), object "+", object ".join(argsName)+")\n")
     if len(args) == 1:
         code = re.sub("TYPECODE",i,wrapCode1)
         code = re.sub("RETTYPE",ret,code)
         code = re.sub("ARGTYPE",argsNoName[0],code)
         pyxOut.write(code)
-        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RandomNumberGenerator, "+", ".join(argsNoName)+"), object "+argsName[0]+")\n")
+        pxdOut.write("    cdef object wrap"+i+"(self, "+ret+" (*func)(RNG, "+", ".join(argsNoName)+"), object "+argsName[0]+")\n")
 
 pyxOut.close()
 pxdOut.close()
