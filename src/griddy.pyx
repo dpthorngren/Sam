@@ -55,20 +55,27 @@ cdef class Griddy:
         self.tempIndices = np.empty((self.nDim),dtype=int)
         return
 
-    # @cython.boundscheck(False)
-    # @cython.wraparound(False)
-    # @cython.cdivision(True)
-    # @cython.initializedcheck(False)
+    cpdef object getValues(self):
+        return np.asarray(self.values).copy()
+
+    cpdef object getNPoints(self):
+        return np.asarray(self.nPoints).copy()
+
+    cpdef object getIndices(self):
+        return np.asarray(self.indices).copy()
+
+    cpdef object getWeights(self):
+        return np.asarray(self.weights).copy()
+
+    cpdef object getStrides(self):
+        return np.asarray(self.strides).copy()
+
     cpdef Size ind(self,Size[:] p):
         cdef Size d, index = 0
         for d in range(self.nDim):
             index += p[d]*self.strides[d]
         return index
 
-    # @cython.boundscheck(False)
-    # @cython.wraparound(False)
-    # @cython.cdivision(True)
-    # @cython.initializedcheck(False)
     cpdef bint locatePoints(self, double[:] point):
         # Locates the indices corresponding to the point
         # Writes to self.indices, returns whether out of bounds
@@ -117,10 +124,6 @@ cdef class Griddy:
                 self.weights[d] = (point[d] - self.axes[d,i]) / self.widths[d] + 1e-10
         return outOfBounds
 
-    # @cython.boundscheck(False)
-    # @cython.wraparound(False)
-    # @cython.cdivision(True)
-    # @cython.initializedcheck(False)
     def __call__(self,x,gradient=False,debug=False):
         # Using the RegularGridInterpolator system for sanity
         cdef Size d, i, nInputs
@@ -146,10 +149,6 @@ cdef class Griddy:
                 return outputs[0]
             return outputs
 
-    # @cython.boundscheck(False)
-    # @cython.wraparound(False)
-    # @cython.cdivision(True)
-    # @cython.initializedcheck(False)
     cpdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True, bint debug=False):
         # Locate indices and compute weights, or return nan
         cdef Size b, d, offset
@@ -255,10 +254,6 @@ cdef class Griddy:
             return index*self.axes[dim,2] + self.axes[dim,0]
         return self.axes[dim,index]
 
-    # @cython.boundscheck(False)
-    # @cython.wraparound(False)
-    # @cython.cdivision(True)
-    # @cython.initializedcheck(False)
     cpdef void interpN(self,double[:,:] points, double[:] output):
         cdef Size i
         assert output.shape[0] == points.shape[0]
@@ -276,62 +271,3 @@ cdef class Griddy:
                 print "{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,self.nPoints[d]-1])
         print "Strides:", np.asarray(self.strides)
         return
-
-
-def _testF(x,y):
-    return np.cos(x) + 2*y
-
-def _testGradF(x,y):
-    return np.array([-np.sin(x),2])
-
-
-def testGriddy():
-    x = (np.linspace(0,10,1000),
-         np.sin(np.linspace(0,np.pi/2,900)))
-    y = _testF(x[0][:,np.newaxis],x[1][np.newaxis,:])
-    a = Griddy(x,y)
-    print ""
-    print "Call test:"
-    print a((np.linspace(0,5,10),np.pi/4),gradient=True)
-    print a((3.3,np.pi/4))
-    b = a((2.3,np.pi/6.4),gradient=True)
-    print b[0], b[1][0], b[1][1]
-    print ""
-    print "Dimension, Strides:"
-    print a.nPoints[0], a.nPoints[1], ",", a.strides[0], a.strides[1]
-    print ""
-    print "Index Interpretation:"
-    print a.ind(np.array([0,0],dtype=int)), len(a.values)
-    print a.ind(np.array([10,4],dtype=int)), len(a.values)
-    print ""
-    print "Point Identification:"
-    print a.locatePoints(np.array([5,np.pi/4],dtype=np.double)), a.indices[0], a.indices[1], a.weights[0], a.weights[1]
-    print a.locatePoints(np.array([1,np.pi/8],dtype=np.double)), a.indices[0], a.indices[1], a.weights[0], a.weights[1]
-    print a.locatePoints(np.array([10,0],dtype=np.double)), a.indices[0], a.indices[1], a.weights[0], a.weights[1]
-    print a.locatePoints(np.array([0,np.pi/2],dtype=np.double)), a.indices[0], a.indices[1], a.weights[0], a.weights[1]
-    print ""
-    print "Grid value check:"
-    print a.values[a.ind(np.array([50,33]))], _testF(x[0][50],np.sin(x[1][33]))
-    print ""
-    print "Interpolation Test:"
-    print a.interp(np.array([5,np.pi/4],dtype=np.double)), _testF(5,np.pi/4)
-    print a.interp(np.array([1,np.pi/8],dtype=np.double)), _testF(1,np.pi/8)
-    print a.interp(np.array([-1,np.pi/8],dtype=np.double)), nan
-    print ""
-    print "Gradient Interpolation Test:"
-    c = np.zeros(2)
-    b = np.array([2.3,np.pi/6.4],dtype=np.double)
-    a.interp(b,gradient=c)
-    print c, _testGradF(b[0],b[1])
-    b = np.array([5,np.pi/4],dtype=np.double)
-    a.interp(b,gradient=c)
-    print c, _testGradF(b[0],b[1])
-    print ""
-    print "Vectorized Interpolation Test:"
-    b = np.array([[5,np.pi/4],[7.34,np.pi/6]],dtype=np.double)
-    c = np.zeros(2)
-    a.interpN(b,c)
-    print c, _testF(5,np.pi/4), _testF(7.34,np.pi/6)
-    print ""
-    print "Test Complete."
-    return

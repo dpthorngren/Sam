@@ -93,5 +93,88 @@ class SamTester(unittest.TestCase):
         a = [sam.binomialRand(10,.74) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),7.4,delta=7.4*.01)
 
+
+class GriddyTester(unittest.TestCase):
+    def setUp(self):
+        self.testF = lambda x, y: np.cos(x) + 2*y
+        self.testGradF = lambda x, y: np.array([-np.sin(x),2])
+        self.x = (np.linspace(0,10,1000),
+                  np.sin(np.linspace(0,np.pi/2,900)))
+        self.y = self.testF(self.x[0][:,np.newaxis],self.x[1][np.newaxis,:])
+        self.a = sam.Griddy(self.x,self.y)
+        return
+
+    def testStrides(self):
+        self.assertEqual(self.a.getNPoints()[0], 1000)
+        self.assertEqual(self.a.getNPoints()[1], 900)
+        self.assertEqual(self.a.getStrides()[0], 900)
+        self.assertEqual(self.a.getStrides()[1], 1)
+
+    def testIndexing(self):
+        self.assertEqual(len(self.a.getValues()),900000)
+        self.assertEqual(self.a.ind(np.array([0,0],dtype=int)),0)
+        self.assertEqual(self.a.ind(np.array([10,4],dtype=int)),9004)
+
+    def testPointIdentification(self):
+        # Point 1 (off grid in dimension 0)
+        self.assertFalse(self.a.locatePoints(np.array([5,np.pi/4],dtype=np.double)))
+        self.assertEqual(self.a.getIndices()[0], 499)
+        self.assertEqual(self.a.getIndices()[1], 517)
+        self.assertAlmostEqual(self.a.getWeights()[0], .5)
+        self.assertAlmostEqual(self.a.getWeights()[1], .0001017340)
+        # Point 2 (off grid in dimension 1)
+        self.assertFalse(self.a.locatePoints(np.array([1,np.pi/8],dtype=np.double)))
+        self.assertEqual(self.a.getIndices()[0], 99)
+        self.assertEqual(self.a.getIndices()[1], 230)
+        self.assertAlmostEqual(self.a.getWeights()[0], .9)
+        self.assertAlmostEqual(self.a.getWeights()[1], 0.9685815061)
+        # Point 3
+        self.assertTrue(self.a.locatePoints(np.array([10,0],dtype=np.double)))
+        self.assertEqual(self.a.getIndices()[0], 998)
+        self.assertEqual(self.a.getIndices()[1], 0)
+        self.assertAlmostEqual(self.a.getWeights()[0], .9)
+        self.assertAlmostEqual(self.a.getWeights()[1], 1e-10)
+        # Point 4
+        self.assertTrue(self.a.locatePoints(np.array([0,np.pi/2],dtype=np.double)))
+        self.assertEqual(self.a.getIndices()[0], 0)
+        self.assertEqual(self.a.getIndices()[1], 898)
+        self.assertAlmostEqual(self.a.getWeights()[0], 1e-10)
+        self.assertAlmostEqual(self.a.getWeights()[1], 1e-10)
+
+    def testGridValues(self):
+        self.assertAlmostEqual(
+            self.a.getValues()[self.a.ind(np.array([50,33]))],
+            self.testF(self.x[0][50],np.sin(self.x[1][33])),
+            delta=1e-4)
+
+    def testInterpolation(self):
+        self.assertAlmostEqual(
+            self.a.interp(np.array([5,np.pi/4],dtype=np.double)),
+            self.testF(5,np.pi/4),
+            delta=1e-4)
+        self.assertAlmostEqual(
+            self.a.interp(np.array([1,np.pi/8],dtype=np.double)),
+            self.testF(1,np.pi/8),
+            delta=1e-4)
+        self.assertTrue(np.isnan(self.a.interp(np.array([-1,np.pi/8],dtype=np.double))))
+
+    def testGradientInterpolation(self):
+        c = np.zeros(2)
+        b = np.array([2.3,np.pi/6.4],dtype=np.double)
+        self.a.interp(b,gradient=c)
+        self.assertAlmostEqual(c[0], self.testGradF(b[0],b[1])[0], delta=.01)
+        self.assertAlmostEqual(c[1], self.testGradF(b[0],b[1])[1], delta=.01)
+        b = np.array([5,np.pi/4],dtype=np.double)
+        self.a.interp(b,gradient=c)
+        self.assertAlmostEqual(c[0], self.testGradF(b[0],b[1])[0], delta=.01)
+        self.assertAlmostEqual(c[1], self.testGradF(b[0],b[1])[1], delta=.01)
+
+    def testVectorizedInterp(self):
+        b = np.array([[5,np.pi/4],[7.34,np.pi/6]],dtype=np.double)
+        c = np.zeros(2)
+        self.a.interpN(b,c)
+        self.assertAlmostEqual(c[0], self.testF(5,np.pi/4),delta=1e-5)
+        self.assertAlmostEqual(c[1], self.testF(7.34,np.pi/6),delta=1e-5)
+
 if __name__ == "__main__":
     unittest.main()

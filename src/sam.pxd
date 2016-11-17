@@ -77,6 +77,11 @@ cdef class Griddy:
     cdef Size[:] indices
     cdef Size[:] tempIndices
 
+    cpdef object getValues(self)
+    cpdef object getNPoints(self)
+    cpdef object getIndices(self)
+    cpdef object getWeights(self)
+    cpdef object getStrides(self)
     cpdef Size ind(self, Size[:] p)
     cpdef bint locatePoints(self, double[:] point)
     cpdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?, bint debug=?)
