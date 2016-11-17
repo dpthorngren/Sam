@@ -11,6 +11,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb,1,np.array([.5]),
                     lowerBoundaries=np.array([0.]),
                     upperBoundaries=np.array([1.]))
+        a.addMetropolis(0,1)
         samples = a.run(20000,np.array([.5]))
         self.assertTrue((samples >= 0).all())
         self.assertTrue((samples <= 1).all())
@@ -22,7 +23,24 @@ class SamTester(unittest.TestCase):
             return sam.gammaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
         a = sam.Sam(logProb,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))
+        a.addMetropolis(0,2)
         samples = a.run(50000,np.array([.5,.5]),1000)
+        self.assertTrue((samples[:,0] >= 0).all())
+        self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+
+    def test2DHMC(self):
+        def logProb(x):
+            return sam.gammaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
+        def gradLogProb(x):
+            return np.array([sam.gammaDLDX(x[0],20,40), sam.normalDLDX(x[1],5,1)])
+        a = sam.Sam(logProb,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]),
+                    gradLogProbability=gradLogProb)
+        a.addHMC(10,.1,0,2)
+        samples = a.run(50000,np.array([.5,.5]),10)
         self.assertTrue((samples[:,0] >= 0).all())
         self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)

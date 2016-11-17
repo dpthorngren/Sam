@@ -22,35 +22,45 @@ cdef class Sam:
         np.asarray(output)[:] = self.pyGradLogProbability(np.asarray(position))
 
     cdef void sample(self):
-        # TODO: Use function pointer.
-        self.metropolisStep(self.scale,0,self.nDim)
+        cdef size_t s
+        for s in range(self.samplers.size()):
+            if self.samplers[s].samplerType == 0:
+                self.metropolisStep(
+                    self.samplers[s].dStart,
+                    self.samplers[s].dStop)
+            elif self.samplers[s].samplerType == 1:
+                self.hmcStep(
+                    self.samplers[s].nSteps,
+                    self.samplers[s].stepSize,
+                    self.samplers[s].dStart,
+                    self.samplers[s].dStop)
         return
 
-    cdef void hmcStep(self,Size nSteps, double stepSize, Size dMin, Size dMax):
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop):
         cdef Size d, i
         # Initialize velocities
-        for d in range(dMin,dMax):
+        for d in range(dStart,dStop):
             self.xPropose[d] = self.x[d]
             self.momentum[d] = normalRand(0,1./sqrt(self.scale[d]))
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
-        for d in range(dMin,dMax):
+        for d in range(dStart,dStop):
             kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
         self.gradLogProbability(self.xPropose,self.gradient)
         for i in range(nSteps):
-            for d in range(dMin,dMax):
+            for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
-            self.bouncingMove(stepSize, dMin, dMax)
+            self.bouncingMove(stepSize, dStart, dStop)
             self.gradLogProbability(self.xPropose, self.gradient)
-            for d in range(dMin,dMax):
+            for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
         # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
-        for d in range(dMin,dMax):
+        for d in range(dStart,dStop):
             kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
@@ -60,27 +70,15 @@ cdef class Sam:
             raise ValueError("Got NaN for the log probability!")
         if (-exponentialRand(1.) < new - kineticPropose - old + kinetic):
             self.acceptanceRate += 1.
-            for d in range(dMin,dMax):
+            for d in range(dStart,dStop):
                 self.x[d] = self.xPropose[d]
         return
 
-    cdef void bouncingMove(self, double stepSize, Size dMin, Size dMax):
+    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop):
         cdef Size d
-        for d in range(dMin,dMax):
+        for d in range(dStart,dStop):
             self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
             # Enforce boundary conditions
-            if self.xPropose[d] >= self.upperBoundaries[d]:
-                self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
-                self.momentum[d] = -self.momentum[d]
-            if self.xPropose[d] <= self.lowerBoundaries[d]:
-                self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
-                self.momentum[d] = -self.momentum[d]
-        return
-
-    cdef void metropolisStep(self, double[:] proposalStd, Size dMin, Size dMax):
-        cdef Size d
-        for d in range(dMin,dMax):
-            self.xPropose[d] = self.x[d] + normalRand(0,proposalStd[d])
             while True:
                 if self.xPropose[d] >= self.upperBoundaries[d]:
                     self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
@@ -91,10 +89,23 @@ cdef class Sam:
                     self.momentum[d] = -self.momentum[d]
                     continue
                 break
+        return
+
+    cdef void metropolisStep(self, Size dStart, Size dStop):
+        cdef Size d
+        for d in range(dStart,dStop):
+            self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
+            if(self.xPropose[d] > self.upperBoundaries[d] or
+               self.xPropose[d] < self.lowerBoundaries[d]):
+                return
+        for d in range(0,dStart):
+            self.xPropose[d] = self.x[d]
+        for d in range(dStop,self.nDim):
+            self.xPropose[d] = self.x[d]
         if (-exponentialRand(1.) < self.logProbability(self.xPropose) -
             self.logProbability(self.x)):
             self.acceptanceRate += 1.
-            for d in range(dMin,dMax):
+            for d in range(dStart,dStop):
                 self.x[d] = self.xPropose[d]
         return
 
@@ -128,6 +139,36 @@ cdef class Sam:
         output[nDims] = sqrt(sigmasq)
         return output
 
+
+    cpdef void addMetropolis(self,Size dStart, Size dStop):
+        cdef SamplerData samp
+        samp.samplerType = 0
+        samp.dStart = dStart
+        samp.dStop = dStop
+        self.samplers.push_back(samp)
+
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop):
+        cdef SamplerData samp
+        samp.samplerType = 1
+        samp.nSteps = nSteps
+        samp.stepSize = stepSize
+        samp.dStart = dStart
+        samp.dStop = dStop
+        self.samplers.push_back(samp)
+
+    cpdef void printSamplers(self):
+        cdef size_t s
+        for s in range(self.samplers.size()):
+            if self.samplers[s].samplerType == 0:
+                print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+            elif self.samplers[s].samplerType == 1:
+                print s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
+                    self.samplers[s].nSteps, "steps with size", self.samplers[s].stepSize
+        return
+
+    cpdef void clearSamplers(self):
+        self.samplers.clear()
+
     cdef void record(self,Size i):
         cdef Size d
         for d in range(self.nDim):
@@ -140,6 +181,9 @@ cdef class Sam:
         self.acceptanceRate = 0
         self.samples = np.empty((nSamples,self.nDim),dtype=np.double)
         self.sampleView = self.samples
+        if not self.samplers.size():
+            print "No samplers defined -- defaulting to metropolis."
+            self.addMetropolis(0,self.nDim)
         for d in range(self.nDim):
             self.x[d] = x0[d]
         for i in range(nSamples+burnIn):

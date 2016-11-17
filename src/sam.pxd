@@ -4,6 +4,7 @@ from scipy.stats import multivariate_normal
 
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan
+from libcpp.vector cimport vector
 
 # Boost special functions
 cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
@@ -21,12 +22,18 @@ cpdef double incBeta(double x, double a, double b)
 
 # Type definition
 ctypedef Py_ssize_t Size
+cdef struct SamplerData:
+    # 0 = metropolis, 1 = HMC
+    int samplerType
+    Size dStart, dStop, nSteps
+    double stepSize
 
 include "distributions.pxd"
 
 cdef class Sam:
     # Parameters
     cdef Size nDim
+    cdef vector[SamplerData] samplers
     cdef double[:] scale
     cdef double[:] upperBoundaries
     cdef double[:] lowerBoundaries
@@ -53,15 +60,19 @@ cdef class Sam:
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
+    cpdef void addMetropolis(self, Size dStart, Size dStop)
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop)
+    cpdef void printSamplers(self)
+    cpdef void clearSamplers(self)
 
     # Structural functions
     cdef void sample(self)
     cdef void record(self,Size i)
-    cdef void bouncingMove(self, double stepSize, Size dMin, Size dMax)
+    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop)
 
     # Sampling functions
-    cdef void hmcStep(self,Size nSteps, double stepSize, Size dMin, Size dMax)
-    cdef void metropolisStep(self, double[:] proposalStd, Size dMin, Size dMax)
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop)
+    cdef void metropolisStep(self, Size dStart, Size dStop)
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?)
 
 # Griddy
