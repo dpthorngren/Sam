@@ -6,7 +6,7 @@ from scipy.stats import multivariate_normal
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan
 from libcpp.vector cimport vector
 
-# Boost special functions
+# Boost library (RNG functions declared separately in distributions.pxd)
 cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
     cpdef double asinh(double x) except +
     cpdef double acosh(double x) except +
@@ -16,11 +16,20 @@ cdef extern from "<boost/math/special_functions.hpp>" namespace "boost::math":
     cpdef double gamma "boost::math::tgamma"(double x) except +
     cpdef double digamma(double x) except +
     cpdef double binomial_coefficient[double](unsigned int n, unsigned int k) except +
+cdef extern from "<boost/accumulators/statistics/stats.hpp>":
+    pass
+cdef extern from "<boost/accumulators/statistics/mean.hpp>" namespace "boost::accumulators":
+    double mean(Accumulator)
+cdef extern from "<boost/accumulators/statistics/variance.hpp>" namespace "boost::accumulators":
+    double variance(Accumulator)
+cdef extern from "<boost/accumulators/accumulators.hpp>":
+    cdef cppclass Accumulator u"boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::variance> > ":
+        void operator()(double)
 
 # Wrapper to fix ordering not matching other functions.
 cpdef double incBeta(double x, double a, double b)
 
-# Type definition
+# Type definitions
 ctypedef Py_ssize_t Size
 cdef struct SamplerData:
     # 0 = metropolis, 1 = HMC
@@ -33,6 +42,8 @@ include "distributions.pxd"
 cdef class Sam:
     # Parameters
     cdef Size nDim
+    cdef Size recordStart, recordStop
+    cdef bint collectStats
     cdef vector[SamplerData] samplers
     cdef double[:] scale
     cdef double[:] upperBoundaries
@@ -48,6 +59,7 @@ cdef class Sam:
     cdef public object samples
     cdef double[:,:] sampleView
     cdef public double acceptanceRate
+    cdef vector[Accumulator] sampleStats
 
     # User Defined Functions
     cdef object pyLogProbability
@@ -56,7 +68,8 @@ cdef class Sam:
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
 
     # User-called functions
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?)
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, collectStats=?)
+    cpdef object getStats(self)
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
@@ -68,6 +81,7 @@ cdef class Sam:
     # Structural functions
     cdef void sample(self)
     cdef void record(self,Size i)
+    cdef void recordStats(self)
     cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop)
 
     # Sampling functions

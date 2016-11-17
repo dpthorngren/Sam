@@ -171,19 +171,33 @@ cdef class Sam:
 
     cdef void record(self,Size i):
         cdef Size d
-        for d in range(self.nDim):
-            self.sampleView[i,d] = self.x[d]
+        for d in range(self.recordStart,self.recordStop):
+            self.sampleView[i,d-self.recordStart] = self.x[d]
         return
 
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0):
+    cdef void recordStats(self):
+        cdef Size d
+        for d in range(self.nDim):
+            self.sampleStats[d](self.x[d])
+        return
+
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, collectStats=False):
         cdef Size i, j, d
         cdef double vMag, vMagPropose
+        self.recordStart = recordStart
+        if recordStop < 0:
+            recordStop = self.nDim
+        self.recordStop = recordStop
         self.acceptanceRate = 0
-        self.samples = np.empty((nSamples,self.nDim),dtype=np.double)
+        self.samples = np.empty((nSamples,self.recordStop-self.recordStart),dtype=np.double)
         self.sampleView = self.samples
         if not self.samplers.size():
             print "No samplers defined -- defaulting to metropolis."
             self.addMetropolis(0,self.nDim)
+        self.sampleStats.clear()
+        self.collectStats = collectStats
+        if collectStats:
+            self.sampleStats.resize(self.nDim)
         for d in range(self.nDim):
             self.x[d] = x0[d]
         for i in range(nSamples+burnIn):
@@ -191,10 +205,23 @@ cdef class Sam:
                 self.sample()
             if i >= burnIn: 
                 self.record(i-burnIn)
-                # TODO: track statistics here
+                if self.collectStats:
+                    self.recordStats()
         self.acceptanceRate /= (nSamples + burnIn) * (thinning+1)
         return self.samples
 
+    cpdef object getStats(self):
+        assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
+        assert(self.collectStats,"Running statistics collection is turned off.")
+        cdef Size d
+        means = np.empty(self.nDim,dtype=np.double)
+        stds = np.empty(self.nDim,dtype=np.double)
+        cdef double[:] meansView = means
+        cdef double[:] stdsView = stds
+        for d in range(self.nDim):
+            meansView[d] = mean(self.sampleStats[d])
+            stdsView[d] = sqrt(variance(self.sampleStats[d]))
+        return (means, stds)
 
     cpdef void testGradient(self, double[:] x0, double eps=1e-5):
         cdef double central = self.logProbability(x0)

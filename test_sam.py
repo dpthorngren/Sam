@@ -57,6 +57,20 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(posteriorMax[0],19./40.,delta=1e-4)
         self.assertAlmostEqual(posteriorMax[1],5.,delta=1e-4)
 
+    def testRunningStats(self):
+        def logProb(x):
+            return sam.betaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
+        a = sam.Sam(logProb,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]),
+                    upperBoundaries=np.array([1.,np.inf]))
+        a.addMetropolis(0,2)
+        samples = a.run(50000,np.array([.5,.5]), 1000,recordStop=0)
+        self.assertEqual(samples.size,0)
+        self.assertAlmostEqual(a.getStats()[0][0], sam.betaMean(20,40),delta=.01)
+        self.assertAlmostEqual(a.getStats()[1][0], sam.betaStd(20,40),delta=.01)
+        self.assertAlmostEqual(a.getStats()[0][1], 5,delta=.1)
+        self.assertAlmostEqual(a.getStats()[1][1], 1,delta=.1)
+
 
 class DistributionTester(unittest.TestCase):
     # ===== Special Functions =====
