@@ -42,7 +42,9 @@ cdef class Sam:
     cdef double[:,:] sampleView
     cdef public double acceptanceRate
 
-    # Mandatory user Defined Functions
+    # User Defined Functions
+    cdef object pyLogProbability
+    cdef object pyGradLogProbability
     cpdef double logProbability(self, double[:] position)
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
 

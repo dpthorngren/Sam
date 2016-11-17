@@ -10,12 +10,16 @@ cpdef double incBeta(double x, double a, double b):
 
 cdef class Sam:
     cpdef double logProbability(self, double[:] position):
-        raise NotImplementedError("You haven't defined the log probability,"+
-                                  "but the sampler called it.")
+        if self.pyLogProbability is None:
+            raise NotImplementedError("You haven't defined the log probability,"+
+                                      "but the sampler called it.")
+        return self.pyLogProbability(np.asarray(position))
 
     cpdef void gradLogProbability(self, double[:] position, double[:] output):
-        raise NotImplementedError("You haven't defined the log probability "+
-                                  "gradient, but the sampler called it.")
+        if self.pyGradLogProbability is None:
+            raise NotImplementedError("You haven't defined the log probability "+
+                                      "gradient, but the sampler called it.")
+        np.asarray(output)[:] = self.pyGradLogProbability(np.asarray(position))
 
     cdef void sample(self):
         # TODO: Use function pointer.
@@ -40,7 +44,7 @@ cdef class Sam:
             for d in range(dMin,dMax):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
             self.bouncingMove(stepSize, dMin, dMax)
-            self.gradLogProbability(self.xPropose,self.gradient)
+            self.gradLogProbability(self.xPropose, self.gradient)
             for d in range(dMin,dMax):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
@@ -77,6 +81,16 @@ cdef class Sam:
         cdef Size d
         for d in range(dMin,dMax):
             self.xPropose[d] = self.x[d] + normalRand(0,proposalStd[d])
+            while True:
+                if self.xPropose[d] >= self.upperBoundaries[d]:
+                    self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
+                    self.momentum[d] = -self.momentum[d]
+                    continue
+                if self.xPropose[d] <= self.lowerBoundaries[d]:
+                    self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
+                    self.momentum[d] = -self.momentum[d]
+                    continue
+                break
         if (-exponentialRand(1.) < self.logProbability(self.xPropose) -
             self.logProbability(self.x)):
             self.acceptanceRate += 1.
@@ -172,7 +186,6 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
         cdef Size d, i
         cdef double energy, energyPropose, temperature
@@ -201,16 +214,7 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-
-
-
-    def __init__(self,Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
-        # TODO: Better documentation
-        '''
-        Prepares the HMC sampler.
-        Arguments:
-            nDim: Number of dimensions to the probability distribution (int).
-        '''
+    def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None, object gradLogProbability = None):
         cdef Size d
         self.nDim = nDim
         self.x = np.zeros(self.nDim,dtype=np.double)
@@ -220,6 +224,8 @@ cdef class Sam:
         self.scale = np.empty(self.nDim,dtype=np.double)
         self.upperBoundaries = np.empty(self.nDim,dtype=np.double)
         self.lowerBoundaries = np.empty(self.nDim,dtype=np.double)
+        self.pyLogProbability = logProbability
+        self.pyGradLogProbability = gradLogProbability
         for d in range(self.nDim):
             self.scale[d] = scale[d]
         if upperBoundaries is not None:

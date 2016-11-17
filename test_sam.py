@@ -5,13 +5,48 @@ import numpy as np
 
 
 class SamTester(unittest.TestCase):
+    def test1DMetropolis(self):
+        def logProb(x):
+            return sam.betaLogPDF(x[0],15,20)
+        a = sam.Sam(logProb,1,np.array([.5]),
+                    lowerBoundaries=np.array([0.]),
+                    upperBoundaries=np.array([1.]))
+        samples = a.run(20000,np.array([.5]))
+        self.assertTrue((samples >= 0).all())
+        self.assertTrue((samples <= 1).all())
+        self.assertAlmostEqual(samples.mean(),sam.betaMean(15,20),delta=.01)
+        self.assertAlmostEqual(samples.std(),sam.betaStd(15,20),delta=.01)
+
+    def test2DMetropolis(self):
+        def logProb(x):
+            return sam.gammaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
+        a = sam.Sam(logProb,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]))
+        samples = a.run(50000,np.array([.5,.5]),1000)
+        self.assertTrue((samples[:,0] >= 0).all())
+        self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+
+    def test2DGradientDescent(self):
+        def gradLogProb(x):
+            return np.array([sam.gammaDLDX(x[0],20,40), sam.normalDLDX(x[1],5,1)])
+        a = sam.Sam(None,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]),
+                    gradLogProbability=gradLogProb)
+        posteriorMax = a.gradientDescent(np.array([.5,.5]),step=.05)
+        self.assertAlmostEqual(posteriorMax[0],19./40.,delta=1e-4)
+        self.assertAlmostEqual(posteriorMax[1],5.,delta=1e-4)
+
+
+class DistributionTester(unittest.TestCase):
     # ===== Special Functions =====
     def testSpecialFunctions(self):
         self.assertAlmostEqual(sam.incBeta(.8,3.4,2.1),.04811402)
         self.assertAlmostEqual(sam.beta(.7,2.5),0.7118737432)
         self.assertAlmostEqual(sam.gamma(2.5),1.329340388)
         self.assertAlmostEqual(sam.digamma(12.5),2.4851956512)
-        return
 
     # ===== Distributions =====
     def testNormalDistribution(self):
@@ -102,7 +137,6 @@ class GriddyTester(unittest.TestCase):
                   np.sin(np.linspace(0,np.pi/2,900)))
         self.y = self.testF(self.x[0][:,np.newaxis],self.x[1][np.newaxis,:])
         self.a = sam.Griddy(self.x,self.y)
-        return
 
     def testStrides(self):
         self.assertEqual(self.a.getNPoints()[0], 1000)
