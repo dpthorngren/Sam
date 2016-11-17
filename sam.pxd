@@ -94,8 +94,6 @@ from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, a
 cdef class Sam:
     # Parameters
     cdef Size nDim
-    cdef int _testMode;
-    cdef int[:] samplerChoice
     cdef double[:] scale
     cdef double[:] upperBoundaries
     cdef double[:] lowerBoundaries
@@ -124,11 +122,11 @@ cdef class Sam:
     # Structural functions
     cdef void sample(self)
     cdef void record(self,Size i)
-    cdef void bouncingMove(self, double stepSize, int ID)
+    cdef void bouncingMove(self, double stepSize, Size dMin, Size dMax)
 
     # Sampling functions
-    cdef void hmcStep(self,Size nSteps, double stepSize, int ID=?)
-    cdef void metropolisStep(self, double[:] proposalStd, int ID=?)
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dMin, Size dMax)
+    cdef void metropolisStep(self, double[:] proposalStd, Size dMin, Size dMax)
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?)
 
 # Griddy

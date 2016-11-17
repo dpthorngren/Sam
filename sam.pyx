@@ -6,99 +6,78 @@ cimport numpy as np
 
 cdef class Sam:
     cpdef double logProbability(self, double[:] position):
-        if self._testMode == 1:
-            return - (position[0] - 4.0)**2/4.0 - (position[1] - 3.0)**2/2.0
         raise NotImplementedError("You haven't defined the log probability,"+
                                   "but the sampler called it.")
 
     cpdef void gradLogProbability(self, double[:] position, double[:] output):
-        if self._testMode == 1:
-            output[0] = (position[0]-4.0)/2.0
-            output[1] = (position[1]-3.0)/1.0
-            return
         raise NotImplementedError("You haven't defined the log probability "+
                                   "gradient, but the sampler called it.")
 
     cdef void sample(self):
-        self.hmcStep(<int>UniformRand(5,100),UniformRand(.01,.5))
-        self.metropolisStep(self.scale)
+        # TODO: Use function pointer.
+        self.metropolisStep(self.scale,0,self.nDim)
         return
 
-    cdef void hmcStep(self,Size nSteps, double stepSize, int ID=1):
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dMin, Size dMax):
         cdef Size d, i
         # Initialize velocities
-        for d in range(self.nDim):
+        for d in range(dMin,dMax):
             self.xPropose[d] = self.x[d]
-            if self.samplerChoice[d] == ID:
-                self.momentum[d] = NormalRand(0,1./sqrt(self.scale[d]))
-            else:
-                self.momentum[d] = 0
+            self.momentum[d] = NormalRand(0,1./sqrt(self.scale[d]))
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
-        for d in range(self.nDim):
-            if self.samplerChoice[d] == ID:
-                kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
+        for d in range(dMin,dMax):
+            kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
         self.gradLogProbability(self.xPropose,self.gradient)
         for i in range(nSteps):
-            for d in range(self.nDim):
-                if self.samplerChoice[d] == ID:
-                    self.momentum[d] += stepSize * self.gradient[d] / 2.0
-            self.bouncingMove(stepSize, ID)
+            for d in range(dMin,dMax):
+                self.momentum[d] += stepSize * self.gradient[d] / 2.0
+            self.bouncingMove(stepSize, dMin, dMax)
             self.gradLogProbability(self.xPropose,self.gradient)
-            for d in range(self.nDim):
-                if self.samplerChoice[d] == ID:
-                    self.momentum[d] += stepSize * self.gradient[d] / 2.0
+            for d in range(dMin,dMax):
+                self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
         # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
-        for d in range(self.nDim):
-            if self.samplerChoice[d] == ID:
-                kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
+        for d in range(dMin,dMax):
+            kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
-        # print self.logProbability(self.x), self.logProbability(self.xPropose),  kineticPropose, kinetic, self.logProbability(self.xPropose) - self.logProbability(self.x) - kineticPropose + kinetic
         cdef double old = self.logProbability(self.x)
         cdef double new = self.logProbability(self.xPropose)
-        # print 10**(new - old - kineticPropose + kinetic)
         if isnan(new) or isnan(old):
             raise ValueError("Got NaN for the log probability!")
-        if (log(UniformRand()) <
-             new - kineticPropose - old + kinetic):
+        if (-ExponentialRand(1.) < new - kineticPropose - old + kinetic):
             self.acceptanceRate += 1.
-            for d in range(self.nDim):
-                if self.samplerChoice[d] == ID:
-                    self.x[d] = self.xPropose[d]
+            for d in range(dMin,dMax):
+                self.x[d] = self.xPropose[d]
         return
 
-    cdef void bouncingMove(self, double stepSize, int ID):
+    cdef void bouncingMove(self, double stepSize, Size dMin, Size dMax):
         cdef Size d
-        for d in range(self.nDim):
-            if self.samplerChoice[d] == ID:
-                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
-                # Enforce boundary conditions
-                if self.xPropose[d] >= self.upperBoundaries[d]:
-                    self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
-                    self.momentum[d] = -self.momentum[d]
-                if self.xPropose[d] <= self.lowerBoundaries[d]:
-                    self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
-                    self.momentum[d] = -self.momentum[d]
-
+        for d in range(dMin,dMax):
+            self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
+            # Enforce boundary conditions
+            if self.xPropose[d] >= self.upperBoundaries[d]:
+                self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
+                self.momentum[d] = -self.momentum[d]
+            if self.xPropose[d] <= self.lowerBoundaries[d]:
+                self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
+                self.momentum[d] = -self.momentum[d]
         return
 
-    cdef void metropolisStep(self, double[:] proposalStd, int ID=2):
+    cdef void metropolisStep(self, double[:] proposalStd, Size dMin, Size dMax):
         cdef Size d
-        for d in range(self.nDim):
-            if self.samplerChoice[d] == ID:
-                self.xPropose[d] = self.x[d] + NormalRand(0,proposalStd[d])
-        if (log(UniformRand()) < self.logProbability(self.xPropose) -
+        for d in range(dMin,dMax):
+            self.xPropose[d] = self.x[d] + NormalRand(0,proposalStd[d])
+        if (-ExponentialRand(1.) < self.logProbability(self.xPropose) -
             self.logProbability(self.x)):
             self.acceptanceRate += 1.
-            for d in range(self.nDim):
-                if self.samplerChoice[d] == ID:
-                    self.x[d] = self.xPropose[d]
+            for d in range(dMin,dMax):
+                self.x[d] = self.xPropose[d]
         return
 
     # TODO: remove need for numpy
@@ -138,13 +117,6 @@ cdef class Sam:
         return
 
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0):
-        '''
-            Run the HMC using the given distribution and gradient.
-            Arguments:
-                nSamples (int): How many samples to take.
-                nSteps (int): How many steps to take during integration.
-                x0 (double[:]): The starting position of the sampler.
-        '''
         cdef Size i, j, d
         cdef double vMag, vMagPropose
         self.acceptanceRate = 0
@@ -228,7 +200,7 @@ cdef class Sam:
 
 
 
-    def __init__(self,Size nDim, double[:] scale, int[:] samplerChoice=None, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
+    def __init__(self,Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         # TODO: Better documentation
         '''
         Prepares the HMC sampler.
@@ -237,20 +209,15 @@ cdef class Sam:
         '''
         cdef Size d
         self.nDim = nDim
-        self._testMode = 0
         self.x = np.zeros(self.nDim,dtype=np.double)
         self.momentum = np.empty(self.nDim,dtype=np.double)
         self.xPropose = np.zeros(self.nDim,dtype=np.double)
         self.gradient = np.empty(self.nDim,dtype=np.double)
         self.scale = np.empty(self.nDim,dtype=np.double)
-        self.samplerChoice = np.ones(self.nDim,dtype=np.intc)
         self.upperBoundaries = np.empty(self.nDim,dtype=np.double)
         self.lowerBoundaries = np.empty(self.nDim,dtype=np.double)
         for d in range(self.nDim):
             self.scale[d] = scale[d]
-        if samplerChoice is not None:
-            for d in range(self.nDim):
-                self.samplerChoice[d] = samplerChoice[d]
         if upperBoundaries is not None:
             for d in range(self.nDim):
                 self.upperBoundaries[d] = upperBoundaries[d]
