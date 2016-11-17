@@ -1,82 +1,85 @@
 import time
+import numpy as np
 cdef class RandomEngine:
-    def __init__(self,unsigned long int i):
+    def __init__(RandomEngine self, unsigned long int i):
         self.source = mTwister(i)
-defaultEngine = RandomEngine(<unsigned long int>(1000*time.time()))
+defaultEngine = RandomEngine(<unsigned long int>(1000*time.time()*np.random.rand()))
 
 # ===== Uniform Distribution =====
 
-cpdef double UniformRand(double lower=0, double upper=1, RandomEngine engine=defaultEngine):
+cpdef double uniformRand(double lower=0, double upper=1, RandomEngine engine=defaultEngine):
     return engine.uniform_rand(engine.source)*(upper-lower) + lower
 
-cpdef double UniformPDF(double x, double lower=0, double upper=1):
+cpdef double uniformPDF(double x, double lower=0, double upper=1):
         if x > lower and x < upper:
             return 1./(upper-lower)
         return 0.
 
-cpdef double UniformLogPDF(double x, double lower=0, double upper=1):
-    return log(UniformPDF(x,lower,upper))
+cpdef double uniformLogPDF(double x, double lower=0, double upper=1):
+    return log(uniformPDF(x,lower,upper))
 
-cpdef double UniformCDF(double x, double lower=0, double upper=1):
+cpdef double uniformCDF(double x, double lower=0, double upper=1):
     if x < lower:
         return 0.
     if x > upper:
         return 1.
     return (x-lower)/(upper-lower)
 
-cpdef double UniformDLDU(double x, double lower=0, double upper=1):
-    # TODO: Fix
-    return 0.
+cpdef double uniformDLDU(double x, double lower=0, double upper=1):
+    if x < lower or x > upper:
+        return 0
+    return 1./(lower - upper)
 
-cpdef double UniformDLDL(double x, double lower=0, double upper=1):
-    # TODO: Fix
-    return 0.
+cpdef double uniformDLDL(double x, double lower=0, double upper=1):
+    if x < lower or x > upper:
+        return 0
+    return 1./(upper - lower)
 
-cpdef double UniformMean(double lower=0, double upper=1):
+cpdef double uniformMean(double lower=0, double upper=1):
     return (upper+lower)/2.
 
-cpdef double UniformVar(double lower=0, double upper=1):
+cpdef double uniformVar(double lower=0, double upper=1):
     return (upper-lower)**2 / 12.
 
-cpdef double UniformStd(double lower=0, double upper=1):
+cpdef double uniformStd(double lower=0, double upper=1):
     return (upper-lower)/sqrt(12.)
 
 # ===== Normal Distribution =====
 
-cpdef double NormalRand(double mean=0, double sigma=1, RandomEngine engine = defaultEngine):
+cpdef double normalRand(double mean=0, double sigma=1, RandomEngine engine = defaultEngine):
     return engine.normal_rand(engine.source)*sigma + mean
 
-cpdef double NormalPDF(double x, double mean=0, double sigma=1):
+cpdef double normalPDF(double x, double mean=0, double sigma=1):
     return exp(-(x-mean)**2/(2*sigma*sigma))/sqrt(2*pi*sigma*sigma)
 
-cpdef double NormalLogPDF(double x, double mean=0, double sigma=1):
+cpdef double normalLogPDF(double x, double mean=0, double sigma=1):
     return -(x-mean)**2/(2*sigma*sigma) - .5*log(2*pi*sigma*sigma)
 
-cpdef double NormalCDF(double x, double mean=0, double sigma=1):
-    return cdf(normal(mean,sigma),x)
+cpdef double normalCDF(double x, double mean=0, double sigma=1):
+    return cdf(normal_info(mean,sigma),x)
 
-cpdef double NormalDLDM(double x, double mean=0, double sigma=1):
+cpdef double normalDLDM(double x, double mean=0, double sigma=1):
     return (x-mean)/(sigma*sigma)
 
-cpdef double NormalDLDX(double x, double mean=0, double sigma=1):
+cpdef double normalDLDX(double x, double mean=0, double sigma=1):
     return (mean-x)/(sigma*sigma)
 
-cpdef double NormalDLDV(double x, double mean=0, double sigma=1):
+cpdef double normalDLDV(double x, double mean=0, double sigma=1):
     return (x-mean)**2 / (2*sigma**4) - .5/sigma**2
 
-cpdef double NormalDLDS(double x, double mean=0, double sigma=1):
+cpdef double normalDLDS(double x, double mean=0, double sigma=1):
     return (x-mean)**2 / sigma**3 - 1./sigma
 
-cpdef double NormalMean(double mean=0, double sigma=1):
+cpdef double normalMean(double mean=0, double sigma=1):
     return mean
 
-cpdef double NormalVar(double mean=0, double sigma=1):
+cpdef double normalVar(double mean=0, double sigma=1):
     return sigma*sigma
 
-cpdef double NormalStd(double mean=0, double sigma=1):
+cpdef double normalStd(double mean=0, double sigma=1):
     return sigma
 
-cpdef double NormalMode(double mean=0, double sigma=1):
+cpdef double normalMode(double mean=0, double sigma=1):
     return mean
 
 # ===== Multivariate Normal Distribution =====
@@ -94,130 +97,129 @@ cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance):
 
 # ===== Gamma Distribution =====
 
-cpdef double GammaRand(double shape, double rate, RandomEngine engine = defaultEngine):
+cpdef double gammaRand(double shape, double rate, RandomEngine engine = defaultEngine):
     engine.gamma_rand.param(gamma_rng.param_type(shape,1./rate))
     return engine.gamma_rand(engine.source)
 
-cpdef double GammaPDF(double x, double shape, double rate):
+cpdef double gammaPDF(double x, double shape, double rate):
     cdef gamma_info* temp = new gamma_info(shape,1./rate)
     cdef double return_value = pdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double GammaLogPDF(double x, double shape, double rate):
-    return log(GammaPDF(x,shape,rate))
+cpdef double gammaLogPDF(double x, double shape, double rate):
+    return log(gammaPDF(x,shape,rate))
 
-cpdef double GammaCDF(double x, double shape, double rate):
+cpdef double gammaCDF(double x, double shape, double rate):
     cdef gamma_info* temp = new gamma_info(shape,1./rate)
     cdef double return_value = cdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double GammaDLDA(double x, double shape, double rate):
+cpdef double gammaDLDA(double x, double shape, double rate):
     return log(rate) + log(x) - digamma(shape)
 
-cpdef double GammaDLDB(double x, double shape, double rate):
+cpdef double gammaDLDB(double x, double shape, double rate):
     return shape/rate - x
 
-cpdef double GammaDLDX(double x, double shape, double rate):
+cpdef double gammaDLDX(double x, double shape, double rate):
     return (shape-1)/x - rate
 
-cpdef double GammaMean(double shape, double rate):
+cpdef double gammaMean(double shape, double rate):
     return shape/rate
 
-cpdef double GammaVar(double shape, double rate):
+cpdef double gammaVar(double shape, double rate):
     return shape/rate**2
 
-cpdef double GammaStd(double shape, double rate):
+cpdef double gammaStd(double shape, double rate):
     return sqrt(shape)/rate
 
-cpdef double GammaMode(double shape, double rate):
+cpdef double gammaMode(double shape, double rate):
     if shape < 1:
         return 0
     return (shape-1)/rate
 
 # ===== Inverse-Gamma Distribution =====
 
-cpdef double InvGammaRand(double shape, double rate, RandomEngine engine=defaultEngine):
+cpdef double invGammaRand(double shape, double rate, RandomEngine engine=defaultEngine):
     engine.gamma_rand.param(gamma_rng.param_type(shape,1./rate))
     return 1.0/engine.gamma_rand(engine.source)
 
-cpdef double InvGammaPDF(double x, double shape, double rate):
+cpdef double invGammaPDF(double x, double shape, double rate):
     cdef gamma_info* temp = new gamma_info(shape,rate)
     cdef double return_value = pdf(temp[0],1./x)
     del temp
     return return_value
 
-cpdef double InvGammaLogPDF(double x, double shape, double rate):
-    return log(InvGammaPDF(x,shape,rate))
+cpdef double invGammaLogPDF(double x, double shape, double rate):
+    return log(invGammaPDF(x,shape,rate))
 
-cpdef double InvGammaCDF(double x, double shape, double rate):
+cpdef double invGammaCDF(double x, double shape, double rate):
     cdef gamma_info* temp = new gamma_info(shape,rate)
     cdef double return_value = cdf(temp[0],1./x)
     del temp
     return return_value
 
-cpdef double InvGammaDLDA(double x, double shape, double rate):
+cpdef double invGammaDLDA(double x, double shape, double rate):
     return log(rate) - log(x) - digamma(shape)
 
-cpdef double InvGammaDLDB(double x, double shape, double rate):
+cpdef double invGammaDLDB(double x, double shape, double rate):
     return shape/rate - 1./x
 
-cpdef double InvGammaDLDX(double x, double shape, double rate):
+cpdef double invGammaDLDX(double x, double shape, double rate):
     return 2.*rate/x - (shape + 1.)/x
 
-cpdef double InvGammaMean(double shape, double rate):
+cpdef double invGammaMean(double shape, double rate):
     return rate / (shape - 1)
 
-cpdef double InvGammaVar(double shape, double rate):
+cpdef double invGammaVar(double shape, double rate):
     return rate**2  / ((shape-1)**2 * (shape-2))
 
-cpdef double InvGammaStd(double shape, double rate):
+cpdef double invGammaStd(double shape, double rate):
     if shape <= 2:
-        # TODO: make nan
-        return 0
+        return nan
     return rate / ((shape-1)*sqrt(shape-2))
 
-cpdef double InvGammaMode(double shape, double rate):
+cpdef double invGammaMode(double shape, double rate):
     return rate/(shape+1.)
 
 # ===== Beta Distribution =====
 
-cpdef double BetaRand(double alpha, double beta, RandomEngine engine = defaultEngine):
+cpdef double betaRand(double alpha, double beta, RandomEngine engine = defaultEngine):
     engine.beta_rand.param(beta_rng.param_type(alpha,beta))
     return engine.beta_rand(engine.source)
 
-cpdef double BetaPDF(double x, double alpha, double beta):
+cpdef double betaPDF(double x, double alpha, double beta):
     cdef beta_info* temp = new beta_info(alpha,beta)
     cdef double return_value = pdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double BetaLogPDF(double x, double alpha, double beta):
-    return log(BetaPDF(x,alpha, beta))
+cpdef double betaLogPDF(double x, double alpha, double beta):
+    return log(betaPDF(x,alpha, beta))
 
-cpdef double BetaCDF(double x, double alpha, double beta):
+cpdef double betaCDF(double x, double alpha, double beta):
     cdef beta_info* temp = new beta_info(alpha,beta)
     cdef double return_value = cdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double BetaDLDA(double x, double alpha, double beta):
+cpdef double betaDLDA(double x, double alpha, double beta):
     return log(x) + digamma(alpha+beta) - digamma(alpha)
 
-cpdef double BetaDLDB(double x, double alpha, double beta):
+cpdef double betaDLDB(double x, double alpha, double beta):
     return log(1-x) + digamma(alpha+beta) - digamma(alpha)
 
-cpdef double BetaMean(double alpha, double beta):
+cpdef double betaMean(double alpha, double beta):
     return alpha / (alpha+beta)
 
-cpdef double BetaVar(double alpha, double beta):
+cpdef double betaVar(double alpha, double beta):
     return alpha*beta / ((alpha+beta)**2*(alpha+beta+1))
 
-cpdef double BetaStd(double alpha, double beta):
-    return sqrt(BetaVar(alpha,beta))
+cpdef double betaStd(double alpha, double beta):
+    return sqrt(betaVar(alpha,beta))
 
-cpdef double BetaMode(double alpha, double beta):
+cpdef double betaMode(double alpha, double beta):
     if alpha <= 1 or beta <= 1.:
         if alpha < beta:
             return 0
@@ -229,113 +231,113 @@ cpdef double BetaMode(double alpha, double beta):
 
 # ===== Poisson Distribution =====
 
-cpdef double PoissonRand(double lamb, RandomEngine engine=defaultEngine):
+cpdef double poissonRand(double lamb, RandomEngine engine=defaultEngine):
     engine.poisson_rand.param(pois_rng.param_type(lamb))
     return engine.poisson_rand(engine.source)
 
-cpdef double PoissonPDF(int x, double lamb):
+cpdef double poissonPDF(int x, double lamb):
     cdef pois_info* temp = new pois_info(lamb)
     cdef double return_value = pdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double PoissonLogPDF(int x, double lamb):
-    return log(PoissonPDF(x,lamb))
+cpdef double poissonLogPDF(int x, double lamb):
+    return log(poissonPDF(x,lamb))
 
-cpdef double PoissonCDF(double x, double lamb):
+cpdef double poissonCDF(double x, double lamb):
     cdef pois_info* temp = new pois_info(lamb)
     cdef double return_value = cdf(temp[0],<int>x)
     del temp
     return return_value
 
-cpdef double PoissonDLDL(int x, double lamb):
+cpdef double poissonDLDL(int x, double lamb):
     return x/lamb - 1.
 
-cpdef double PoissonMean(double lamb):
+cpdef double poissonMean(double lamb):
     return lamb
 
-cpdef double PoissonVar(double lamb):
+cpdef double poissonVar(double lamb):
     return lamb
 
-cpdef double PoissonStd(double lamb):
+cpdef double poissonStd(double lamb):
     return sqrt(lamb)
 
-cpdef int PoissonMode(double lamb):
-    # TODO: Decide if this is reasonable
-    return <int>(lamb-.5)
+cpdef int poissonMode(double lamb):
+    '''Returns max mode if result is not unique (integer lambda).'''
+    return <int>(lamb)
 
 # ===== Exponential Distribution =====
 
-cpdef double ExponentialRand(double lamb, RandomEngine engine=defaultEngine):
+cpdef double exponentialRand(double lamb, RandomEngine engine=defaultEngine):
     engine.exponential_rand.param(expon_rng.param_type(lamb))
     return engine.exponential_rand(engine.source)
 
-cpdef double ExponentialPDF(double x, double lamb):
+cpdef double exponentialPDF(double x, double lamb):
     if x > 0:
         return lamb * exp(-lamb*x)
     return 0.
 
-cpdef double ExponentialLogPDF(double x, double lamb):
+cpdef double exponentialLogPDF(double x, double lamb):
     if x > 0:
         return log(lamb)-lamb*x
     return 0.
 
-cpdef double ExponentialCDF(double x, double lamb):
+cpdef double exponentialCDF(double x, double lamb):
     if x > 0:
         return 1.-exp(-lamb*x)
     return 0
 
-cpdef double ExponentialDLDL(double x, double lamb):
+cpdef double exponentialDLDL(double x, double lamb):
     return 1./lamb - x
 
-cpdef double ExponentialMean(double lamb):
+cpdef double exponentialMean(double lamb):
     return 1./lamb
 
-cpdef double ExponentialVar(double lamb):
+cpdef double exponentialVar(double lamb):
     return 1./(lamb*lamb)
 
-cpdef double ExponentialStd(double lamb):
+cpdef double exponentialStd(double lamb):
     return 1./lamb
 
-cpdef double ExponentialMode(double lamb):
+cpdef double exponentialMode(double lamb):
     return 0
 
 # ===== Binomial Distribution =====
 
-cpdef double BinomialRand(int n, double probability, RandomEngine engine=defaultEngine):
+cpdef double binomialRand(int n, double probability, RandomEngine engine=defaultEngine):
     engine.binomial_rand.param(binom_rng.param_type(n,probability))
     return engine.binomial_rand(engine.source)
 
-cpdef double BinomialPDF(int x, int n, double probability):
+cpdef double binomialPDF(int x, int n, double probability):
     cdef binom_info* temp = new binom_info(n,probability)
     cdef double return_value = pdf(temp[0],x)
     del temp
     return return_value
 
-cpdef double BinomialLogPDF(int x, int n, double probability):
-    return log(BinomialPDF(x,n,probability))
+cpdef double binomialLogPDF(int x, int n, double probability):
+    return log(binomialPDF(x,n,probability))
 
-cpdef double BinomialCDF(double x, int n, double probability):
+cpdef double binomialCDF(double x, int n, double probability):
     cdef binom_info* temp = new binom_info(n,probability)
     cdef double return_value = cdf(temp[0],<int>x)
     del temp
     return return_value
 
-cpdef double BinomialDLDP(int x, int n, double probability):
+cpdef double binomialDLDP(int x, int n, double probability):
     return x/probability - (1-x)/(1.-probability)
 
-cpdef double BinomialMean(int n, double probability):
+cpdef double binomialMean(int n, double probability):
     return n*probability
 
-cpdef double BinomialVar(int n, double probability):
+cpdef double binomialVar(int n, double probability):
     return n*probability*(1.-probability)
 
-cpdef double BinomialStd(int n, double probability):
+cpdef double binomialStd(int n, double probability):
     return sqrt(n*probability*(1.-probability))
 
-cpdef double BinomialMode(int n, double probability):
+cpdef double binomialMode(int n, double probability):
     cdef int x = <int>(n*probability)
-    if BinomialPDF(x,n,probability) >= BinomialPDF(x,n,probability):
+    if binomialPDF(x,n,probability) >= binomialPDF(x,n,probability):
         return x
     else:
         return x+1
