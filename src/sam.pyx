@@ -1,7 +1,9 @@
 # distutils: language = c++
 include "distributions.pyx"
 include "griddy.pyx"
+import multiprocessing as mp
 import numpy as np
+import os
 cimport numpy as np
 
 # Special function wrappers
@@ -181,7 +183,7 @@ cdef class Sam:
             self.sampleStats[d](self.x[d])
         return
 
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, collectStats=False):
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1):
         cdef Size i, j, d
         cdef double vMag, vMagPropose
         self.recordStart = recordStart
@@ -189,8 +191,9 @@ cdef class Sam:
             recordStop = self.nDim
         self.recordStop = recordStop
         self.acceptanceRate = 0
-        self.samples = np.empty((nSamples,self.recordStop-self.recordStart),dtype=np.double)
-        self.sampleView = self.samples
+        self.nSamples = nSamples
+        self.burnIn = burnIn
+        self.thinning = thinning
         if not self.samplers.size():
             print "No samplers defined -- defaulting to metropolis."
             self.addMetropolis(0,self.nDim)
@@ -198,16 +201,33 @@ cdef class Sam:
         self.collectStats = collectStats
         if collectStats:
             self.sampleStats.resize(self.nDim)
+        self.readyToRun = True
+        if threads > 1:
+            p = mp.Pool(threads)
+            self.samples = np.array(p.map(self,[np.asarray(x0)]*threads))
+            p.terminate()
+            return self.samples
+        else:
+            self(x0)
+            return self.samples
+
+    def __call__(self, object x0):
+        if not self.readyToRun:
+            raise RuntimeError("The call function is for internal use only.")
+        self.readyToRun = False
+        cdef double[:] x0View = x0
         for d in range(self.nDim):
-            self.x[d] = x0[d]
-        for i in range(nSamples+burnIn):
-            for j in range(thinning+1):
+            self.x[d] = x0View[d]
+        self.samples = np.empty((self.nSamples,self.recordStop-self.recordStart),dtype=np.double)
+        self.sampleView = self.samples
+        for i in range(self.nSamples+self.burnIn):
+            for j in range(self.thinning+1):
                 self.sample()
-            if i >= burnIn: 
-                self.record(i-burnIn)
+            if i >= self.burnIn: 
+                self.record(i-self.burnIn)
                 if self.collectStats:
                     self.recordStats()
-        self.acceptanceRate /= (nSamples + burnIn) * (thinning+1)
+        self.acceptanceRate /= (self.nSamples + self.burnIn) * (self.thinning+1)
         return self.samples
 
     cpdef object getStats(self):
@@ -298,6 +318,7 @@ cdef class Sam:
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None, object gradLogProbability = None):
         cdef Size d
         self.nDim = nDim
+        self.readyToRun = False
         self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
         self._resetMemoryViews_()
         self.pyLogProbability = logProbability
@@ -316,4 +337,18 @@ cdef class Sam:
         else:
             for d in range(self.nDim):
                 self.lowerBoundaries[d] = -infinity
+        return
+
+    def __getstate__(self):
+        info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
+                self.recordStop, self.collectStats, self.readyToRun, self.samplers,
+                self._workingMemory_, self.pyLogProbability, self.pyGradLogProbability)
+        return info
+
+    def __setstate__(self,info):
+        (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
+         self.recordStop, self.collectStats, self.readyToRun, self.samplers,
+         self._workingMemory_, self.pyLogProbability, self.pyGradLogProbability) = info
+        defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
+        self._resetMemoryViews_()
         return

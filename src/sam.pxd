@@ -41,9 +41,11 @@ include "distributions.pxd"
 
 cdef class Sam:
     # Parameters
-    cdef Size nDim
+    cdef Size nDim, nSamples
+    cdef Size burnIn, thinning
     cdef Size recordStart, recordStop
     cdef bint collectStats
+    cdef bint readyToRun
     cdef vector[SamplerData] samplers
     cdef double[:] scale
     cdef double[:] upperBoundaries
@@ -69,7 +71,7 @@ cdef class Sam:
     cpdef void gradLogProbability(self, double[:] position, double[:] output)
 
     # User-called functions
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, collectStats=?)
+    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
     cpdef object getStats(self)
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)

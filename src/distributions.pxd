@@ -68,6 +68,7 @@ cdef extern from "<boost/random/binomial_distribution.hpp>":
         void param(param_type)
 
 cdef class RandomEngine:
+    cpdef setSeed(self,unsigned long int i)
     # RNG
     cdef mTwister source
     cdef uniform_rng uniform_rand

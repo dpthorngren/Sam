@@ -1,9 +1,14 @@
 import time
+import os
 import numpy as np
 cdef class RandomEngine:
-    def __init__(RandomEngine self, unsigned long int i):
+    def __init__(self, unsigned long int i):
+        self.setSeed(i)
+
+    cpdef setSeed(self,unsigned long int i):
         self.source = mTwister(i)
-defaultEngine = RandomEngine(<unsigned long int>(1000*time.time()*np.random.rand()))
+
+defaultEngine = RandomEngine(<unsigned long int>int(os.urandom(4).encode("hex"),16))
 
 # ===== Uniform Distribution =====
 
