@@ -64,7 +64,7 @@ class SamTester(unittest.TestCase):
                     lowerBoundaries=np.array([0.,-np.inf]),
                     upperBoundaries=np.array([1.,np.inf]))
         a.addMetropolis(0,2)
-        samples = a.run(50000,np.array([.5,.5]), 1000,recordStop=0)
+        samples = a.run(50000,np.array([.5,.5]), 1000,recordStop=0,collectStats=True)
         self.assertEqual(samples.size,0)
         self.assertAlmostEqual(a.getStats()[0][0], sam.betaMean(20,40),delta=.01)
         self.assertAlmostEqual(a.getStats()[1][0], sam.betaStd(20,40),delta=.01)

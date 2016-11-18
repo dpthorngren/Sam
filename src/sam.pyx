@@ -285,16 +285,21 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
+    cdef void _resetMemoryViews_(self):
+        self.x = self._workingMemory_[0:self.nDim]
+        self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
+        self.momentum = self._workingMemory_[2*self.nDim:3*self.nDim]
+        self.gradient = self._workingMemory_[3*self.nDim:4*self.nDim]
+        self.scale = self._workingMemory_[4*self.nDim:5*self.nDim]
+        self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
+        self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
+        return
+
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None, object gradLogProbability = None):
         cdef Size d
         self.nDim = nDim
-        self.x = np.zeros(self.nDim,dtype=np.double)
-        self.momentum = np.empty(self.nDim,dtype=np.double)
-        self.xPropose = np.zeros(self.nDim,dtype=np.double)
-        self.gradient = np.empty(self.nDim,dtype=np.double)
-        self.scale = np.empty(self.nDim,dtype=np.double)
-        self.upperBoundaries = np.empty(self.nDim,dtype=np.double)
-        self.lowerBoundaries = np.empty(self.nDim,dtype=np.double)
+        self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
+        self._resetMemoryViews_()
         self.pyLogProbability = logProbability
         self.pyGradLogProbability = gradLogProbability
         for d in range(self.nDim):

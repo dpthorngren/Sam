@@ -50,6 +50,7 @@ cdef class Sam:
     cdef double[:] lowerBoundaries
 
     # Working memory
+    cdef object _workingMemory_
     cdef double[:] x
     cdef double[:] xPropose
     cdef double[:] momentum
@@ -79,6 +80,7 @@ cdef class Sam:
     cpdef void clearSamplers(self)
 
     # Structural functions
+    cdef void _resetMemoryViews_(self)
     cdef void sample(self)
     cdef void record(self,Size i)
     cdef void recordStats(self)
