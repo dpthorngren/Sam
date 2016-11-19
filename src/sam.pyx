@@ -65,8 +65,8 @@ cdef class Sam:
         if isnan(new) or isnan(old):
             raise ValueError("Got NaN for the log probability!")
         if (exponentialRand(1.) > old - kinetic - new + kineticPropose):
-            self.acceptanceRate += 1.
             for d in range(dStart,dStop):
+                self.acceptedView[d] += 1
                 self.x[d] = self.xPropose[d]
         return
 
@@ -100,8 +100,8 @@ cdef class Sam:
             self.xPropose[d] = self.x[d]
         if (exponentialRand(1.) > self.logProbability(self.x,self.gradient,False) -
             self.logProbability(self.xPropose,self.gradient,False)):
-            self.acceptanceRate += 1.
             for d in range(dStart,dStop):
+                self.acceptedView[d] += 1
                 self.x[d] = self.xPropose[d]
         return
 
@@ -189,7 +189,7 @@ cdef class Sam:
         if recordStop < 0:
             recordStop = self.nDim
         self.recordStop = recordStop
-        self.acceptanceRate = 0
+        self.accepted[:] = 0
         self.nSamples = nSamples
         self.burnIn = burnIn
         self.thinning = thinning
@@ -200,10 +200,13 @@ cdef class Sam:
         self.collectStats = collectStats
         if collectStats:
             self.sampleStats.resize(self.nDim)
+        self.trials = (self.nSamples + self.burnIn) * (self.thinning+1)
         self.readyToRun = True
         if threads > 1:
             p = mp.Pool(threads)
-            self.samples = np.array(p.map(self,[x0]*threads))
+            self.samples, self.accepted = zip(*p.map(self,[x0]*threads))
+            self.samples = np.array(self.samples)
+            self.accepted = np.array(self.accepted)
             p.terminate()
             return self.samples
         else:
@@ -226,8 +229,7 @@ cdef class Sam:
                 self.record(i-self.burnIn)
                 if self.collectStats:
                     self.recordStats()
-        self.acceptanceRate /= (self.nSamples + self.burnIn) * (self.thinning+1)
-        return self.samples
+        return self.samples, self.accepted
 
     cpdef object getStats(self):
         assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
@@ -241,6 +243,10 @@ cdef class Sam:
             meansView[d] = mean(self.sampleStats[d])
             stdsView[d] = sqrt(variance(self.sampleStats[d]))
         return (means, stds)
+
+    cpdef object getAcceptance(self):
+        assert self.trials > 0
+        return self.accepted.astype(np.double)/self.trials
 
     cpdef void testGradient(self, double[:] x0, double eps=1e-5):
         assert x0.size == self.nDim
@@ -316,6 +322,7 @@ cdef class Sam:
         self.scale = self._workingMemory_[4*self.nDim:5*self.nDim]
         self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
+        self.acceptedView = self.accepted
         return
 
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
@@ -329,6 +336,8 @@ cdef class Sam:
         self.nDim = nDim
         self.readyToRun = False
         self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
+        self.accepted = np.zeros(self.nDim,dtype=np.intc)
+        self.trials = 0
         self._setMemoryViews_()
         self.pyLogProbability = logProbability
         for d in range(self.nDim):
@@ -350,13 +359,13 @@ cdef class Sam:
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-                self._workingMemory_, self.pyLogProbability)
+                self._workingMemory_, self.accepted, self.pyLogProbability)
         return info
 
     def __setstate__(self,info):
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-         self._workingMemory_, self.pyLogProbability) = info
+         self._workingMemory_, self.accepted, self.pyLogProbability) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()
         return

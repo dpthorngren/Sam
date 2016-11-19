@@ -61,7 +61,9 @@ cdef class Sam:
     # Output
     cdef public object samples
     cdef double[:,:] sampleView
-    cdef public double acceptanceRate
+    cdef public object accepted
+    cdef int[:] acceptedView
+    cdef Size trials
     cdef vector[Accumulator] sampleStats
 
     # User Defined Functions
@@ -71,6 +73,7 @@ cdef class Sam:
     # User-called functions
     cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
     cpdef object getStats(self)
+    cpdef object getAcceptance(self)
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
