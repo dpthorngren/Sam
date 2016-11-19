@@ -137,6 +137,7 @@ cdef class Sam:
 
 
     cpdef void addMetropolis(self,Size dStart, Size dStop):
+        assert dStart >= 0 and dStop <= self.nDim
         cdef SamplerData samp
         samp.samplerType = 0
         samp.dStart = dStart
@@ -144,6 +145,8 @@ cdef class Sam:
         self.samplers.push_back(samp)
 
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop):
+        assert dStart >= 0 and dStop <= self.nDim
+        assert nSteps > 0 and stepSize > 0
         cdef SamplerData samp
         samp.samplerType = 1
         samp.nSteps = nSteps
@@ -177,7 +180,9 @@ cdef class Sam:
             self.sampleStats[d](self.x[d])
         return
 
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1):
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1):
+        assert nSamples > 0
+        assert type(x0) is np.ndarray and x0.shape[-1] == self.nDim
         cdef Size i, j, d
         cdef double vMag, vMagPropose
         self.recordStart = recordStart
@@ -198,20 +203,20 @@ cdef class Sam:
         self.readyToRun = True
         if threads > 1:
             p = mp.Pool(threads)
-            self.samples = np.array(p.map(self,[np.asarray(x0)]*threads))
+            self.samples = np.array(p.map(self,[x0]*threads))
             p.terminate()
             return self.samples
         else:
             self(x0)
             return self.samples
 
-    def __call__(self, object x0):
+    def __call__(self, double[:] x0):
+        assert x0.size == self.nDim
         if not self.readyToRun:
             raise RuntimeError("The call function is for internal use only.")
         self.readyToRun = False
-        cdef double[:] x0View = x0
         for d in range(self.nDim):
-            self.x[d] = x0View[d]
+            self.x[d] = x0[d]
         self.samples = np.empty((self.nSamples,self.recordStop-self.recordStart),dtype=np.double)
         self.sampleView = self.samples
         for i in range(self.nSamples+self.burnIn):
@@ -238,6 +243,7 @@ cdef class Sam:
         return (means, stds)
 
     cpdef void testGradient(self, double[:] x0, double eps=1e-5):
+        assert x0.size == self.nDim
         cdef double central = self.logProbability(x0,self.gradient,True)
         cdef double estimate
         for d in range(self.nDim):
@@ -248,6 +254,8 @@ cdef class Sam:
         return
 
     cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
+        assert x0.size == self.nDim
+        assert step > 0 and eps > 0
         cdef Size d, i
         cdef bint done = 0
         cdef double xNew
@@ -271,6 +279,8 @@ cdef class Sam:
         return output
 
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
+        assert x0.size == self.nDim
+        assert nSteps > 0 and T0 > 0 and width > 0
         cdef Size d, i
         cdef double energy, energyPropose, temperature
         for d in range(self.nDim):
@@ -298,7 +308,7 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cdef void _resetMemoryViews_(self):
+    cdef void _setMemoryViews_(self):
         self.x = self._workingMemory_[0:self.nDim]
         self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
         self.momentum = self._workingMemory_[2*self.nDim:3*self.nDim]
@@ -309,11 +319,17 @@ cdef class Sam:
         return
 
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
+        assert scale.size == nDim
+        assert logProbability is None or callable(logProbability)
+        if upperBoundaries is not None:
+            assert upperBoundaries.size == nDim
+        if lowerBoundaries is not None:
+            assert lowerBoundaries.size == nDim
         cdef Size d
         self.nDim = nDim
         self.readyToRun = False
         self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
-        self._resetMemoryViews_()
+        self._setMemoryViews_()
         self.pyLogProbability = logProbability
         for d in range(self.nDim):
             self.scale[d] = scale[d]
@@ -342,5 +358,5 @@ cdef class Sam:
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
          self._workingMemory_, self.pyLogProbability) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
-        self._resetMemoryViews_()
+        self._setMemoryViews_()
         return

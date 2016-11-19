@@ -16,6 +16,8 @@ ext = Extension("sam", ["src/sam.pyx"],
 
 setup(
     name="sam",
-    ext_modules=cythonize([ext]),
+    # TODO: Adjust griddy so wraparound is no longer required
+    # ext_modules=cythonize([ext], compiler_directives={'boundscheck': False, 'wraparound': False, 'initializedcheck': False, 'embedsignature': True}),
+    ext_modules=cythonize([ext], compiler_directives={'embedsignature': True}),
     include_dirs=[np.get_include()],
 )

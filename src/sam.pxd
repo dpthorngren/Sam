@@ -69,7 +69,7 @@ cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient)
 
     # User-called functions
-    cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
     cpdef object getStats(self)
     cpdef void testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
@@ -80,7 +80,7 @@ cdef class Sam:
     cpdef void clearSamplers(self)
 
     # Structural functions
-    cdef void _resetMemoryViews_(self)
+    cdef void _setMemoryViews_(self)
     cdef void sample(self)
     cdef void record(self,Size i)
     cdef void recordStats(self)
