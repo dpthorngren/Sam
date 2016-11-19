@@ -66,9 +66,7 @@ cdef class Sam:
 
     # User Defined Functions
     cdef object pyLogProbability
-    cdef object pyGradLogProbability
-    cpdef double logProbability(self, double[:] position)
-    cpdef void gradLogProbability(self, double[:] position, double[:] output)
+    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient)
 
     # User-called functions
     cpdef object run(self, Size nSamples, double[:] x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)

@@ -4,15 +4,26 @@ from math import log, sqrt
 import numpy as np
 
 
-def logProb1(x):
+def logProb1(x, gradient, getGradient):
+    if getGradient:
+        gradient[0] = sam.gammaDLDX(x[0],20,40)
+        gradient[1] = sam.normalDLDX(x[1],5,1)
     return sam.gammaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
+
+
+def logProb2(x, gradient, getGradient):
+    assert not getGradient
+    return sam.betaLogPDF(x[0],15,20)
+
+
+def logProb3(x, gradient, getGradient):
+    assert not getGradient
+    return sam.betaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
 
 
 class SamTester(unittest.TestCase):
     def test1DMetropolis(self):
-        def logProb(x):
-            return sam.betaLogPDF(x[0],15,20)
-        a = sam.Sam(logProb,1,np.array([.5]),
+        a = sam.Sam(logProb2,1,np.array([.5]),
                     lowerBoundaries=np.array([0.]),
                     upperBoundaries=np.array([1.]))
         a.addMetropolis(0,1)
@@ -49,34 +60,26 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
 
-    # def test2DHMC(self):
-        # def gradLogProb(x):
-            # return np.array([sam.gammaDLDX(x[0],20,40), sam.normalDLDX(x[1],5,1)])
-        # a = sam.Sam(logProb1,2,np.array([.5,.5]),
-                    # lowerBoundaries=np.array([0.,-np.inf]),
-                    # gradLogProbability=gradLogProb)
-        # a.addHMC(10,.1,0,2)
-        # samples = a.run(50000,np.array([.5,.5]),10)
-        # self.assertTrue((samples[:,0] >= 0).all())
-        # self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
-        # self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
-        # self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
-        # self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+    def test2DHMC(self):
+        a = sam.Sam(logProb1,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]))
+        a.addHMC(10,.1,0,2)
+        samples = a.run(50000,np.array([.5,.5]),10)
+        self.assertTrue((samples[:,0] >= 0).all())
+        self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
 
     def test2DGradientDescent(self):
-        def gradLogProb(x):
-            return np.array([sam.gammaDLDX(x[0],20,40), sam.normalDLDX(x[1],5,1)])
-        a = sam.Sam(None,2,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]),
-                    gradLogProbability=gradLogProb)
+        a = sam.Sam(logProb1,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]))
         posteriorMax = a.gradientDescent(np.array([.5,.5]),step=.05)
         self.assertAlmostEqual(posteriorMax[0],19./40.,delta=1e-4)
         self.assertAlmostEqual(posteriorMax[1],5.,delta=1e-4)
 
     def testRunningStats(self):
-        def logProb(x):
-            return sam.betaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
-        a = sam.Sam(logProb,2,np.array([.5,.5]),
+        a = sam.Sam(logProb3,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]),
                     upperBoundaries=np.array([1.,np.inf]))
         a.addMetropolis(0,2)

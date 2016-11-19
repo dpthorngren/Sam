@@ -11,17 +11,11 @@ cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
 cdef class Sam:
-    cpdef double logProbability(self, double[:] position):
+    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
                                       "but the sampler called it.")
-        return self.pyLogProbability(np.asarray(position))
-
-    cpdef void gradLogProbability(self, double[:] position, double[:] output):
-        if self.pyGradLogProbability is None:
-            raise NotImplementedError("You haven't defined the log probability "+
-                                      "gradient, but the sampler called it.")
-        np.asarray(output)[:] = self.pyGradLogProbability(np.asarray(position))
+        return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
 
     cdef void sample(self):
         cdef size_t s
@@ -40,6 +34,8 @@ cdef class Sam:
 
     cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop):
         cdef Size d, i
+        cdef double old
+        cdef double new = infinity
         # Initialize velocities
         for d in range(dStart,dStop):
             self.xPropose[d] = self.x[d]
@@ -51,12 +47,12 @@ cdef class Sam:
             kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
-        self.gradLogProbability(self.xPropose,self.gradient)
+        old = self.logProbability(self.xPropose,self.gradient,True)
         for i in range(nSteps):
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
             self.bouncingMove(stepSize, dStart, dStop)
-            self.gradLogProbability(self.xPropose, self.gradient)
+            new = self.logProbability(self.xPropose, self.gradient,True)
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
@@ -66,11 +62,9 @@ cdef class Sam:
             kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
-        cdef double old = self.logProbability(self.x)
-        cdef double new = self.logProbability(self.xPropose)
         if isnan(new) or isnan(old):
             raise ValueError("Got NaN for the log probability!")
-        if (-exponentialRand(1.) < new - kineticPropose - old + kinetic):
+        if (exponentialRand(1.) > old - kinetic - new + kineticPropose):
             self.acceptanceRate += 1.
             for d in range(dStart,dStop):
                 self.x[d] = self.xPropose[d]
@@ -104,8 +98,8 @@ cdef class Sam:
             self.xPropose[d] = self.x[d]
         for d in range(dStop,self.nDim):
             self.xPropose[d] = self.x[d]
-        if (-exponentialRand(1.) < self.logProbability(self.xPropose) -
-            self.logProbability(self.x)):
+        if (exponentialRand(1.) > self.logProbability(self.x,self.gradient,False) -
+            self.logProbability(self.xPropose,self.gradient,False)):
             self.acceptanceRate += 1.
             for d in range(dStart,dStop):
                 self.x[d] = self.xPropose[d]
@@ -244,12 +238,11 @@ cdef class Sam:
         return (means, stds)
 
     cpdef void testGradient(self, double[:] x0, double eps=1e-5):
-        cdef double central = self.logProbability(x0)
+        cdef double central = self.logProbability(x0,self.gradient,True)
         cdef double estimate
-        self.gradLogProbability(x0,self.gradient)
         for d in range(self.nDim):
             x0[d] += self.scale[d]*eps
-            estimate = (self.logProbability(x0) - central)/(self.scale[d]*eps)
+            estimate = (self.logProbability(x0,self.momentum,False) - central)/(self.scale[d]*eps)
             print d, (estimate-self.gradient[d])/(estimate+self.gradient[d])
             x0[d] -= self.scale[d]*eps
         return
@@ -261,7 +254,7 @@ cdef class Sam:
         for d in range(self.nDim):
             self.x[d] = x0[d]
         while not done:
-            self.gradLogProbability(self.x,self.gradient)
+            self.logProbability(self.x,self.gradient,True)
             done = True
             for d in range(self.nDim):
                 xNew = self.x[d] + step*self.scale[d]*self.scale[d]*self.gradient[d]
@@ -282,20 +275,20 @@ cdef class Sam:
         cdef double energy, energyPropose, temperature
         for d in range(self.nDim):
             self.x[d] = x0[d]
-        energy = self.logProbability(self.x)
+        energy = self.logProbability(self.x,self.gradient,False)
         for i in range(nSteps):
             temperature = T0*(1. - (<double>i)/(nSteps))
             for d in range(self.nDim):
                 self.xPropose[d] = normalRand(self.x[d],width*self.scale[d])
-            energyPropose = self.logProbability(self.xPropose)
-            if (energyPropose - energy)/temperature > -exponentialRand(1.):
+            energyPropose = self.logProbability(self.xPropose,self.gradient,False)
+            if exponentialRand(1.) > (energy - energyPropose)/temperature:
                 for d in range(self.nDim):
                     self.x[d] = self.xPropose[d]
                     energy = energyPropose
         for i in range(nQuench):
             for d in range(self.nDim):
                 self.xPropose[d] = normalRand(self.x[d],width*self.scale[d]/5.)
-            energyPropose = self.logProbability(self.xPropose)
+            energyPropose = self.logProbability(self.xPropose,self.gradient,False)
             if (energyPropose > energy):
                 for d in range(self.nDim):
                     self.x[d] = self.xPropose[d]
@@ -315,14 +308,13 @@ cdef class Sam:
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
         return
 
-    def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None, object gradLogProbability = None):
+    def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
         cdef Size d
         self.nDim = nDim
         self.readyToRun = False
         self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
         self._resetMemoryViews_()
         self.pyLogProbability = logProbability
-        self.pyGradLogProbability = gradLogProbability
         for d in range(self.nDim):
             self.scale[d] = scale[d]
         if upperBoundaries is not None:
@@ -342,13 +334,13 @@ cdef class Sam:
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-                self._workingMemory_, self.pyLogProbability, self.pyGradLogProbability)
+                self._workingMemory_, self.pyLogProbability)
         return info
 
     def __setstate__(self,info):
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-         self._workingMemory_, self.pyLogProbability, self.pyGradLogProbability) = info
+         self._workingMemory_, self.pyLogProbability) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         self._resetMemoryViews_()
         return
