@@ -197,9 +197,6 @@ cdef class Sam:
         self.nSamples = nSamples
         self.burnIn = burnIn
         self.thinning = thinning
-        if not self.samplers.size():
-            print "No samplers defined -- defaulting to metropolis."
-            self.addMetropolis(0,self.nDim)
         self.sampleStats.clear()
         self.collectStats = collectStats
         if collectStats:
