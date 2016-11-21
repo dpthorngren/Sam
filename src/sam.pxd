@@ -50,6 +50,7 @@ cdef class Sam:
     cdef double[:] scale
     cdef double[:] upperBoundaries
     cdef double[:] lowerBoundaries
+    cdef bint hasBoundaries
 
     # Working memory
     cdef object _workingMemory_

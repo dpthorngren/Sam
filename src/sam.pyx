@@ -75,7 +75,7 @@ cdef class Sam:
         for d in range(dStart,dStop):
             self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
             # Enforce boundary conditions
-            while True:
+            while self.hasBoundaries:
                 if self.xPropose[d] >= self.upperBoundaries[d]:
                     self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
                     self.momentum[d] = -self.momentum[d]
@@ -89,11 +89,15 @@ cdef class Sam:
 
     cdef void metropolisStep(self, Size dStart, Size dStop):
         cdef Size d
-        for d in range(dStart,dStop):
-            self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
-            if(self.xPropose[d] > self.upperBoundaries[d] or
-               self.xPropose[d] < self.lowerBoundaries[d]):
-                return
+        if self.hasBoundaries:
+            for d in range(dStart,dStop):
+                self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
+                if(self.xPropose[d] > self.upperBoundaries[d] or
+                   self.xPropose[d] < self.lowerBoundaries[d]):
+                    return
+        else:
+            for d in range(dStart,dStop):
+                self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
         for d in range(0,dStart):
             self.xPropose[d] = self.x[d]
         for d in range(dStop,self.nDim):
@@ -263,7 +267,7 @@ cdef class Sam:
         assert x0.size == self.nDim
         assert step > 0 and eps > 0
         cdef Size d, i
-        cdef bint done = 0
+        cdef bint done = False
         cdef double xNew
         for d in range(self.nDim):
             self.x[d] = x0[d]
@@ -342,13 +346,16 @@ cdef class Sam:
         self.pyLogProbability = logProbability
         for d in range(self.nDim):
             self.scale[d] = scale[d]
+        self.hasBoundaries = False
         if upperBoundaries is not None:
+            self.hasBoundaries = True
             for d in range(self.nDim):
                 self.upperBoundaries[d] = upperBoundaries[d]
         else:
             for d in range(self.nDim):
                 self.upperBoundaries[d] = infinity
         if lowerBoundaries is not None:
+            self.hasBoundaries = True
             for d in range(self.nDim):
                 self.lowerBoundaries[d] = lowerBoundaries[d]
         else:
@@ -359,13 +366,13 @@ cdef class Sam:
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-                self._workingMemory_, self.accepted, self.pyLogProbability)
+                self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries)
         return info
 
     def __setstate__(self,info):
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-         self._workingMemory_, self.accepted, self.pyLogProbability) = info
+         self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()
         return
