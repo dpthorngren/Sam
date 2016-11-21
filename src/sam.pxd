@@ -89,6 +89,7 @@ cdef class Sam:
     cdef void record(self,Size i)
     cdef void recordStats(self)
     cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop)
+    cdef void extraInitialization(self)
 
     # Sampling functions
     cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop)

@@ -361,6 +361,7 @@ cdef class Sam:
         else:
             for d in range(self.nDim):
                 self.lowerBoundaries[d] = -infinity
+        self.extraInitialization()
         return
 
     def __getstate__(self):
@@ -375,4 +376,8 @@ cdef class Sam:
          self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()
+        self.extraInitialization()
+        return
+
+    cdef void extraInitialization(self):
         return
