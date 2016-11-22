@@ -75,7 +75,7 @@ cdef class Sam:
     cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
     cpdef object getStats(self)
     cpdef object getAcceptance(self)
-    cpdef void testGradient(self, double[:] x0, double eps=?)
+    cpdef object testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
     cpdef void addMetropolis(self, Size dStart, Size dStop)

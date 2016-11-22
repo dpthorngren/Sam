@@ -36,10 +36,12 @@ cdef class Sam:
         cdef Size d, i
         cdef double old
         cdef double new = infinity
-        # Initialize velocities
-        for d in range(dStart,dStop):
+        for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
-            self.momentum[d] = normalRand(0,1./sqrt(self.scale[d]))
+            if d >= dStart and d < dStop:
+                self.momentum[d] = normalRand(0,1./sqrt(self.scale[d]))
+            else:
+                self.momentum[d] = 0
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
@@ -249,16 +251,18 @@ cdef class Sam:
         assert self.trials > 0
         return self.accepted.astype(np.double)/self.trials
 
-    cpdef void testGradient(self, double[:] x0, double eps=1e-5):
+    cpdef object testGradient(self, double[:] x0, double eps=1e-5):
         assert x0.size == self.nDim
         cdef double central = self.logProbability(x0,self.gradient,True)
         cdef double estimate
+        cdef object output = np.empty(self.nDim,dtype=np.double)
+        cdef double[:] outputView = output
         for d in range(self.nDim):
             x0[d] += self.scale[d]*eps
             estimate = (self.logProbability(x0,self.momentum,False) - central)/(self.scale[d]*eps)
-            print d, (estimate-self.gradient[d])/(estimate+self.gradient[d])
+            outputView[d] = (estimate-self.gradient[d])/(estimate+self.gradient[d])
             x0[d] -= self.scale[d]*eps
-        return
+        return output
 
     cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
         assert x0.size == self.nDim
@@ -372,6 +376,7 @@ cdef class Sam:
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
+        np.random.seed(int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()
         self.extraInitialization()
         return
