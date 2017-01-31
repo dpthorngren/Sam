@@ -2,6 +2,7 @@
 include "distributions.pyx"
 include "griddy.pyx"
 import multiprocessing as mp
+from scipy.misc import logsumexp
 import numpy as np
 import os
 cimport numpy as np
@@ -10,11 +11,24 @@ cimport numpy as np
 cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
+cpdef double getWAIC(logLike, samples):
+    l = np.array([logLike(i) for i in samples])
+    return -2*(logsumexp(l) - log(len(l)) - np.var(l))
+
+cpdef double getAIC(loglike, samples):
+    lMax = max([loglike(i) for i in samples])
+    return 2*np.shape(samples)[1] - 2*lMax
+
+cpdef double getBIC(loglike, samples, nPoints):
+    lMax = max([loglike(i) for i in samples])
+    return log(nPoints)*np.shape(samples)[1] - 2 * lMax
+
+
 cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
-                                      "but the sampler called it.")
+                "but the sampler called it.")
         return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
 
     cdef void sample(self):
@@ -253,6 +267,9 @@ cdef class Sam:
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5):
         assert x0.size == self.nDim
+        cdef Size d
+        for d in range(self.nDim):
+            self.x[d] = x0[d]
         cdef double central = self.logProbability(x0,self.gradient,True)
         cdef double estimate
         cdef object output = np.empty(self.nDim,dtype=np.double)

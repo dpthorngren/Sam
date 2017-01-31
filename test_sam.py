@@ -22,6 +22,37 @@ def logProb3(x, gradient, getGradient):
 
 
 class SamTester(unittest.TestCase):
+    def testModelSelection(self):
+        samples = np.random.rand(10000,1)
+        mu = sam.uniformMean()
+        sigma = sam.uniformStd()
+
+        def rightModel(x):
+            return 1.
+
+        def wrongModel(x):
+            return sam.normalLogPDF(mu,sigma)
+
+        # WAIC
+        right = sam.getWAIC(rightModel,samples)
+        wrong = sam.getWAIC(wrongModel,samples)
+        self.assertLessEqual(right, wrong)
+        self.assertAlmostEqual(wrong,1.88253526515)
+        self.assertAlmostEqual(right,-2.0)
+        # AIC
+        right = sam.getAIC(rightModel,samples)
+        wrong = sam.getAIC(wrongModel,samples)
+        self.assertLessEqual(right, wrong)
+        self.assertAlmostEqual(wrong,3.88253526515)
+        self.assertAlmostEqual(right,0.0)
+        # BIC
+        right = sam.getBIC(rightModel,samples,1000)
+        wrong = sam.getBIC(wrongModel,samples,1000)
+        self.assertLessEqual(right, wrong)
+        self.assertAlmostEqual(wrong,8.79029054413)
+        self.assertAlmostEqual(right,4.90775527898)
+        return
+
     def test1DMetropolis(self):
         a = sam.Sam(logProb2,1,np.array([.5]),
                     lowerBoundaries=np.array([0.]),

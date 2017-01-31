@@ -39,6 +39,10 @@ cdef struct SamplerData:
 
 include "distributions.pxd"
 
+cpdef double getWAIC(logLike, samples)
+cpdef double getAIC(loglike, samples)
+cpdef double getBIC(loglike, samples, nPoints)
+
 cdef class Sam:
     # Parameters
     cdef Size nDim, nSamples
