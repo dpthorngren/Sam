@@ -3,7 +3,9 @@ include "distributions.pyx"
 include "griddy.pyx"
 import multiprocessing as mp
 from scipy.misc import logsumexp
+from scipy.stats import multivariate_normal
 import numpy as np
+from numpy.linalg import solve
 import os
 cimport numpy as np
 
@@ -11,6 +13,7 @@ cimport numpy as np
 cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
+# Helper functions
 cpdef double getWAIC(logLike, samples):
     l = np.array([logLike(i) for i in samples])
     return -2*(logsumexp(l) - log(len(l)) - np.var(l))
@@ -22,6 +25,30 @@ cpdef double getAIC(loglike, samples):
 cpdef double getBIC(loglike, samples, nPoints):
     lMax = max([loglike(i) for i in samples])
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
+
+cpdef double[:,:] gpCorr(double[:] x, double[:] xPrime, double l, double sigmaSq):
+    # TODO: Generalize to other correlation matrix designs
+    cdef Size i, j
+    output = np.zeros((len(x),len(xPrime)))
+    for i in range(len(x)):
+        for j in range(len(xPrime)):
+            output[i,j] = exp(-(x[i]-xPrime[j])**2 / (2*l**2))
+            if abs((x[i] - xPrime[j])/x[i]) < 1e-10:
+                output[i,j] += sigmaSq
+    return output
+
+
+cpdef double gpLogLike(double[:] x, double [:] y, double l, double sigmaSq):
+    return multivariate_normal.logpdf(y,np.zeros(len(y)),cov=gpCorr(x,x,l, sigmaSq))
+
+
+cpdef object gpPredict(double[:] targetX, double[:] x, double[:] y, double l, double sigmaSq):
+    k1 = np.asarray(gpCorr(x,x,l,sigmaSq))
+    k2 = np.asarray(gpCorr(targetX,x,l,sigmaSq))
+    pred = np.matmul(k2,solve(k1,np.asarray(y)[:,np.newaxis])).ravel()
+    gpVar = (1+sigmaSq) - np.diag(np.matmul(k2,solve(k1,k2.T)))
+    gpVar = np.sqrt(gpVar)
+    return pred, gpVar
 
 
 cdef class Sam:

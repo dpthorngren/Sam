@@ -39,9 +39,13 @@ cdef struct SamplerData:
 
 include "distributions.pxd"
 
+# Helper functions
 cpdef double getWAIC(logLike, samples)
 cpdef double getAIC(loglike, samples)
 cpdef double getBIC(loglike, samples, nPoints)
+cpdef double[:,:] gpCorr(double[:] x, double[:] xPrime, double l, double sigmaSq)
+cpdef double gpLogLike(double[:] x, double [:] y, double l, double sigmaSq)
+cpdef object gpPredict(double[:] targetX, double[:] x, double[:] y, double l, double sigmaSq)
 
 cdef class Sam:
     # Parameters
