@@ -78,31 +78,31 @@ cdef class Sam:
     # User Defined Functions
     cdef object pyLogProbability
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient)
+    cdef void extraInitialization(self)
+    cdef void sample(self)
 
     # User-called functions
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?)
-    cpdef object getStats(self)
-    cpdef object getAcceptance(self)
-    cpdef object testGradient(self, double[:] x0, double eps=?)
-    cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
-    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
-    cpdef void addMetropolis(self, Size dStart, Size dStop)
-    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop)
-    cpdef void printSamplers(self)
-    cpdef void clearSamplers(self)
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?) except +
+    cpdef object getStats(self) except +
+    cpdef object getAcceptance(self) except +
+    cpdef object testGradient(self, double[:] x0, double eps=?) except +
+    cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?) except +
+    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?) except +
+    cpdef void addMetropolis(self, Size dStart, Size dStop) except +
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
+    cpdef void printSamplers(self) except +
+    cpdef void clearSamplers(self) except +
 
     # Structural functions
-    cdef void _setMemoryViews_(self)
-    cdef void sample(self)
-    cdef void record(self,Size i)
-    cdef void recordStats(self)
-    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop)
-    cdef void extraInitialization(self)
+    cdef void _setMemoryViews_(self) except +
+    cdef void record(self,Size i) except +
+    cdef void recordStats(self) except +
+    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +
 
     # Sampling functions
-    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop)
-    cdef void metropolisStep(self, Size dStart, Size dStop)
-    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?)
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop) except +
+    cdef void metropolisStep(self, Size dStart, Size dStop) except +
+    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?) except +
 
 # Griddy
 cdef class Griddy:
@@ -119,15 +119,15 @@ cdef class Griddy:
     cdef Size[:] indices
     cdef Size[:] tempIndices
 
-    cpdef object getValues(self)
-    cpdef object getNPoints(self)
-    cpdef object getIndices(self)
-    cpdef object getWeights(self)
-    cpdef object getStrides(self)
-    cpdef Size ind(self, Size[:] p)
-    cpdef bint locatePoints(self, double[:] point)
-    cpdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?, bint debug=?)
-    cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced)
-    cpdef double findEdge(self, Size index, Size dim)
-    cpdef void interpN(self,double[:,:] points, double[:] output)
-    cpdef void printInfo(self)
+    cpdef object getValues(self) except +
+    cpdef object getNPoints(self) except +
+    cpdef object getIndices(self) except +
+    cpdef object getWeights(self) except +
+    cpdef object getStrides(self) except +
+    cpdef Size ind(self, Size[:] p) except +
+    cpdef bint locatePoints(self, double[:] point) except +
+    cpdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?, bint debug=?) except +
+    cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced) except +
+    cpdef double findEdge(self, Size index, Size dim) except +
+    cpdef void interpN(self,double[:,:] points, double[:] output) except +
+    cpdef void printInfo(self) except +

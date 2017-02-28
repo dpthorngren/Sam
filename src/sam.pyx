@@ -32,7 +32,7 @@ cpdef double[:,:] gpCorr(double[:] x, double[:] xPrime, double l, double sigmaSq
     output = np.zeros((len(x),len(xPrime)))
     for i in range(len(x)):
         for j in range(len(xPrime)):
-            output[i,j] = exp(-(x[i]-xPrime[j])**2 / (2*l**2))
+            output[i,j] = exp(-abs(x[i]-xPrime[j]) / l)
             if abs((x[i] - xPrime[j])/x[i]) < 1e-10:
                 output[i,j] += sigmaSq
     return output
@@ -73,7 +73,7 @@ cdef class Sam:
                     self.samplers[s].dStop)
         return
 
-    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop):
+    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop) except +:
         cdef Size d, i
         cdef double old
         cdef double new = infinity
@@ -113,7 +113,7 @@ cdef class Sam:
                 self.x[d] = self.xPropose[d]
         return
 
-    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop):
+    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +:
         cdef Size d
         for d in range(dStart,dStop):
             self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
@@ -130,7 +130,7 @@ cdef class Sam:
                 break
         return
 
-    cdef void metropolisStep(self, Size dStart, Size dStop):
+    cdef void metropolisStep(self, Size dStart, Size dStop) except +:
         cdef Size d
         if self.hasBoundaries:
             for d in range(dStart,dStop):
@@ -153,7 +153,7 @@ cdef class Sam:
         return
 
     # TODO: remove need for numpy
-    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None):
+    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
         '''Computes a linear regression with normal errors on x,y.
         x - The design matrix: columns of predictor variables stacked
             horizontally into a matrix.
@@ -183,7 +183,7 @@ cdef class Sam:
         return output
 
 
-    cpdef void addMetropolis(self,Size dStart, Size dStop):
+    cpdef void addMetropolis(self,Size dStart, Size dStop) except +:
         assert dStart >= 0 and dStop <= self.nDim
         cdef SamplerData samp
         samp.samplerType = 0
@@ -191,7 +191,7 @@ cdef class Sam:
         samp.dStop = dStop
         self.samplers.push_back(samp)
 
-    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop):
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +:
         assert dStart >= 0 and dStop <= self.nDim
         assert nSteps > 0 and stepSize > 0
         cdef SamplerData samp
@@ -202,7 +202,7 @@ cdef class Sam:
         samp.dStop = dStop
         self.samplers.push_back(samp)
 
-    cpdef void printSamplers(self):
+    cpdef void printSamplers(self) except +:
         cdef size_t s
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
@@ -212,22 +212,22 @@ cdef class Sam:
                     self.samplers[s].nSteps, "steps with size", self.samplers[s].stepSize
         return
 
-    cpdef void clearSamplers(self):
+    cpdef void clearSamplers(self) except +:
         self.samplers.clear()
 
-    cdef void record(self,Size i):
+    cdef void record(self,Size i) except +:
         cdef Size d
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
         return
 
-    cdef void recordStats(self):
+    cdef void recordStats(self) except +:
         cdef Size d
         for d in range(self.nDim):
             self.sampleStats[d](self.x[d])
         return
 
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1):
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1) except +:
         assert nSamples > 0
         assert type(x0) is np.ndarray and x0.shape[-1] == self.nDim
         cdef Size i, j, d
@@ -275,7 +275,7 @@ cdef class Sam:
                     self.recordStats()
         return self.samples, self.accepted
 
-    cpdef object getStats(self):
+    cpdef object getStats(self) except +:
         assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
         assert(self.collectStats,"Running statistics collection is turned off.")
         cdef Size d
@@ -288,11 +288,11 @@ cdef class Sam:
             stdsView[d] = sqrt(variance(self.sampleStats[d]))
         return (means, stds)
 
-    cpdef object getAcceptance(self):
+    cpdef object getAcceptance(self) except +:
         assert self.trials > 0
         return self.accepted.astype(np.double)/self.trials
 
-    cpdef object testGradient(self, double[:] x0, double eps=1e-5):
+    cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
         assert x0.size == self.nDim
         cdef Size d
         for d in range(self.nDim):
@@ -308,7 +308,7 @@ cdef class Sam:
             x0[d] -= self.scale[d]*eps
         return output
 
-    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
+    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10) except +:
         assert x0.size == self.nDim
         assert step > 0 and eps > 0
         cdef Size d, i
@@ -333,10 +333,11 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
+    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0) except +:
         assert x0.size == self.nDim
         assert nSteps > 0 and T0 > 0 and width > 0
         cdef Size d, i
+        cdef bint outOfBounds = False
         cdef double energy, energyPropose, temperature
         for d in range(self.nDim):
             self.x[d] = x0[d]
@@ -345,6 +346,12 @@ cdef class Sam:
             temperature = T0*(1. - (<double>i)/(nSteps))
             for d in range(self.nDim):
                 self.xPropose[d] = normalRand(self.x[d],width*self.scale[d])
+                if(self.xPropose[d] > self.upperBoundaries[d] or
+                   self.xPropose[d] < self.lowerBoundaries[d]):
+                    outOfBounds = True
+                    break
+            if outOfBounds:
+                continue
             energyPropose = self.logProbability(self.xPropose,self.gradient,False)
             if exponentialRand(1.) > (energy - energyPropose)/temperature:
                 for d in range(self.nDim):
@@ -353,6 +360,12 @@ cdef class Sam:
         for i in range(nQuench):
             for d in range(self.nDim):
                 self.xPropose[d] = normalRand(self.x[d],width*self.scale[d]/5.)
+                if(self.xPropose[d] > self.upperBoundaries[d] or
+                   self.xPropose[d] < self.lowerBoundaries[d]):
+                    outOfBounds = True
+                    break
+            if outOfBounds:
+                continue
             energyPropose = self.logProbability(self.xPropose,self.gradient,False)
             if (energyPropose > energy):
                 for d in range(self.nDim):
@@ -363,7 +376,7 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cdef void _setMemoryViews_(self):
+    cdef void _setMemoryViews_(self) except +:
         self.x = self._workingMemory_[0:self.nDim]
         self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
         self.momentum = self._workingMemory_[2*self.nDim:3*self.nDim]
