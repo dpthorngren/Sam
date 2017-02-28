@@ -4,8 +4,9 @@ include "griddy.pyx"
 import multiprocessing as mp
 from scipy.misc import logsumexp
 from scipy.stats import multivariate_normal
+from scipy.linalg import solve_triangular
 import numpy as np
-from numpy.linalg import solve
+from numpy.linalg import solve, cholesky
 import os
 cimport numpy as np
 
@@ -26,30 +27,25 @@ cpdef double getBIC(loglike, samples, nPoints):
     lMax = max([loglike(i) for i in samples])
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
 
-cpdef double[:,:] gpCorr(double[:] x, double[:] xPrime, double l, double sigmaSq):
-    # TODO: Generalize to other correlation matrix designs
-    cdef Size i, j
-    output = np.zeros((len(x),len(xPrime)))
-    for i in range(len(x)):
-        for j in range(len(xPrime)):
-            output[i,j] = exp(-abs(x[i]-xPrime[j]) / l)
-            if abs((x[i] - xPrime[j])/x[i]) < 1e-10:
-                output[i,j] += sigmaSq
-    return output
+def gpGaussKernel(x,xPrime,theta):
+    return theta[1]*np.exp(-abs(x[:,np.newaxis]-xPrime[np.newaxis,:])**2/(2*theta[0]**2))
 
+def gpExpKernel(x,xPrime,theta):
+    return theta[1]*np.exp(-abs(x[:,np.newaxis]-xPrime[np.newaxis,:])/theta[0])
 
-cpdef double gpLogLike(double[:] x, double [:] y, double l, double sigmaSq):
-    return multivariate_normal.logpdf(y,np.zeros(len(y)),cov=gpCorr(x,x,l, sigmaSq))
-
-
-cpdef object gpPredict(double[:] targetX, double[:] x, double[:] y, double l, double sigmaSq):
-    k1 = np.asarray(gpCorr(x,x,l,sigmaSq))
-    k2 = np.asarray(gpCorr(targetX,x,l,sigmaSq))
-    pred = np.matmul(k2,solve(k1,np.asarray(y)[:,np.newaxis])).ravel()
-    gpVar = (1+sigmaSq) - np.diag(np.matmul(k2,solve(k1,k2.T)))
-    gpVar = np.sqrt(gpVar)
-    return pred, gpVar
-
+def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None):
+    if kernelChol is None:
+        K = kernel(x,x,theta) + theta[2]*np.eye(len(x))
+        L = cholesky(K)
+    else:
+        L = kernelChol
+    alpha = solve_triangular(L.T,solve_triangular(L,y,lower=True))
+    if xTest is not None:
+        KTest = kernel(x,xTest,theta)
+        v = solve_triangular(L,KTest,lower=True)
+        predVariance = kernel(xTest,xTest,theta) + np.eye(len(xTest))*theta[2] - np.matmul(v.T,v)
+        return np.matmul(KTest.T,alpha), predVariance
+    return -.5*sum(y*alpha) - sum(log(np.diag(L)))
 
 cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):

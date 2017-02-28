@@ -53,6 +53,14 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(right,4.90775527898)
         return
 
+    def testGaussianProcess(self):
+        x = np.linspace(0,10,100)
+        y = np.sin(x)
+        gpMean, gpVar = sam.gaussianProcess(x,y,np.array([10,.5,0]),np.array([5]))
+        gpVar = np.sqrt(np.diag(gpVar))
+        self.assertAlmostEqual(gpMean[0],-0.95768933)
+        self.assertAlmostEqual(gpVar[0],0.05025168)
+
     def test1DMetropolis(self):
         a = sam.Sam(logProb2,1,np.array([.5]),
                     lowerBoundaries=np.array([0.]),
