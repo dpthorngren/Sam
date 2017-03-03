@@ -45,7 +45,7 @@ def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None
         v = solve_triangular(L,KTest,lower=True)
         predVariance = kernel(xTest,xTest,theta) + np.eye(len(xTest))*theta[2] - np.matmul(v.T,v)
         return np.matmul(KTest.T,alpha), predVariance
-    return -.5*sum(y*alpha) - sum(log(np.diag(L)))
+    return -.5*np.sum(y*alpha) - np.sum(np.log(np.diag(L)))
 
 cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):
