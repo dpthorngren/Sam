@@ -56,22 +56,22 @@ cdef class Sam:
 
     cdef void sample(self):
         cdef size_t s
+        cdef double logP0 = nan
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
-                self.metropolisStep(
+                logP0 = self.metropolisStep(
                     self.samplers[s].dStart,
-                    self.samplers[s].dStop)
+                    self.samplers[s].dStop, logP0)
             elif self.samplers[s].samplerType == 1:
-                self.hmcStep(
+                logP0 = self.hmcStep(
                     self.samplers[s].nSteps,
                     self.samplers[s].stepSize,
                     self.samplers[s].dStart,
-                    self.samplers[s].dStop)
+                    self.samplers[s].dStop, logP0)
         return
 
-    cdef void hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop) except +:
+    cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
         cdef Size d, i
-        cdef double old
         cdef double new = infinity
         for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
@@ -86,7 +86,8 @@ cdef class Sam:
             kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
-        old = self.logProbability(self.xPropose,self.gradient,True)
+        if isnan(logP0):
+            logP0 = self.logProbability(self.xPropose,self.gradient,True)
         for i in range(nSteps):
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
@@ -101,13 +102,14 @@ cdef class Sam:
             kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
-        if isnan(new) or isnan(old):
+        if isnan(new) or isnan(logP0):
             raise ValueError("Got NaN for the log probability!")
-        if (exponentialRand(1.) > old - kinetic - new + kineticPropose):
+        if (exponentialRand(1.) > logP0 - kinetic - new + kineticPropose):
             for d in range(dStart,dStop):
                 self.acceptedView[d] += 1
                 self.x[d] = self.xPropose[d]
-        return
+            return new
+        return logP0
 
     cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +:
         cdef Size d
@@ -126,27 +128,26 @@ cdef class Sam:
                 break
         return
 
-    cdef void metropolisStep(self, Size dStart, Size dStop) except +:
+    cdef double metropolisStep(self, Size dStart, Size dStop, double logP0 = nan) except +:
         cdef Size d
-        if self.hasBoundaries:
-            for d in range(dStart,dStop):
+        cdef double logP1
+        for d in range(0,self.nDim):
+            if d >= dStart and d < dStop:
                 self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
-                if(self.xPropose[d] > self.upperBoundaries[d] or
+                if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
-                    return
-        else:
-            for d in range(dStart,dStop):
-                self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
-        for d in range(0,dStart):
-            self.xPropose[d] = self.x[d]
-        for d in range(dStop,self.nDim):
-            self.xPropose[d] = self.x[d]
-        if (exponentialRand(1.) > self.logProbability(self.x,self.gradient,False) -
-            self.logProbability(self.xPropose,self.gradient,False)):
+                    return logP0
+            else:
+                self.xPropose[d] = self.x[d]
+        if isnan(logP0):
+            logP0 = self.logProbability(self.x,self.gradient,False)
+        logP1 = self.logProbability(self.xPropose,self.gradient,False)
+        if (exponentialRand(1.) > logP0 - logP1):
             for d in range(dStart,dStop):
                 self.acceptedView[d] += 1
                 self.x[d] = self.xPropose[d]
-        return
+            return logP1
+        return logP0
 
     # TODO: remove need for numpy
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
