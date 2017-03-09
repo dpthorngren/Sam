@@ -101,6 +101,7 @@ cdef class Sam:
     # Sampling functions
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=?) except +
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=?) except +
+    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=?) except +
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?) except +
 
 # Griddy

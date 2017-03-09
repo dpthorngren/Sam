@@ -89,14 +89,16 @@ cpdef double normalMode(double mean=0, double sigma=1):
 
 # ===== Multivariate Normal Distribution =====
 cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=False, RandomEngine engine =defaultEngine):
+    cdef Size i, j
     if not isChol:
         # TODO: Use the LAPACK cholesky
         covariance = np.linalg.cholesky(covariance)
-    cdef Size i, j
+    randVect = np.zeros(output.shape[0])
     for i in range(output.shape[0]):
+        randVect[i] = normalRand(engine=engine)
         output[i] = mean[i]
         for j in range(i+1):
-            output[i] += normalRand(engine=engine)*covariance[i,j]
+            output[i] += randVect[j]*covariance[i,j]
     return
 
 cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance):

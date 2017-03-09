@@ -164,6 +164,24 @@ class DistributionTester(unittest.TestCase):
         a = [sam.normalRand(3,2) for i in range(100000)]
         self.assertAlmostEqual(np.mean(a),3.,delta=3*.01)
 
+    def testMvNormalDistribution(self):
+        targetCov = np.random.rand(3,3)
+        targetCov = targetCov*targetCov.T/2. + np.eye(3)
+        a = np.empty((100000,3))
+        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov,a[i]) for i in range(100000)]
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.01)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.01)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.01)
+        for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
+            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.02)
+        targetChol = np.linalg.cholesky(targetCov)
+        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,a[i],isChol=True) for i in range(100000)]
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.01)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.01)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.01)
+        for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
+            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.02)
+
     def testUniformDistribution(self):
         self.assertAlmostEqual(sam.uniformMean(2,4),3.)
         self.assertAlmostEqual(sam.uniformVar(2,4),4./12.)

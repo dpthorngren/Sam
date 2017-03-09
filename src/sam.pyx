@@ -150,6 +150,27 @@ cdef class Sam:
             return logP1
         return logP0
 
+    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0 = nan) except +:
+        cdef Size d
+        cdef double logP1
+        mvNormalRand(self.x[dStart:],proposeChol,self.xPropose[dStart:],True)
+        for d in range(0,self.nDim):
+            if d >= dStart and d < dStop:
+                if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
+                   self.xPropose[d] < self.lowerBoundaries[d]):
+                    return logP0
+            else:
+                self.xPropose[d] = self.x[d]
+        if isnan(logP0):
+            logP0 = self.logProbability(self.x,self.gradient,False)
+        logP1 = self.logProbability(self.xPropose,self.gradient,False)
+        if (exponentialRand(1.) > logP0 - logP1):
+            for d in range(dStart,dStop):
+                self.acceptedView[d] += 1
+                self.x[d] = self.xPropose[d]
+            return logP1
+        return logP0
+
     # TODO: remove need for numpy
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
         '''Computes a linear regression with normal errors on x,y.
@@ -388,7 +409,7 @@ cdef class Sam:
 
     cdef void progressBar(self, Size i, Size N, object header) except +:
         f = (10*i)/N
-        stdout.write('\r'+header+': <'+f*"="+(9-f)*" "+'> ('+str(i)+" / " + str(N) + ")")
+        stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")")
         stdout.flush()
         return 
 
