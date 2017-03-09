@@ -293,7 +293,7 @@ cdef class Sam:
         return self.accepted.astype(np.double)/self.trials
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
-        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
+        assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         cdef Size d
         for d in range(self.nDim):
             self.x[d] = x0[d]
@@ -309,7 +309,7 @@ cdef class Sam:
         return output
 
     cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10) except +:
-        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
+        assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert step > 0 and eps > 0, "Both the step size and the error bound must be positive."
         cdef Size d, i
         cdef bint done = False
@@ -334,7 +334,7 @@ cdef class Sam:
         return output
 
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0) except +:
-        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
+        assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert nSteps > 0 and T0 > 0 and width > 0, "The step number, initial temperature, and width must be positive"
         cdef Size d, i
         cdef bint outOfBounds = False
@@ -388,12 +388,12 @@ cdef class Sam:
         return
 
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
-        assert scale.size == nDim, "Given position has wrong number of dimensions."
+        assert scale.size == nDim, "The scale given has wrong number of dimensions."
         assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
         if upperBoundaries is not None:
             assert upperBoundaries.size == nDim, "The upper boundaries given have the wrong number of dimensions."
         if lowerBoundaries is not None:
-            assert lowerBoundaries.size == nDim, "The upper boundaries given have the wrong number of dimensions."
+            assert lowerBoundaries.size == nDim, "The lower boundaries given have the wrong number of dimensions."
         cdef Size d
         self.nDim = nDim
         self.readyToRun = False
