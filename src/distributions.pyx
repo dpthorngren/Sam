@@ -88,10 +88,16 @@ cpdef double normalMode(double mean=0, double sigma=1):
     return mean
 
 # ===== Multivariate Normal Distribution =====
-#TODO: Re-implement this prototype without using Numpy
-cpdef mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output):
-    output = np.asarray(mean) + np.linalg.cholesky(covariance)*np.random.randn(mean.shape[0])
-    return np.asarray(output).copy()
+cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=False, RandomEngine engine =defaultEngine):
+    if not isChol:
+        # TODO: Use the LAPACK cholesky
+        covariance = np.linalg.cholesky(covariance)
+    cdef Size i, j
+    for i in range(output.shape[0]):
+        output[i] = mean[i]
+        for j in range(i+1):
+            output[i] += normalRand(engine=engine)*covariance[i,j]
+    return
 
 cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance):
     cov = np.asmatrix(covariance)
@@ -309,6 +315,7 @@ cpdef double exponentialMode(double lamb):
 
 # ===== Binomial Distribution =====
 
+# TODO: should return an int
 cpdef double binomialRand(int n, double probability, RandomEngine engine=defaultEngine):
     engine.binomial_rand.param(binom_rng.param_type(n,probability))
     return engine.binomial_rand(engine.source)

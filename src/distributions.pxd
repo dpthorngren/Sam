@@ -108,7 +108,7 @@ cpdef double normalStd(double mean=?, double sigma=?)
 cpdef double normalMode(double mean=?, double sigma=?)
 
 # Multivariate Normal
-cpdef mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output)
+cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=?, RandomEngine engine=?)
 cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance)
 
 # Gamma
@@ -125,7 +125,6 @@ cpdef double gammaStd(double shape, double rate)
 cpdef double gammaMode(double shape, double rate)
 
 # Inverse-Gamma
-
 cpdef double invGammaRand(double shape, double rate, RandomEngine engine=?)
 cpdef double invGammaPDF(double x, double shape, double rate)
 cpdef double invGammaLogPDF(double x, double shape, double rate)
