@@ -181,7 +181,8 @@ cdef class Sam:
 
 
     cpdef void addMetropolis(self,Size dStart, Size dStop) except +:
-        assert dStart >= 0 and dStop <= self.nDim
+        assert dStart >= 0 and dStart < self.nDim, "The start dimension must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop dimension must be between 1 and nDim (inclusive)."
         cdef SamplerData samp
         samp.samplerType = 0
         samp.dStart = dStart
@@ -189,8 +190,9 @@ cdef class Sam:
         self.samplers.push_back(samp)
 
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +:
-        assert dStart >= 0 and dStop <= self.nDim
-        assert nSteps > 0 and stepSize > 0
+        assert dStart >= 0 and dStart < self.nDim, "The start dimension must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop dimension must be between 1 and nDim (inclusive)."
+        assert nSteps > 0 and stepSize > 0, "The step size and the number of steps must be greater than zero."
         cdef SamplerData samp
         samp.samplerType = 1
         samp.nSteps = nSteps
@@ -225,8 +227,9 @@ cdef class Sam:
         return
 
     cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1) except +:
-        assert nSamples > 0
-        assert type(x0) is np.ndarray and x0.shape[-1] == self.nDim
+        assert nSamples > 0, "The number of samples must be greater than 0."
+        assert type(x0) is np.ndarray, "The initial position must be an array."
+        assert x0.shape[-1] == self.nDim, "The initial position has the wrong number of dimensions."
         cdef Size i, j, d
         cdef double vMag, vMagPropose
         self.recordStart = recordStart
@@ -255,7 +258,7 @@ cdef class Sam:
             return self.samples
 
     def __call__(self, double[:] x0):
-        assert x0.size == self.nDim
+        assert x0.size == self.nDim, "The initial position has the wrong number of dimensions."
         if not self.readyToRun:
             raise RuntimeError("The call function is for internal use only.")
         self.readyToRun = False
@@ -286,11 +289,11 @@ cdef class Sam:
         return (means, stds)
 
     cpdef object getAcceptance(self) except +:
-        assert self.trials > 0
+        assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
-        assert x0.size == self.nDim
+        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
         cdef Size d
         for d in range(self.nDim):
             self.x[d] = x0[d]
@@ -306,8 +309,8 @@ cdef class Sam:
         return output
 
     cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10) except +:
-        assert x0.size == self.nDim
-        assert step > 0 and eps > 0
+        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
+        assert step > 0 and eps > 0, "Both the step size and the error bound must be positive."
         cdef Size d, i
         cdef bint done = False
         cdef double xNew
@@ -331,8 +334,8 @@ cdef class Sam:
         return output
 
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0) except +:
-        assert x0.size == self.nDim
-        assert nSteps > 0 and T0 > 0 and width > 0
+        assert x0.size == self.nDim, "Given position has wrong number of dimensions."
+        assert nSteps > 0 and T0 > 0 and width > 0, "The step number, initial temperature, and width must be positive"
         cdef Size d, i
         cdef bint outOfBounds = False
         cdef double energy, energyPropose, temperature
@@ -385,12 +388,12 @@ cdef class Sam:
         return
 
     def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
-        assert scale.size == nDim
-        assert logProbability is None or callable(logProbability)
+        assert scale.size == nDim, "Given position has wrong number of dimensions."
+        assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
         if upperBoundaries is not None:
-            assert upperBoundaries.size == nDim
+            assert upperBoundaries.size == nDim, "The upper boundaries given have the wrong number of dimensions."
         if lowerBoundaries is not None:
-            assert lowerBoundaries.size == nDim
+            assert lowerBoundaries.size == nDim, "The upper boundaries given have the wrong number of dimensions."
         cdef Size d
         self.nDim = nDim
         self.readyToRun = False
