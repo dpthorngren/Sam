@@ -56,6 +56,7 @@ cdef class Sam:
     cdef double[:] upperBoundaries
     cdef double[:] lowerBoundaries
     cdef bint hasBoundaries
+    cdef bint showProgress
 
     # Working memory
     cdef object _workingMemory_
@@ -79,7 +80,7 @@ cdef class Sam:
     cdef void sample(self)
 
     # User-called functions
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?) except +
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?, bint showProgress=?) except +
     cpdef object getStats(self) except +
     cpdef object getAcceptance(self) except +
     cpdef object testGradient(self, double[:] x0, double eps=?) except +
@@ -91,6 +92,7 @@ cdef class Sam:
     cpdef void clearSamplers(self) except +
 
     # Structural functions
+    cdef void progressBar(self, Size i, Size N, object header) except +
     cdef void _setMemoryViews_(self) except +
     cdef void record(self,Size i) except +
     cdef void recordStats(self) except +

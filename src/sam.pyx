@@ -5,6 +5,7 @@ import multiprocessing as mp
 from scipy.misc import logsumexp
 from scipy.stats import multivariate_normal
 from scipy.linalg import solve_triangular
+from sys import stdout
 import numpy as np
 from numpy.linalg import solve, cholesky
 import os
@@ -226,12 +227,13 @@ cdef class Sam:
             self.sampleStats[d](self.x[d])
         return
 
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1) except +:
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True) except +:
         assert nSamples > 0, "The number of samples must be greater than 0."
         assert type(x0) is np.ndarray, "The initial position must be an array."
         assert x0.shape[-1] == self.nDim, "The initial position has the wrong number of dimensions."
         cdef Size i, j, d
         cdef double vMag, vMagPropose
+        self.showProgress = showProgress
         self.recordStart = recordStart
         if recordStop < 0:
             recordStop = self.nDim
@@ -266,13 +268,21 @@ cdef class Sam:
             self.x[d] = x0[d]
         self.samples = np.empty((self.nSamples,self.recordStop-self.recordStart),dtype=np.double)
         self.sampleView = self.samples
-        for i in range(self.nSamples+self.burnIn):
+        cdef Size totalDraws = self.nSamples + self.burnIn
+        for i in range(totalDraws):
             for j in range(self.thinning+1):
                 self.sample()
             if i >= self.burnIn: 
                 self.record(i-self.burnIn)
                 if self.collectStats:
                     self.recordStats()
+            if self.showProgress and i%(totalDraws/100)==0:
+                if i < self.burnIn:
+                    self.progressBar(i+1,self.burnIn,"Burning-in")
+                else:
+                    self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
+        if self.showProgress:
+            self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
         return self.samples, self.accepted
 
     cpdef object getStats(self) except +:
@@ -376,6 +386,12 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
+    cdef void progressBar(self, Size i, Size N, object header) except +:
+        f = (10*i)/N
+        stdout.write('\r'+header+': <'+f*"="+(9-f)*" "+'> ('+str(i)+" / " + str(N) + ")")
+        stdout.flush()
+        return 
+
     cdef void _setMemoryViews_(self) except +:
         self.x = self._workingMemory_[0:self.nDim]
         self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
@@ -397,6 +413,7 @@ cdef class Sam:
         cdef Size d
         self.nDim = nDim
         self.readyToRun = False
+        self.showProgress = True
         self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.trials = 0
@@ -425,13 +442,15 @@ cdef class Sam:
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-                self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries)
+                self._workingMemory_, self.accepted, self.pyLogProbability,
+                self.hasBoundaries, self.showProgress)
         return info
 
     def __setstate__(self,info):
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-         self._workingMemory_, self.accepted, self.pyLogProbability, self.hasBoundaries) = info
+         self._workingMemory_, self.accepted, self.pyLogProbability,
+         self.hasBoundaries, self.showProgress) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         np.random.seed(int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()

@@ -66,7 +66,7 @@ class SamTester(unittest.TestCase):
                     lowerBoundaries=np.array([0.]),
                     upperBoundaries=np.array([1.]))
         a.addMetropolis(0,1)
-        samples = a.run(20000,np.array([.5]))
+        samples = a.run(20000,np.array([.5]),showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)
         self.assertTrue((samples >= 0).all())
@@ -78,7 +78,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb1,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))
         a.addMetropolis(0,2)
-        samples = a.run(50000,np.array([.5,.5]),1000)
+        samples = a.run(50000,np.array([.5,.5]),1000,showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)
         self.assertGreaterEqual(a.getAcceptance()[1],0.)
@@ -93,7 +93,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb1,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))
         a.addMetropolis(0,2)
-        samples = a.run(50000,np.array([.5,.5]),1000,threads=5)
+        samples = a.run(50000,np.array([.5,.5]),1000,threads=5,showProgress=False)
         for i in a.getAcceptance():
             self.assertGreaterEqual(i[0],0.)
             self.assertLessEqual(i[0],1.)
@@ -114,7 +114,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb1,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))
         a.addHMC(10,.1,0,2)
-        samples = a.run(50000,np.array([.5,.5]),10)
+        samples = a.run(50000,np.array([.5,.5]),10,showProgress=False)
         self.assertTrue((samples[:,0] >= 0).all())
         self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
@@ -133,7 +133,7 @@ class SamTester(unittest.TestCase):
                     lowerBoundaries=np.array([0.,-np.inf]),
                     upperBoundaries=np.array([1.,np.inf]))
         a.addMetropolis(0,2)
-        samples = a.run(100000,np.array([.5,.5]), 1000,recordStop=0,collectStats=True)
+        samples = a.run(100000,np.array([.5,.5]), 1000,recordStop=0,collectStats=True,showProgress=False)
         self.assertEqual(samples.size,0)
         self.assertAlmostEqual(a.getStats()[0][0], sam.betaMean(20,40),delta=.01)
         self.assertAlmostEqual(a.getStats()[1][0], sam.betaStd(20,40),delta=.01)
