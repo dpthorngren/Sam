@@ -62,7 +62,7 @@ cdef extern from "<boost/random/exponential_distribution.hpp>":
         void param(param_type)
 cdef extern from "<boost/random/binomial_distribution.hpp>":
     cdef cppclass binom_rng "boost::random::binomial_distribution"[int,double]:
-        double operator()(mTwister generator)
+        int operator()(mTwister generator)
         cppclass param_type:
             param_type(int,double)
         void param(param_type)
@@ -172,7 +172,7 @@ cpdef double exponentialStd(double lamb)
 cpdef double exponentialMode(double lamb)
 
 # Binomial
-cpdef double binomialRand(int n, double probability, RandomEngine engine=?)
+cpdef int binomialRand(int n, double probability, RandomEngine engine=?)
 cpdef double binomialPDF(int x, int n, double probability)
 cpdef double binomialLogPDF(int x, int n, double probability)
 cpdef double binomialCDF(double x, int n, double probability)

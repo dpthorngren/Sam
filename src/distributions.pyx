@@ -286,17 +286,17 @@ cpdef double exponentialRand(double lamb, RandomEngine engine=defaultEngine):
     return engine.exponential_rand(engine.source)
 
 cpdef double exponentialPDF(double x, double lamb):
-    if x > 0:
+    if x >= 0:
         return lamb * exp(-lamb*x)
     return 0.
 
 cpdef double exponentialLogPDF(double x, double lamb):
-    if x > 0:
+    if x >= 0:
         return log(lamb)-lamb*x
     return 0.
 
 cpdef double exponentialCDF(double x, double lamb):
-    if x > 0:
+    if x >= 0:
         return 1.-exp(-lamb*x)
     return 0
 
@@ -318,7 +318,7 @@ cpdef double exponentialMode(double lamb):
 # ===== Binomial Distribution =====
 
 # TODO: should return an int
-cpdef double binomialRand(int n, double probability, RandomEngine engine=defaultEngine):
+cpdef int binomialRand(int n, double probability, RandomEngine engine=defaultEngine):
     engine.binomial_rand.param(binom_rng.param_type(n,probability))
     return engine.binomial_rand(engine.source)
 
