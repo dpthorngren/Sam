@@ -297,7 +297,7 @@ cdef class Sam:
                 self.record(i-self.burnIn)
                 if self.collectStats:
                     self.recordStats()
-            if self.showProgress and i%(totalDraws/100)==0:
+            if self.showProgress and i%(totalDraws/100+1)==0:
                 if i < self.burnIn:
                     self.progressBar(i+1,self.burnIn,"Burning-in")
                 else:

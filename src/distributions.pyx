@@ -317,7 +317,6 @@ cpdef double exponentialMode(double lamb):
 
 # ===== Binomial Distribution =====
 
-# TODO: should return an int
 cpdef int binomialRand(int n, double probability, RandomEngine engine=defaultEngine):
     engine.binomial_rand.param(binom_rng.param_type(n,probability))
     return engine.binomial_rand(engine.source)
