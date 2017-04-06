@@ -153,7 +153,7 @@ cdef class Sam:
     cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0 = nan) except +:
         cdef Size d
         cdef double logP1
-        mvNormalRand(self.x[dStart:],proposeChol,self.xPropose[dStart:],True)
+        mvNormalRand(self.x[dStart:dStop],proposeChol,self.xPropose[dStart:dStop],True)
         for d in range(0,self.nDim):
             if d >= dStart and d < dStop:
                 if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
@@ -304,6 +304,7 @@ cdef class Sam:
                     self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
         if self.showProgress:
             self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
+            print ""
         return self.samples, self.accepted
 
     cpdef object getStats(self) except +:
