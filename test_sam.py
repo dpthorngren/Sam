@@ -110,6 +110,27 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
 
+    def testThreading2(self):
+        a = sam.Sam(logProb1,2,np.array([.5,.5]),
+                    lowerBoundaries=np.array([0.,-np.inf]))
+        a.addMetropolis(0,2)
+        samples = a.run(50000,np.random.rand(5,2),1000,threads=5,showProgress=False)
+        for i in a.getAcceptance():
+            self.assertGreaterEqual(i[0],0.)
+            self.assertLessEqual(i[0],1.)
+            self.assertGreaterEqual(i[1],0.)
+            self.assertLessEqual(i[1],1.)
+        self.assertEqual(samples.shape[0],5)
+        self.assertEqual(samples.shape[1],50000)
+        self.assertEqual(samples.shape[2],2)
+        self.assertNotEqual(samples[0,-1,-1],samples[1,-1,-1])
+        samples = np.concatenate([samples[0],samples[1]],axis=1)
+        self.assertTrue((samples[:,0] >= 0).all())
+        self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
+        self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+
     def test2DHMC(self):
         a = sam.Sam(logProb1,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))

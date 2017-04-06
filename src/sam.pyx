@@ -250,10 +250,9 @@ cdef class Sam:
 
     cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True) except +:
         assert nSamples > 0, "The number of samples must be greater than 0."
+        assert threads > 0, "Threads must be > 0."
         assert type(x0) is np.ndarray, "The initial position must be an array."
-        assert x0.shape[-1] == self.nDim, "The initial position has the wrong number of dimensions."
-        cdef Size i, j, d
-        cdef double vMag, vMagPropose
+        assert (x0.shape == (self.nDim,) or x0.shape == (threads,self.nDim)), "The initial guess must have shape [nDim], or [threads, nDim]."
         self.showProgress = showProgress
         self.recordStart = recordStart
         if recordStop < 0:
@@ -270,8 +269,10 @@ cdef class Sam:
         self.trials = (self.nSamples + self.burnIn) * (self.thinning+1)
         self.readyToRun = True
         if threads > 1:
+            if x0.ndim == 1:
+                x0 = np.array([x0]*threads)
             p = mp.Pool(threads)
-            self.samples, self.accepted = zip(*p.map(self,[x0]*threads))
+            self.samples, self.accepted = zip(*p.map(self,list(x0)))
             self.samples = np.array(self.samples)
             self.accepted = np.array(self.accepted)
             p.terminate()
@@ -281,6 +282,7 @@ cdef class Sam:
             return self.samples
 
     def __call__(self, double[:] x0):
+        cdef Size i, j, d
         assert x0.size == self.nDim, "The initial position has the wrong number of dimensions."
         if not self.readyToRun:
             raise RuntimeError("The call function is for internal use only.")
@@ -303,7 +305,7 @@ cdef class Sam:
                 else:
                     self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
         if self.showProgress:
-            self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
+            self.progressBar(self.nSamples,self.nSamples,"Sampling")
             print ""
         return self.samples, self.accepted
 
