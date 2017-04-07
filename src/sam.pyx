@@ -253,6 +253,7 @@ cdef class Sam:
         assert threads > 0, "Threads must be > 0."
         assert type(x0) is np.ndarray, "The initial position must be an array."
         assert (x0.shape == (self.nDim,) or x0.shape == (threads,self.nDim)), "The initial guess must have shape [nDim], or [threads, nDim]."
+        self.initialPosition = x0.copy()
         self.showProgress = showProgress
         self.recordStart = recordStart
         if recordStop < 0:
@@ -438,7 +439,7 @@ cdef class Sam:
         self.nDim = nDim
         self.readyToRun = False
         self.showProgress = True
-        self._workingMemory_ = np.empty(7*self.nDim,dtype=np.double)
+        self._workingMemory_ = np.nan * np.ones(7*self.nDim,dtype=np.double)
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.trials = 0
         self._setMemoryViews_()
@@ -462,6 +463,22 @@ cdef class Sam:
                 self.lowerBoundaries[d] = -infinity
         self.extraInitialization()
         return
+
+    def save(self,filename):
+        # TODO: Save sampler data in a clever way
+        if self.collectStats:
+            stats = self.getStats()
+        else:
+            stats = np.nan
+        if self.trials > 0:
+            accept =  self.accepted.astype(np.double)/self.trials
+        else:
+            accept = np.nan
+        np.savez_compressed(
+            filename, nDim=self.nDim, nSamples=self.nSamples,
+            thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
+            lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
+            samples = self.samples, acceptance = accept, stats=stats)
 
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,

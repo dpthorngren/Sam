@@ -67,6 +67,7 @@ cdef class Sam:
 
     # Output
     cdef public object samples
+    cdef public object initialPosition
     cdef double[:,:] sampleView
     cdef public object accepted
     cdef int[:] acceptedView
