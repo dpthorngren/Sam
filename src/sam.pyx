@@ -48,6 +48,9 @@ def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None
         return np.matmul(KTest.T,alpha), predVariance
     return -.5*np.sum(y*alpha) - np.sum(np.log(np.diag(L)))
 
+def acf(x, length=50):
+    return np.array([1]+[np.corrcoef(x[:-i],x[i:])[0,1] for i in range(1,length)])
+
 cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):
         if self.pyLogProbability is None:
@@ -326,6 +329,16 @@ cdef class Sam:
     cpdef object getAcceptance(self) except +:
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
+
+    def getACF(self, length=50):
+        assert self.trials > 0, "The number of trials must be greater than zero to compute the autocorrelation function."
+        if self.samples.ndim == 2:
+            return np.array([acf(self.samples[:,i]) for i in range(self.nDim)])
+        if self.samples.ndim == 3:
+            results = []
+            for d in range(self.samples.shape[0]):
+                results.append([acf(self.samples[d,:,i]) for i in range(self.nDim)])
+            return np.array(results)
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
