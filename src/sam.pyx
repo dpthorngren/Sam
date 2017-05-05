@@ -16,9 +16,9 @@ cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
 # Helper functions
-cpdef double getWAIC(logLike, samples):
+cpdef double getDIC(logLike, samples):
     l = np.array([logLike(i) for i in samples])
-    return -2*(logsumexp(l) - log(len(l)) - np.var(l))
+    return -2*np.mean(l) + .5*np.var(l)
 
 cpdef double getAIC(loglike, samples):
     lMax = max([loglike(i) for i in samples])

@@ -40,7 +40,7 @@ cdef struct SamplerData:
 include "distributions.pxd"
 
 # Helper functions
-cpdef double getWAIC(logLike, samples)
+cpdef double getDIC(logLike, samples)
 cpdef double getAIC(loglike, samples)
 cpdef double getBIC(loglike, samples, nPoints)
 

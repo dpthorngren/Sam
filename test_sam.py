@@ -33,9 +33,9 @@ class SamTester(unittest.TestCase):
         def wrongModel(x):
             return sam.normalLogPDF(mu,sigma)
 
-        # WAIC
-        right = sam.getWAIC(rightModel,samples)
-        wrong = sam.getWAIC(wrongModel,samples)
+        # DIC
+        right = sam.getDIC(rightModel,samples)
+        wrong = sam.getDIC(wrongModel,samples)
         self.assertLessEqual(right, wrong)
         self.assertAlmostEqual(wrong,1.88253526515)
         self.assertAlmostEqual(right,-2.0)
