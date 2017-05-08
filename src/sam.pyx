@@ -16,15 +16,19 @@ cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
 # Helper functions
-cpdef double getDIC(logLike, samples):
+def getDIC(logLike, samples, full_output=False):
     l = np.array([logLike(i) for i in samples])
-    return -2*np.mean(l) + .5*np.var(l)
+    meanLike = np.mean(l)
+    nEff = .5*np.var(l)
+    if full_output:
+        return meanLike, nEff, -2*meanLike + nEff
+    return -2*meanLike + nEff
 
-cpdef double getAIC(loglike, samples):
+def getAIC(loglike, samples):
     lMax = max([loglike(i) for i in samples])
     return 2*np.shape(samples)[1] - 2*lMax
 
-cpdef double getBIC(loglike, samples, nPoints):
+def getBIC(loglike, samples, nPoints):
     lMax = max([loglike(i) for i in samples])
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
 
