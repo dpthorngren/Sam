@@ -2,6 +2,7 @@ import unittest
 import sam
 from math import log, sqrt
 import numpy as np
+from scipy.stats import multivariate_normal
 
 
 def logProb1(x, gradient, getGradient):
@@ -60,6 +61,13 @@ class SamTester(unittest.TestCase):
         gpVar = np.sqrt(np.diag(gpVar))
         self.assertAlmostEqual(gpMean[0],-0.95768933)
         self.assertAlmostEqual(gpVar[0],0.05025168)
+
+    def testGaussianProcess2D(self):
+        x = np.random.rand(200,2)
+        z = np.sin(np.sum(x,axis=-1))
+        gpMean, gpVar = sam.gaussianProcess(x,z,np.array([1,.5,0]),np.array([.5,.5])[np.newaxis,:])
+        gpVar = np.sqrt(np.diag(gpVar))
+        self.assertAlmostEqual(gpMean[0],0.841,delta=.01)
 
     def test1DMetropolis(self):
         a = sam.Sam(logProb2,1,np.array([.5]),
@@ -188,20 +196,24 @@ class DistributionTester(unittest.TestCase):
     def testMvNormalDistribution(self):
         targetCov = np.random.rand(3,3)
         targetCov = targetCov*targetCov.T/2. + np.eye(3)
-        a = np.empty((100000,3))
-        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov,a[i]) for i in range(100000)]
-        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.01)
-        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.01)
-        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.01)
+        a = np.empty((10000,3))
+        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov,a[i]) for i in range(10000)]
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)
         for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
-            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.02)
+            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.2)
         targetChol = np.linalg.cholesky(targetCov)
-        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,a[i],isChol=True) for i in range(100000)]
-        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.01)
-        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.01)
-        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.01)
+        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,a[i],isChol=True) for i in range(10000)]
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)
         for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
-            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.02)
+            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.2)
+        self.assertAlmostEqual(sam.mvNormalLogPDF(np.ones(3),np.zeros(3),targetCov.copy()),
+                               multivariate_normal.logpdf(np.ones(3),np.zeros(3),targetCov))
+        self.assertAlmostEqual(sam.mvNormalPDF(np.ones(3),np.zeros(3),targetCov.copy()),
+                               multivariate_normal.pdf(np.ones(3),np.zeros(3),targetCov))
 
     def testUniformDistribution(self):
         self.assertAlmostEqual(sam.uniformMean(2,4),3.)

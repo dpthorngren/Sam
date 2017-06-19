@@ -33,10 +33,15 @@ def getBIC(loglike, samples, nPoints):
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
 
 def gpGaussKernel(x,xPrime,theta):
-    return theta[1]*np.exp(-abs(x[:,np.newaxis]-xPrime[np.newaxis,:])**2/(2*theta[0]**2))
+    return theta[1]*np.exp(-distance(x,xPrime)**2/(2*theta[0]**2))
 
 def gpExpKernel(x,xPrime,theta):
-    return theta[1]*np.exp(-abs(x[:,np.newaxis]-xPrime[np.newaxis,:])/theta[0])
+    return theta[1]*np.exp(-distance(x,xPrime)/theta[0])
+
+def distance(x,xPrime):
+    x = np.atleast_2d(x.T).T
+    xPrime = np.atleast_2d(xPrime.T).T
+    return np.sqrt(np.sum((x[:,np.newaxis,:]-xPrime[np.newaxis,:,:])**2,axis=-1))
 
 def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None):
     if kernelChol is None:
@@ -46,6 +51,11 @@ def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None
         L = kernelChol
     alpha = solve_triangular(L.T,solve_triangular(L,y,lower=True))
     if xTest is not None:
+        if x.ndim != 1:
+            assert xTest.ndim == 2
+            assert x.shape[1] == xTest.shape[1]
+        else:
+            assert xTest.ndim == 1
         KTest = kernel(x,xTest,theta)
         v = solve_triangular(L,KTest,lower=True)
         predVariance = kernel(xTest,xTest,theta) + np.eye(len(xTest))*theta[2] - np.matmul(v.T,v)

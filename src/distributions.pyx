@@ -1,6 +1,7 @@
 import time
 import os
 import numpy as np
+from scipy.linalg import solve_triangular
 cdef class RandomEngine:
     def __init__(self, unsigned long int i):
         self.setSeed(i)
@@ -88,25 +89,37 @@ cpdef double normalMode(double mean=0, double sigma=1):
     return mean
 
 # ===== Multivariate Normal Distribution =====
+
+# TODO: use LAPACK and optimize
 cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=False, RandomEngine engine =defaultEngine):
     cdef Size i, j
-    if not isChol:
-        # TODO: Use the LAPACK cholesky
-        covariance = np.linalg.cholesky(covariance)
+    cdef double[:,:] covChol
+    if isChol:
+        covChol = covariance
+    else:
+        covChol = np.linalg.cholesky(covariance)
     randVect = np.zeros(output.shape[0])
     for i in range(output.shape[0]):
         randVect[i] = normalRand(engine=engine)
         output[i] = mean[i]
         for j in range(i+1):
-            output[i] += randVect[j]*covariance[i,j]
+            output[i] += randVect[j]*covChol[i,j]
     return
 
-cpdef mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance):
-    cov = np.asmatrix(covariance)
-    offset = np.asmatrix(np.asarray(x)-np.asarray(mean))
-    cdef int dim = mean.shape[0]
-    return exp(-offset*cov*offset.T/2.0)/\
-            ((2.*pi)**(dim/2.) * sqrt(np.linalg.det(cov)))
+# TODO: use LAPACK and optimize
+cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False):
+    return exp(mvNormalLogPDF(x,mean,covariance,isChol))
+
+# TODO: use LAPACK and optimize
+cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False):
+    if isChol:
+        covChol = covariance
+    else:
+        covChol = np.linalg.cholesky(covariance)
+    cdef double det = np.sum(np.log(np.diag(covChol)))
+    offset = np.asarray(x)-np.asarray(mean)
+    covChol = solve_triangular(np.transpose(covChol),solve_triangular(covChol,offset,lower=True))
+    return -.5 * (np.sum(offset*covChol) + mean.shape[0] * log(2*pi)) - det
 
 # ===== Gamma Distribution =====
 
