@@ -197,14 +197,14 @@ class DistributionTester(unittest.TestCase):
         targetCov = np.random.rand(3,3)
         targetCov = targetCov*targetCov.T/2. + np.eye(3)
         a = np.empty((10000,3))
-        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov,a[i]) for i in range(10000)]
+        a = np.array([sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov) for i in range(10000)])
         self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
         self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
         self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)
         for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
             self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.2)
         targetChol = np.linalg.cholesky(targetCov)
-        [sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,a[i],isChol=True) for i in range(10000)]
+        a = np.array([sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,isChol=True) for i in range(10000)])
         self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
         self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
         self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)

@@ -108,7 +108,7 @@ cpdef double normalStd(double mean=?, double sigma=?)
 cpdef double normalMode(double mean=?, double sigma=?)
 
 # Multivariate Normal
-cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=?, RandomEngine engine=?)
+cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output=?, bint isChol=?, RandomEngine engine=?)
 cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?)
 cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?)
 

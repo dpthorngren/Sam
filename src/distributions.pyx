@@ -91,20 +91,22 @@ cpdef double normalMode(double mean=0, double sigma=1):
 # ===== Multivariate Normal Distribution =====
 
 # TODO: use LAPACK and optimize
-cpdef void mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output, bint isChol=False, RandomEngine engine =defaultEngine):
+cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output = None, bint isChol=False, RandomEngine engine =defaultEngine):
     cdef Size i, j
     cdef double[:,:] covChol
     if isChol:
         covChol = covariance
     else:
         covChol = np.linalg.cholesky(covariance)
-    randVect = np.zeros(output.shape[0])
-    for i in range(output.shape[0]):
+    if output is None:
+        output = np.empty(mean.shape[0])
+    randVect = np.zeros(mean.shape[0])
+    for i in range(mean.shape[0]):
         randVect[i] = normalRand(engine=engine)
         output[i] = mean[i]
         for j in range(i+1):
             output[i] += randVect[j]*covChol[i,j]
-    return
+    return output
 
 # TODO: use LAPACK and optimize
 cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False):
