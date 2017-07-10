@@ -3,6 +3,7 @@ import sam
 from math import log, sqrt
 import numpy as np
 from scipy.stats import multivariate_normal
+from scipy.special import expit, logit
 
 
 def logProb1(x, gradient, getGradient):
@@ -60,7 +61,14 @@ class SamTester(unittest.TestCase):
             x.append(np.pi + .9*x[-1] + sam.normalRand())
         sampleACF = sam.acf(x,30)
         theoryACF = .9**np.arange(30)
-        self.assertTrue(np.allclose(sampleACF,theoryACF,.05,.05))
+        self.assertTrue(np.allclose(sampleACF,theoryACF,.1,.1))
+        return
+
+    def testLogit(self):
+        x = [.234124, 1.-1e-13, 1e-13]
+        self.assertAlmostEqual(sam.logit(x[0]),logit(x[0]),13)
+        self.assertAlmostEqual(sam.logit(x[1]),logit(x[1]),13)
+        self.assertAlmostEqual(sam.logit(x[2]),logit(x[2]),13)
         return
 
     def testGaussianProcess(self):

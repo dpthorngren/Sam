@@ -14,6 +14,13 @@ cimport numpy as np
 cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
 
+# Special functions
+cpdef double expit(double x) except +:
+    return exp(x) / (1 + exp(x))
+
+cpdef double logit(double x) except +:
+    return log(x) - log(1-x)
+
 # Helper functions
 def getDIC(logLike, samples, full_output=False):
     l = np.array([logLike(i) for i in samples])

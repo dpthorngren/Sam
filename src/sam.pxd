@@ -28,6 +28,10 @@ cdef extern from "<boost/accumulators/accumulators.hpp>":
 # Wrapper to fix ordering not matching other functions.
 cpdef double incBeta(double x, double a, double b)
 
+# Special functions
+cpdef double expit(double x) except +
+cpdef double logit(double x) except +
+
 # Type definitions
 ctypedef Py_ssize_t Size
 cdef struct SamplerData:
