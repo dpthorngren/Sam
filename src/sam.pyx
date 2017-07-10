@@ -66,7 +66,7 @@ def acf(x, length=50):
     return np.array([1]+[np.corrcoef(x[:-i],x[i:])[0,1] for i in range(1,length)])
 
 cdef class Sam:
-    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient):
+    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except +:
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
                 "but the sampler called it.")
