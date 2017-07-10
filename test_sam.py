@@ -54,6 +54,15 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(right,4.90775527898)
         return
 
+    def testACF(self):
+        x = [np.pi]
+        for i in range(10000):
+            x.append(np.pi + .9*x[-1] + sam.normalRand())
+        sampleACF = sam.acf(x,30)
+        theoryACF = .9**np.arange(30)
+        self.assertTrue(np.allclose(sampleACF,theoryACF,.05,.05))
+        return
+
     def testGaussianProcess(self):
         x = np.linspace(0,10,100)
         y = np.sin(x)

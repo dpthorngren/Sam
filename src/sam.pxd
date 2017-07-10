@@ -1,6 +1,5 @@
 cimport numpy as np
 cimport cython
-from scipy.stats import multivariate_normal
 
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan

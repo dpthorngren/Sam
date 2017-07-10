@@ -3,7 +3,6 @@ include "distributions.pyx"
 include "griddy.pyx"
 import multiprocessing as mp
 from scipy.misc import logsumexp
-from scipy.stats import multivariate_normal
 from scipy.linalg import solve_triangular
 from sys import stdout
 import numpy as np
@@ -63,7 +62,9 @@ def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None
     return -.5*np.sum(y*alpha) - np.sum(np.log(np.diag(L)))
 
 def acf(x, length=50):
-    return np.array([1]+[np.corrcoef(x[:-i],x[i:])[0,1] for i in range(1,length)])
+         if np.ndim(x) == 2:
+             return np.array([np.array([1]+[np.corrcoef(x[:-i,j],x[i:,j],0)[0,1] for i in range(1,length)]) for j in range(np.shape(x)[1])]).T
+         return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
 
 cdef class Sam:
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except +:
@@ -188,7 +189,6 @@ cdef class Sam:
             return logP1
         return logP0
 
-    # TODO: remove need for numpy
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
         '''Computes a linear regression with normal errors on x,y.
         x - The design matrix: columns of predictor variables stacked
@@ -347,12 +347,9 @@ cdef class Sam:
     def getACF(self, length=50):
         assert self.trials > 0, "The number of trials must be greater than zero to compute the autocorrelation function."
         if self.samples.ndim == 2:
-            return np.array([acf(self.samples[:,i]) for i in range(self.nDim)])
+            return acf(self.samples)
         if self.samples.ndim == 3:
-            results = []
-            for d in range(self.samples.shape[0]):
-                results.append([acf(self.samples[d,:,i]) for i in range(self.nDim)])
-            return np.array(results)
+            return np.array([acf(self.samples[i,:,i]) for i in range(self.samples.shape[0])])
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
