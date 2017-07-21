@@ -6,6 +6,7 @@ from scipy.misc import logsumexp
 from scipy.linalg import solve_triangular
 from sys import stdout
 import numpy as np
+import inspect
 from numpy.linalg import solve, cholesky
 import os
 cimport numpy as np
@@ -516,7 +517,6 @@ cdef class Sam:
         return
 
     def save(self,filename):
-        # TODO: Save sampler data in a clever way
         if self.collectStats:
             stats = self.getStats()
         else:
@@ -525,11 +525,15 @@ cdef class Sam:
             accept =  self.accepted.astype(np.double)/self.trials
         else:
             accept = np.nan
+        try:
+            logProbSource = inspect.getsource(self.pyLogProbability)
+        except:
+            logProbSource = "Source code not available."
         np.savez_compressed(
             filename, nDim=self.nDim, nSamples=self.nSamples,
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
-            samples = self.samples, acceptance = accept, stats=stats)
+            samples = self.samples, acceptance = accept, logProbSource = logProbSource, stats=stats)
 
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
