@@ -80,6 +80,7 @@ cdef class Sam:
 
     # User Defined Functions
     cdef object pyLogProbability
+    cdef int pyLogProbArgNum
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except +
     cdef void extraInitialization(self)
     cdef void sample(self)

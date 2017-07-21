@@ -79,6 +79,10 @@ cdef class Sam:
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
                 "but the sampler called it.")
+        if self.pyLogProbArgNum == 1:
+            if computeGradient:
+                raise AttributeError("Gradient information was requested, but the given logProbability function does not provide it.")
+            return self.pyLogProbability(np.asarray(position))
         return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
 
     cdef void sample(self):
@@ -483,15 +487,14 @@ cdef class Sam:
         self.acceptedView = self.accepted
         return
 
-    def __init__(self, object logProbability, Size nDim, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
-        assert scale.size == nDim, "The scale given has wrong number of dimensions."
+    def __init__(self, object logProbability, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
+        self.nDim = scale.size
         assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
         if upperBoundaries is not None:
-            assert upperBoundaries.size == nDim, "The upper boundaries given have the wrong number of dimensions."
+            assert upperBoundaries.size == self.nDim, "The upper boundaries given have the wrong number of dimensions."
         if lowerBoundaries is not None:
-            assert lowerBoundaries.size == nDim, "The lower boundaries given have the wrong number of dimensions."
+            assert lowerBoundaries.size == self.nDim, "The lower boundaries given have the wrong number of dimensions."
         cdef Size d
-        self.nDim = nDim
         self.readyToRun = False
         self.showProgress = True
         self._workingMemory_ = np.nan * np.ones(7*self.nDim,dtype=np.double)
@@ -499,6 +502,11 @@ cdef class Sam:
         self.trials = 0
         self._setMemoryViews_()
         self.pyLogProbability = logProbability
+        if self.pyLogProbability is not None:
+            self.pyLogProbArgNum = len(inspect.getargspec(self.pyLogProbability).args)
+            assert ((self.pyLogProbArgNum == 1) or (self.pyLogProbArgNum == 3)), "The logProbability function must take either one or three arguments."
+        else:
+            self.pyLogProbArgNum = -1
         for d in range(self.nDim):
             self.scale[d] = scale[d]
         self.hasBoundaries = False
@@ -541,14 +549,14 @@ cdef class Sam:
     def __getstate__(self):
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-                self._workingMemory_, self.accepted, self.pyLogProbability,
+                self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
                 self.hasBoundaries, self.showProgress)
         return info
 
     def __setstate__(self,info):
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
-         self._workingMemory_, self.accepted, self.pyLogProbability,
+         self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
          self.hasBoundaries, self.showProgress) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
         np.random.seed(int(os.urandom(4).encode("hex"),16))
