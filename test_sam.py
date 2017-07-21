@@ -90,7 +90,6 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb2,1,np.array([.5]),
                     lowerBoundaries=np.array([0.]),
                     upperBoundaries=np.array([1.]))
-        a.addMetropolis(0,1)
         samples = a.run(20000,np.array([.5]),showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)
@@ -102,7 +101,6 @@ class SamTester(unittest.TestCase):
     def test2DMetropolis(self):
         a = sam.Sam(logProb1,2,np.array([.5,.5]),
                     lowerBoundaries=np.array([0.,-np.inf]))
-        a.addMetropolis(0,2)
         samples = a.run(50000,np.array([.5,.5]),1000,showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)

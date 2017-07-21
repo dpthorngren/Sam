@@ -294,6 +294,9 @@ cdef class Sam:
             self.sampleStats.resize(self.nDim)
         self.trials = (self.nSamples + self.burnIn) * (self.thinning+1)
         self.readyToRun = True
+        # Default to metropolis
+        if self.samplers.size() == 0:
+            self.addMetropolis(0,self.nDim)
         if threads > 1:
             if x0.ndim == 1:
                 x0 = np.array([x0]*threads)
