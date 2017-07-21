@@ -301,9 +301,11 @@ cdef class Sam:
             self.samples = np.array(self.samples)
             self.accepted = np.array(self.accepted)
             p.terminate()
+            self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
             return self.samples
         else:
             self(x0)
+            self.results = self.samples
             return self.samples
 
     def __call__(self, double[:] x0):
@@ -350,6 +352,24 @@ cdef class Sam:
     cpdef object getAcceptance(self) except +:
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
+
+    cpdef object summary(self, returnString = False) except +:
+        assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
+        acceptance = self.getAcceptance()
+        if len(acceptance.shape) > 1:
+            acceptance = np.mean(acceptance,axis=0)
+        means = np.mean(self.results,axis=0)
+        stds = np.std(self.results,axis=0)
+        percents = np.percentile(self.results,(16,50,84),axis=0)
+        output = ("{:<4}"+" {:>6}"+" |"+2*" {:>10}"+" |"+3*" {:>10}").format("Dim.","Accept","Mean","Std.","16%","50%","84%")
+        for i in range(self.nDim):
+            output += '\n' + ("{:<4}"+" {:>6.1%}"+" |"+2*" {:>10.4g}"+" |"+3*" {:>10.4g}").format(i,acceptance[i],means[i],stds[i],percents[0,i],percents[1,i],percents[2,i])
+        output += '\n'
+        if returnString:
+            return output
+        print output
+        return
+
 
     def getACF(self, length=50):
         assert self.trials > 0, "The number of trials must be greater than zero to compute the autocorrelation function."

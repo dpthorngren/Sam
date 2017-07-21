@@ -69,7 +69,8 @@ cdef class Sam:
     cdef double[:] gradient
 
     # Output
-    cdef public object samples
+    cdef readonly object samples
+    cdef readonly object results
     cdef public object initialPosition
     cdef double[:,:] sampleView
     cdef public object accepted
@@ -94,6 +95,7 @@ cdef class Sam:
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
     cpdef void printSamplers(self) except +
     cpdef void clearSamplers(self) except +
+    cpdef object summary(self,returnString=?) except +
 
     # Structural functions
     cdef void progressBar(self, Size i, Size N, object header) except +
