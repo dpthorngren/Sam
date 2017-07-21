@@ -86,10 +86,8 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(gpMean[0],0.841,delta=.01)
 
     def test1DMetropolis(self):
-        a = sam.Sam(logProb2,np.array([.5]),
-                    lowerBoundaries=np.array([0.]),
-                    upperBoundaries=np.array([1.]))
-        samples = a.run(20000,np.array([.5]),showProgress=False)
+        a = sam.Sam(logProb2,.5, 0., 1.)
+        samples = a.run(20000,.5,showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)
         self.assertTrue((samples >= 0).all())
@@ -98,8 +96,7 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples.std(),sam.betaStd(15,20),delta=.01)
 
     def test2DMetropolis(self):
-        a = sam.Sam(logProb1,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]))
+        a = sam.Sam(logProb1,np.array([.5,.5]), np.array([0.,-np.inf]))
         samples = a.run(50000,np.array([.5,.5]),1000,showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0],0.)
         self.assertLessEqual(a.getAcceptance()[0],1.)
@@ -113,7 +110,7 @@ class SamTester(unittest.TestCase):
 
     def testThreading(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]))
+                    lowerBounds=np.array([0.,-np.inf]))
         a.addMetropolis(0,2)
         samples = a.run(50000,np.array([.5,.5]),1000,threads=5,showProgress=False)
         for i in a.getAcceptance():
@@ -138,7 +135,7 @@ class SamTester(unittest.TestCase):
 
     def testThreading2(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]))
+                    lowerBounds=np.array([0.,-np.inf]))
         a.addMetropolis(0,2)
         samples = a.run(50000,np.random.rand(5,2),1000,threads=5,showProgress=False)
         for i in a.getAcceptance():
@@ -161,7 +158,7 @@ class SamTester(unittest.TestCase):
 
     def test2DHMC(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]))
+                    lowerBounds=np.array([0.,-np.inf]))
         a.addHMC(10,.1,0,2)
         samples = a.run(50000,np.array([.5,.5]),10,showProgress=False)
         self.assertTrue((samples[:,0] >= 0).all())
@@ -172,15 +169,15 @@ class SamTester(unittest.TestCase):
 
     def test2DGradientDescent(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]))
+                    lowerBounds=np.array([0.,-np.inf]))
         posteriorMax = a.gradientDescent(np.array([.5,.5]),step=.05)
         self.assertAlmostEqual(posteriorMax[0],19./40.,delta=1e-4)
         self.assertAlmostEqual(posteriorMax[1],5.,delta=1e-4)
 
     def testRunningStats(self):
         a = sam.Sam(logProb3,np.array([.5,.5]),
-                    lowerBoundaries=np.array([0.,-np.inf]),
-                    upperBoundaries=np.array([1.,np.inf]))
+                    lowerBounds=np.array([0.,-np.inf]),
+                    upperBounds=np.array([1.,np.inf]))
         a.addMetropolis(0,2)
         samples = a.run(100000,np.array([.5,.5]), 1000,recordStop=0,collectStats=True,showProgress=False)
         self.assertEqual(samples.size,0)

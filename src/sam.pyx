@@ -103,7 +103,7 @@ cdef class Sam:
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
         cdef Size d, i
-        cdef double new = infinity
+        cdef double new = inf
         for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
             if d >= dStart and d < dStop:
@@ -280,7 +280,7 @@ cdef class Sam:
     cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True) except +:
         assert nSamples > 0, "The number of samples must be greater than 0."
         assert threads > 0, "Threads must be > 0."
-        assert type(x0) is np.ndarray, "The initial position must be an array."
+        x0 = np.atleast_1d(x0)
         assert (x0.shape == (self.nDim,) or x0.shape == (threads,self.nDim)), "The initial guess must have shape [nDim], or [threads, nDim]."
         self.initialPosition = x0.copy()
         self.showProgress = showProgress
@@ -487,13 +487,16 @@ cdef class Sam:
         self.acceptedView = self.accepted
         return
 
-    def __init__(self, object logProbability, double[:] scale, double[:] upperBoundaries=None, double[:] lowerBoundaries=None):
+    def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None):
+        scale = np.atleast_1d(scale)
         self.nDim = scale.size
         assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
-        if upperBoundaries is not None:
-            assert upperBoundaries.size == self.nDim, "The upper boundaries given have the wrong number of dimensions."
-        if lowerBoundaries is not None:
-            assert lowerBoundaries.size == self.nDim, "The lower boundaries given have the wrong number of dimensions."
+        if upperBounds is not None:
+            upperBounds = np.atleast_1d(upperBounds)
+            assert upperBounds.size == self.nDim, "The upper boundaries given have the wrong number of dimensions."
+        if lowerBounds is not None:
+            lowerBounds = np.atleast_1d(lowerBounds)
+            assert lowerBounds.size == self.nDim, "The lower boundaries given have the wrong number of dimensions."
         cdef Size d
         self.readyToRun = False
         self.showProgress = True
@@ -510,20 +513,20 @@ cdef class Sam:
         for d in range(self.nDim):
             self.scale[d] = scale[d]
         self.hasBoundaries = False
-        if upperBoundaries is not None:
+        if upperBounds is not None:
             self.hasBoundaries = True
             for d in range(self.nDim):
-                self.upperBoundaries[d] = upperBoundaries[d]
+                self.upperBoundaries[d] = upperBounds[d]
         else:
             for d in range(self.nDim):
-                self.upperBoundaries[d] = infinity
-        if lowerBoundaries is not None:
+                self.upperBoundaries[d] = inf
+        if lowerBounds is not None:
             self.hasBoundaries = True
             for d in range(self.nDim):
-                self.lowerBoundaries[d] = lowerBoundaries[d]
+                self.lowerBoundaries[d] = lowerBounds[d]
         else:
             for d in range(self.nDim):
-                self.lowerBoundaries[d] = -infinity
+                self.lowerBoundaries[d] = -inf
         self.extraInitialization()
         return
 

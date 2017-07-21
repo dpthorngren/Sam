@@ -2,7 +2,7 @@ cimport numpy as np
 cimport cython
 
 # Standard library
-from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as infinity, NAN as nan, isnan
+from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan
 from libcpp.vector cimport vector
 
 # Boost library (RNG functions declared separately in distributions.pxd)
@@ -41,11 +41,6 @@ cdef struct SamplerData:
     double stepSize
 
 include "distributions.pxd"
-
-# Helper functions
-#  cpdef double getDIC(logLike, samples, full_output=?)
-#  cpdef double getAIC(loglike, samples)
-#  cpdef double getBIC(loglike, samples, nPoints)
 
 cdef class Sam:
     # Parameters
