@@ -95,6 +95,13 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples.mean(),sam.betaMean(15,20),delta=.01)
         self.assertAlmostEqual(samples.std(),sam.betaStd(15,20),delta=.01)
 
+    def testSummary(self):
+        a = sam.Sam(logProb2,.5, 0., 1.)
+        with self.assertRaises(AssertionError):
+            a.summary()
+        samples = a.run(20000,.5,showProgress=False)
+        self.assertGreaterEqual(len(a.summary(True)),0)
+
     def test2DMetropolis(self):
         a = sam.Sam(logProb1,np.array([.5,.5]), np.array([0.,-np.inf]))
         samples = a.run(50000,np.array([.5,.5]),1000,showProgress=False)

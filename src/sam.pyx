@@ -362,7 +362,7 @@ cdef class Sam:
         return self.accepted.astype(np.double)/self.trials
 
     cpdef object summary(self, returnString = False) except +:
-        assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
+        assert self.nSamples > 0,"Cannot report statistics without having run the sampler!"
         acceptance = self.getAcceptance()
         if len(acceptance.shape) > 1:
             acceptance = np.mean(acceptance,axis=0)
@@ -398,7 +398,10 @@ cdef class Sam:
         for d in range(self.nDim):
             x0[d] += self.scale[d]*eps
             estimate = (self.logProbability(x0,self.momentum,False) - central)/(self.scale[d]*eps)
-            outputView[d] = (estimate-self.gradient[d])/(estimate+self.gradient[d])
+            try:
+                outputView[d] = (estimate-self.gradient[d])/(estimate+self.gradient[d])
+            except:
+                outputView[d] = nan
             x0[d] -= self.scale[d]*eps
         return output
 
@@ -501,6 +504,7 @@ cdef class Sam:
         self.readyToRun = False
         self.showProgress = True
         self._workingMemory_ = np.nan * np.ones(7*self.nDim,dtype=np.double)
+        self.nSamples = 0
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.trials = 0
         self._setMemoryViews_()
