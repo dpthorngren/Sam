@@ -305,12 +305,17 @@ cdef class Sam:
             if x0.ndim == 1:
                 x0 = np.array([x0]*threads)
             p = mp.Pool(threads)
-            self.samples, self.accepted = zip(*p.map(self,list(x0)))
-            self.samples = np.array(self.samples)
-            self.accepted = np.array(self.accepted)
-            p.terminate()
-            self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
-            return self.samples
+            try:
+                self.samples, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
+                p.terminate()
+                self.samples = np.array(self.samples)
+                self.accepted = np.array(self.accepted)
+                self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
+                return self.samples
+            except:
+                p.terminate()
+                self.readyToRun = False
+            return None
         else:
             self(x0)
             self.results = self.samples
@@ -361,16 +366,18 @@ cdef class Sam:
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
 
-    cpdef object summary(self, returnString = False) except +:
+    cpdef object summary(self, paramIndices =None, returnString = False) except +:
         assert self.nSamples > 0,"Cannot report statistics without having run the sampler!"
         acceptance = self.getAcceptance()
         if len(acceptance.shape) > 1:
             acceptance = np.mean(acceptance,axis=0)
+        if paramIndices is None:
+            paramIndices = range(self.nDim)
         means = np.mean(self.results,axis=0)
         stds = np.std(self.results,axis=0)
         percents = np.percentile(self.results,(16,50,84),axis=0)
         output = ("{:<4}"+" {:>6}"+" |"+2*" {:>10}"+" |"+3*" {:>10}").format("Dim.","Accept","Mean","Std.","16%","50%","84%")
-        for i in range(self.nDim):
+        for i in paramIndices:
             output += '\n' + ("{:<4}"+" {:>6.1%}"+" |"+2*" {:>10.4g}"+" |"+3*" {:>10.4g}").format(i,acceptance[i],means[i],stds[i],percents[0,i],percents[1,i],percents[2,i])
         output += '\n'
         if returnString:

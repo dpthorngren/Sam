@@ -100,7 +100,7 @@ class SamTester(unittest.TestCase):
         with self.assertRaises(AssertionError):
             a.summary()
         samples = a.run(20000,.5,showProgress=False)
-        self.assertGreaterEqual(len(a.summary(True)),0)
+        self.assertGreaterEqual(len(a.summary(None,True)),0)
 
     def test2DMetropolis(self):
         a = sam.Sam(logProb1,np.array([.5,.5]), np.array([0.,-np.inf]))

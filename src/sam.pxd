@@ -91,7 +91,7 @@ cdef class Sam:
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
     cpdef void printSamplers(self) except +
     cpdef void clearSamplers(self) except +
-    cpdef object summary(self,returnString=?) except +
+    cpdef object summary(self, paramIndices=?, returnString=?) except +
 
     # Structural functions
     cdef void progressBar(self, Size i, Size N, object header) except +
