@@ -312,7 +312,7 @@ cdef class Sam:
                 self.accepted = np.array(self.accepted)
                 self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
                 return self.samples
-            except:
+            except KeyboardInterrupt:
                 p.terminate()
                 self.readyToRun = False
             return None
