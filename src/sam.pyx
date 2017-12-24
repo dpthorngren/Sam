@@ -11,16 +11,20 @@ from numpy.linalg import solve, cholesky
 import os
 cimport numpy as np
 
+
 # Special function wrappers
 cpdef double incBeta(double x, double a, double b):
     return _incBeta(a,b,x)
+
 
 # Special functions
 cpdef double expit(double x) except +:
     return exp(x) / (1 + exp(x))
 
+
 cpdef double logit(double x) except +:
     return log(x) - log(1-x)
+
 
 # Helper functions
 def getDIC(logLike, samples, full_output=False):
@@ -31,24 +35,30 @@ def getDIC(logLike, samples, full_output=False):
         return meanLike, nEff, -2*meanLike + nEff
     return -2*meanLike + nEff
 
+
 def getAIC(loglike, samples):
     lMax = max([loglike(i) for i in samples])
     return 2*np.shape(samples)[1] - 2*lMax
+
 
 def getBIC(loglike, samples, nPoints):
     lMax = max([loglike(i) for i in samples])
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
 
+
 def gpGaussKernel(x,xPrime,theta):
     return theta[1]*np.exp(-distance(x,xPrime)**2/(2*theta[0]**2))
 
+
 def gpExpKernel(x,xPrime,theta):
     return theta[1]*np.exp(-distance(x,xPrime)/theta[0])
+
 
 def distance(x,xPrime):
     x = np.atleast_2d(x.T).T
     xPrime = np.atleast_2d(xPrime.T).T
     return np.sqrt(np.sum((x[:,np.newaxis,:]-xPrime[np.newaxis,:,:])**2,axis=-1))
+
 
 def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None):
     if kernelChol is None:
@@ -69,13 +79,39 @@ def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None
         return np.matmul(KTest.T,alpha), predVariance
     return -.5*np.sum(y*alpha) - np.sum(np.log(np.diag(L)))
 
+
 def acf(x, length=50):
          if np.ndim(x) == 2:
              return np.array([np.array([1]+[np.corrcoef(x[:-i,j],x[i:,j],0)[0,1] for i in range(1,length)]) for j in range(np.shape(x)[1])]).T
          return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
 
+
 cdef class Sam:
+    '''A class for sampling from probability distributions.
+
+    Example:
+        import numpy as np
+        import sam as s
+        logProb = lambda x: s.normalLogPDF(x,3,.5)
+        f = s.Sam(logProb, np.array([.1]))
+        samples = f.run(10000,np.array([0.]))
+        print np.mean(samples), np.std(samples)
+    '''
+
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except +:
+        '''Computes the log probability and gradient for the given parameters.
+
+        Args:
+            position: an array-like indicating where to evaluate the probability.
+            gradient: an array-like where the gradient will be written to.
+            computeGradient: A boolean indicating whether a gradient
+                is needed.  Used to avoid unnecessary computation.
+
+        Returns:
+            The natural log of the probability function, evaluated at the
+            given point.  If a gradient was requested, it will have been
+            written to the gradient argument.
+        '''
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
                 "but the sampler called it.")
@@ -86,6 +122,15 @@ cdef class Sam:
         return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
 
     cdef void sample(self):
+        '''Conducts a single sampling step in the metropolis algorithm.
+
+        The actual act of sampling is determined by which samplers
+        have been set -- these are stored in self.samplers.
+        The current position is read from self.x, and the arrays
+        self.xPropose, self.momentum, and self.gradient may be written
+        to during the function call.  self.accepted will be updated
+        according to what occurs during the call.
+        '''
         cdef size_t s
         cdef double logP0 = nan
         for s in range(self.samplers.size()):
@@ -102,6 +147,28 @@ cdef class Sam:
         return
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
+        '''Conducts a single Hamiltonian Monte Carlo trajectory.
+
+        The operation is conducted on the internal variables of the object,
+        writing the result to self.x and using self.xPropose, x.momentum,
+        and x.gradient as scratch space.  self.accepted is updated
+        according to whether the trajectory was accepted.
+
+        Args:
+            nSteps: The number of steps in the trajectory
+            stepSize: Multiplied by self.scale to scale the process.
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+            logP0: If the logProbability is known at the starting position,
+                providing this will save a small amount of time by not
+                recomputing it.
+
+        Returns:
+            The log probability at the final position of the trajectory.  This
+            is provided to help reduce unnecessary computation; the main
+            purpose of this function is actually to advance self.x forward
+            one MCMC step.
+        '''
         cdef Size d, i
         cdef double new = inf
         for d in range(self.nDim):
@@ -143,6 +210,20 @@ cdef class Sam:
         return logP0
 
     cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +:
+        '''Attempts to move self.xPropose, bouncing off of any boundaries.
+
+        The update rule is: x_p[n+1] = x_p[n] + p[n] * stepSize * scale,
+        where x_p is the proposed x position (self.xProposed, p is the momentum
+        (self.momentum), and scale is the global scaling vector (self.scale).
+        If a boundary is encountered, the particle bounces of the boundary
+        normal vector and continues moving.
+
+        Args:
+            stepSize: Scales the distance traveled (see above).  In classical
+                mechanics, this is the time-step.
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+        '''
         cdef Size d
         for d in range(dStart,dStop):
             self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
@@ -159,7 +240,29 @@ cdef class Sam:
                 break
         return
 
-    cdef double metropolisStep(self, Size dStart, Size dStop, double logP0 = nan) except +:
+    cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except +:
+        '''Conducts a single Metropolis-Hastings step.
+
+        The proposal distribution is a normal distribution centered at self.x,
+        with diagonal covariance where self.scale is the diagonal components.
+        The operation is conducted on the internal variables of the object,
+        writing the result to self.x and using self.xPropose, x.momentum,
+        and x.gradient as scratch space.  self.accepted is updated
+        according to whether the trajectory was accepted.
+
+        Args:
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+            logP0: If the logProbability is known at the starting position,
+                providing this will save a small amount of time by not
+                recomputing it.
+
+        Returns:
+            The log probability at the final position of the trajectory.  This
+            is provided to help reduce unnecessary computation; the main
+            purpose of this function is actually to advance self.x forward
+            one MCMC step.
+        '''
         cdef Size d
         cdef double logP1
         for d in range(0,self.nDim):
@@ -180,7 +283,32 @@ cdef class Sam:
             return logP1
         return logP0
 
-    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0 = nan) except +:
+    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=nan) except +:
+        '''Conducts a single Metropolis-Hastings step for a general covariance.
+
+        The proposal distribution is a normal distribution centered at self.x,
+        with the covariance given by the argument proposeChol, which is the
+        cholesky of the proposal covariance matrix.  The operation is
+        conducted on the internal variables of the object, writing the result
+        to self.x and using self.xPropose, x.momentum, and x.gradient as
+        scratch space.  self.accepted is updated according to whether the
+        trajectory was accepted.
+
+        Args:
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+            proposeChol: A [N x N] array-like which is the cholesky of the
+                desired proposal covariance, and N is dStop-dStart-1
+            logP0: If the logProbability is known at the starting position,
+                providing this will save a small amount of time by not
+                recomputing it.
+
+        Returns:
+            The log probability at the final position of the trajectory.  This
+            is provided to help reduce unnecessary computation; the main
+            purpose of this function is actually to advance self.x forward
+            one MCMC step.
+        '''
         cdef Size d
         cdef double logP1
         mvNormalRand(self.x[dStart:dStop],proposeChol,self.xPropose[dStart:dStop],True)
@@ -202,13 +330,26 @@ cdef class Sam:
         return logP0
 
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
-        '''Computes a linear regression with normal errors on x,y.
-        x - The design matrix: columns of predictor variables stacked
-            horizontally into a matrix.
-        y - An array of variables to be fitted to.
-        output - A memoryview to write the resulting samples to.  Should be
-            size x1.shape[1] + 1, one for each coefficient plus the standard
-            deviation of the result.
+        '''Draws from a Bayesian linear regression with normal errors on x,y.
+
+        This is a sampler, and so the return is not the maximum likelihood
+        coefficients, but rather a sample drawn from the probability
+        distribution about the maximum (in this case, the MLE is also the
+        posterior mean).  Priors are assumed to be flat, except for the
+        residual standard deviation, which is p ~ 1/sigma^2.
+
+        Args:
+            x1: The design matrix, viz. columns of predictor variables stacked
+                horizontally into a matrix.  Should be [N x P] where N is the
+                number of data points and P is the number of predictors.
+            y1: The dependent data to be fitted against.  Should be length N.
+            output: An array-like to write the resulting samples to.  Should be
+                length P+1, one for each predictor plus the standard deviation.
+
+        Returns:
+            A sample from the posterior distribution for the coefficients of
+            the predictors as well as the standard deviation.  If output was
+            given, this will simply be a reference to it..
         '''
         cdef Size i, nDims, nPoints
         X = np.asmatrix(x1)
@@ -232,8 +373,19 @@ cdef class Sam:
 
 
     cpdef void addMetropolis(self,Size dStart, Size dStop) except +:
-        assert dStart >= 0 and dStart < self.nDim, "The start dimension must be between 0 and nDim - 1 (inclusive)."
-        assert dStop > 0 and dStop <= self.nDim, "The stop dimension must be between 1 and nDim (inclusive)."
+        '''Adds a metropolis sampler to the sampling procedure.
+
+        This sampler sets up a Metropolis-Hastings sampler to be used during
+        the sampling procedure.  The proposal distribution is a normal
+        distribution centered at self.x, with diagonal covariance where
+        self.scale is the diagonal components.
+
+        Args:
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+        '''
+        assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
         cdef SamplerData samp
         samp.samplerType = 0
         samp.dStart = dStart
@@ -241,8 +393,21 @@ cdef class Sam:
         self.samplers.push_back(samp)
 
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +:
-        assert dStart >= 0 and dStart < self.nDim, "The start dimension must be between 0 and nDim - 1 (inclusive)."
-        assert dStop > 0 and dStop <= self.nDim, "The stop dimension must be between 1 and nDim (inclusive)."
+        '''Adds a Hamiltonian Monte Carlo sampler to the sampling procedure.
+
+        This sampler sets up an HMC sampler to be used during the sampling
+        procedure.  The proposal distribution is a normal distribution
+        centered at self.x, with diagonal covariance where the scale (set
+        when the sampler object was initialized) is the diagonal components.
+
+        Args:
+            nSteps: The number of steps in the trajectory
+            stepSize: Multiplied by self.scale to scale the process.
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+        '''
+        assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
         assert nSteps > 0 and stepSize > 0, "The step size and the number of steps must be greater than zero."
         cdef SamplerData samp
         samp.samplerType = 1
@@ -253,6 +418,13 @@ cdef class Sam:
         self.samplers.push_back(samp)
 
     cpdef void printSamplers(self) except +:
+        '''Prints the list of any/all sampling systems set up so far.
+
+        This refers to samplers added using e.g. addMetropolis() functions. See
+        the overall class documentation for more information on these.  The
+        type of function and any parameters given (unique to each sampler
+        type) are printed.
+        '''
         cdef size_t s
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
@@ -263,21 +435,65 @@ cdef class Sam:
         return
 
     cpdef void clearSamplers(self) except +:
+        '''Clears the list of samplers.'''
         self.samplers.clear()
 
     cdef void record(self,Size i) except +:
+        '''Internal function that records the current position to self.samples.
+
+        Only parameters with indices between recordStart and recordStop
+        (set in the run() function and stored as a class member) are
+        recorded.
+
+        Args:
+            i: The index to store the current position at.
+        '''
         cdef Size d
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
         return
 
     cdef void recordStats(self) except +:
+        '''Internal function that accumulates statistics about the samples.
+
+        This function is called each time a sample needs to be
+        accumulated into the statistics tracker.  If self.collectStats is False
+        (set in the run() function), this function will never be called.
+        '''
         cdef Size d
         for d in range(self.nDim):
             self.sampleStats[d](self.x[d])
         return
 
     cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True) except +:
+        '''Begin sampling the parameters from the given logProbability dist.
+
+        Args:
+            nSamples: The desired number of samples to record per thread.
+            burnIn:  The number of MCMC steps to take before recording begins.
+            thinning: The number of MCMC steps to take between recordings and
+                burn-in steps.  This directly multiplies the amount of work
+                the sampler needs to do.
+            recordStart: The index of the first parameter to be recorded.
+                Default is 0.
+            recordStop: The index of the last parameter to be recorded, plus one.
+                Default is the number of parameters (all are recorded).
+            collectStats: Whether the sampler should collect running statistics
+                as it runs.  This is probably only desirable if not all
+                parameters are being recorded.  Default is False
+            threads: The number of computational threads to run in.  If this is
+                greater than 1, the multiprocessing library is used to run
+                this many fully independent samplers in parallel.
+            showProgress: Whether to print a progress bar as the sampler runs.
+
+        Returns:
+            The parameter samples, of the shape [N x M X T], where N is the
+            number of parameters of target distribution, M is the number of
+            samples requested (nSamples), and T is the number of threads
+            used.  If threads is 1 the last dimension is omitted.  This data
+            is also stored internally and can be accessed later using other
+            functions.
+        '''
         assert nSamples > 0, "The number of samples must be greater than 0."
         assert threads > 0, "Threads must be > 0."
         x0 = np.atleast_1d(x0)
@@ -322,6 +538,16 @@ cdef class Sam:
             return self.samples
 
     def __call__(self, double[:] x0):
+        '''Internal function used to run the sampler.  Not for user use!
+
+        This function is an internal way to sampler, which assumes certain
+        other internal parameters have already been setup.  Users should call
+        the run() function.  This function only exists because it makes running
+        the sampler in parallel simpler to code.
+
+        Args:
+            x0: The initial position for the run.
+        '''
         cdef Size i, j, d
         assert x0.size == self.nDim, "The initial position has the wrong number of dimensions."
         if not self.readyToRun:
@@ -335,7 +561,7 @@ cdef class Sam:
         for i in range(totalDraws):
             for j in range(self.thinning+1):
                 self.sample()
-            if i >= self.burnIn: 
+            if i >= self.burnIn:
                 self.record(i-self.burnIn)
                 if self.collectStats:
                     self.recordStats()
@@ -350,6 +576,19 @@ cdef class Sam:
         return self.samples, self.accepted
 
     cpdef object getStats(self) except +:
+        '''Returns running-average and standard deviation statistics.
+
+        Note that this is only applicable if collectStats was enabled during
+        the sampling procedure (default is off).  You will need to compute the
+        values directly from the sample otherwise.  This is intended as a tool
+        for tracking nuisance parameters for which it was not worth recording
+        the samples from -- see recordStart and recordStop in the self.run
+        arguments.
+
+        Returns:
+            An array of means and an array of standard deviations of the
+            parameter samples.
+        '''
         assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
         assert(self.collectStats,"Running statistics collection is turned off.")
         cdef Size d
@@ -363,10 +602,35 @@ cdef class Sam:
         return (means, stds)
 
     cpdef object getAcceptance(self) except +:
+        '''Calculates the acceptance rate for each dimension.
+
+        This includes burn-in and thinning samples.  Throws an
+        assertion exception if the sampler has not yet been run.
+
+        Returns:
+            The fraction of parameter samples which were accepted, with the
+            shape [M X T], number of parameters of target distribution and
+            T is the number of threads used.  If threads is 1 the second
+            dimension is omitted.
+        '''
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
 
-    cpdef object summary(self, paramIndices =None, returnString = False) except +:
+    cpdef object summary(self, paramIndices=None, returnString=False) except +:
+        '''Prints/returns some summary statistics of the previous sampling run.
+
+        Statistics are the parameter index, the acceptance rate, mean, and
+        standard deviation, as well as teh 16th, 50th, and 84th percentiles.
+
+        Args:
+            paramIndices: The indices of the parameters to be described.  If
+            set to None, then all parameters will be described.
+
+        Returns:
+            The summary message as a string if returnString is True, otherwise
+            returns None.
+
+        '''
         assert self.nSamples > 0,"Cannot report statistics without having run the sampler!"
         acceptance = self.getAcceptance()
         if len(acceptance.shape) > 1:
@@ -394,6 +658,22 @@ cdef class Sam:
             return np.array([acf(self.samples[i,:,i]) for i in range(self.samples.shape[0])])
 
     cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
+        '''Compares gradients from logProbability and finite difference method
+
+        This function computes a gradient estimate using the finite difference
+        method and compares it to the gradient computed by the logProbability
+        function (specified at initialization).
+
+        Args:
+            x0: The central location to compute the gradient at.
+            eps: scales the finite difference method.  Secondary samples are
+                taken in the direction of each parameter a distance scale*eps
+                away.
+
+        Returns:
+            The relative difference between the logProbability gradient L and
+            the finite difference gradient F: (L-F)/L+F)
+        '''
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         cdef Size d
         for d in range(self.nDim):
@@ -481,12 +761,30 @@ cdef class Sam:
         return output
 
     cdef void progressBar(self, Size i, Size N, object header) except +:
+        '''Displays or updates a simple ASCII progress bar.
+
+        Args:
+            i: the current iteration, should <= N.
+            N: the total number of iterations to be done.
+            header: a string to display before the progress bar.
+
+        Example:
+            self.progressBar(55,100,"Something")
+            # Restarts the line and prints:
+            Something: <=====     > (55/100)
+        '''
         f = (10*i)/N
-        stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")")
+        stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
         stdout.flush()
-        return 
+        return
 
     cdef void _setMemoryViews_(self) except +:
+        '''Sets up the memoryviews of the working memory in the sampler.
+
+        This function ensures that the various memoryviews used by the class
+        point towards the right parts of the working memory array.  It
+        should never need to be called directly by the user.
+        '''
         self.x = self._workingMemory_[0:self.nDim]
         self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
         self.momentum = self._workingMemory_[2*self.nDim:3*self.nDim]
@@ -498,6 +796,27 @@ cdef class Sam:
         return
 
     def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None):
+        '''Instantiates the sampler class and sets the logProbability function.
+
+        Args:
+            logProbability: A function which takes one or three arguments and
+                returns the natural log of the probability evaluated at the
+                position given by the first argument.  If three arguments are
+                allowed, the second argument provides an array to write the
+                gradient to, and the third argument is a bool indicating
+                whether a gradient is required for that call to the function.
+            scale: An array whose length  is the number of parameters in the
+                target distribution.
+            lowerBounds: An array whose length is the number of parameters
+                which defines lower boundaries below which the parameters
+                will not be sampled.  The sampler is optimized so that these
+                boundaries are enforced efficiently, and so will not decrease
+                the acceptance rate.  If None, no boundaries are enforced.
+            upperBounds: Same as lowerBounds, but defines the upper boundaries
+
+        Returns:
+            An instantiated object of the class.
+        '''
         scale = np.atleast_1d(scale)
         self.nDim = scale.size
         assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
@@ -542,6 +861,22 @@ cdef class Sam:
         return
 
     def save(self,filename):
+        '''Saves the results of sampling and other information to an npz file.
+
+        To be exact, it saves the current filename, the number of parameters,
+        the number of samples collected, the thinning amount, the number of
+        burn-in samples, the scale vector, the bounds vectors, the initial
+        position vector (or matrix), the samples themselves, the acceptance
+        rate, accumulated statistics, and the logProbability source code.  If
+        some of those are not available, placeholders are saved instead.
+
+        Args:
+            filename: The name of the file to save the information into.  The
+            suffix '.npz' will automatically be added.
+
+        Returns:
+            None
+        '''
         if self.collectStats:
             stats = self.getStats()
         else:
@@ -555,12 +890,20 @@ cdef class Sam:
         except:
             logProbSource = "Source code not available."
         np.savez_compressed(
-            filename, nDim=self.nDim, nSamples=self.nSamples,
+            filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource, stats=stats)
 
     def __getstate__(self):
+        '''Prepares internal memory for pickling.
+
+        This is important for compatibility with the multiprocessing library
+        used for parallelism.
+
+        Returns:
+            A pickleable tuple of the internal variables.
+        '''
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers,
                 self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
@@ -568,6 +911,18 @@ cdef class Sam:
         return info
 
     def __setstate__(self,info):
+        '''Restores internal memory from pickle info and resets the RNG.
+
+        This is important for compatibility with the multiprocessing library
+        used for parallelism.
+
+        Args:
+            info: The information from a pickle.  This almost certainly comes
+            from the __getstate__ function.
+
+        Returns:
+            None
+        '''
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
@@ -579,4 +934,10 @@ cdef class Sam:
         return
 
     cdef void extraInitialization(self):
+        '''This function can be overloaded to do extra initialization.
+
+        By default it does nothing.  It is provided in case the user wishes
+        to subclass Sam and needs a function which is always called when the
+        object is instantiated or copied for multithreading.
+        '''
         return
