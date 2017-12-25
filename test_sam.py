@@ -22,6 +22,13 @@ def logProb3(x, gradient, getGradient):
     return sam.betaLogPDF(x[0],20,40) + sam.normalLogPDF(x[1],5,1)
 
 
+_logProb4_ = multivariate_normal(cov=np.array([[1.,.3],[.3,1]])).logpdf
+
+
+def logProb4(x):
+    return _logProb4_(x)
+
+
 class SamTester(unittest.TestCase):
     def testModelSelection(self):
         samples = np.random.rand(10000,1)
@@ -99,7 +106,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb2,.5, 0., 1.)
         with self.assertRaises(AssertionError):
             a.summary()
-        samples = a.run(20000,.5,showProgress=False)
+        a.run(20000,.5,showProgress=False)
         self.assertGreaterEqual(len(a.summary(None,True)),0)
 
     def test2DMetropolis(self):
@@ -168,10 +175,20 @@ class SamTester(unittest.TestCase):
                     lowerBounds=np.array([0.,-np.inf]))
         a.addHMC(10,.1,0,2)
         samples = a.run(50000,np.array([.5,.5]),10,showProgress=False)
+        print a.getAcceptance()
         self.assertTrue((samples[:,0] >= 0).all())
         self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+
+    def testCorrelatedMetropolis(self):
+        a = sam.Sam(logProb4,np.ones(2))
+        a.addCorrMetropolis(np.array([[1,.1],[.1,1.]])/2.,0,2)
+        samples = a.run(50000,5*np.ones(2),1000,showProgress=False)
+        self.assertAlmostEqual(samples[:,0].mean(),0.,delta=.05)
+        self.assertAlmostEqual(samples[:,0].std(),1.,delta=.1)
+        self.assertAlmostEqual(samples[:,1].mean(),0.,delta=.05)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
 
     def test2DGradientDescent(self):

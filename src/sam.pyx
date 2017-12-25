@@ -132,6 +132,7 @@ cdef class Sam:
         according to what occurs during the call.
         '''
         cdef size_t s
+        cdef Size m
         cdef double logP0 = nan
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
@@ -141,9 +142,15 @@ cdef class Sam:
             elif self.samplers[s].samplerType == 1:
                 logP0 = self.hmcStep(
                     self.samplers[s].nSteps,
-                    self.samplers[s].stepSize,
+                    self.samplers[s].tuningInfo[0],
                     self.samplers[s].dStart,
                     self.samplers[s].dStop, logP0)
+            elif self.samplers[s].samplerType == 2:
+                m = self.samplers[s].dStop - self.samplers[s].dStart - 1
+                logP = self.metropolisCorrStep(
+                    self.samplers[s].dStart,
+                    self.samplers[s].dStop,
+                    np.asarray(self.samplers[s].tuningInfo).reshape((m,m)))
         return
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
@@ -316,6 +323,7 @@ cdef class Sam:
             if d >= dStart and d < dStop:
                 if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
+                    # TODO: Smart reflection, rather than rejection
                     return logP0
             else:
                 self.xPropose[d] = self.x[d]
@@ -391,6 +399,33 @@ cdef class Sam:
         samp.dStart = dStart
         samp.dStop = dStop
         self.samplers.push_back(samp)
+        return
+
+    cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +:
+        '''Adds a metropolis sampler with a non-diagonal covariance.
+
+        This sampler sets up a Metropolis-Hastings sampler to be used during
+        the sampling procedure.  The proposal distribution is a normal
+        distribution centered at self.x, with non-diagonal covariance where
+        the covariance matrix is user-specified.
+
+        Args:
+            covariance: The covariance matrix to be used.  Should be [M x M],
+                where M=dStop-dStart-1
+            dStart: The index of the first parameter to be included.
+            dStop: The index of the last parameter to be included, plus one.
+        '''
+        assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
+        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart-1
+        cdef SamplerData samp
+        covChol = cholesky(covariance)
+        samp.samplerType = 2
+        samp.dStart = dStart
+        samp.dStop = dStop
+        samp.tuningInfo = covChol
+        self.samplers.push_back(samp)
+        return
 
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +:
         '''Adds a Hamiltonian Monte Carlo sampler to the sampling procedure.
@@ -412,10 +447,11 @@ cdef class Sam:
         cdef SamplerData samp
         samp.samplerType = 1
         samp.nSteps = nSteps
-        samp.stepSize = stepSize
+        samp.tuningInfo.push_back(stepSize)
         samp.dStart = dStart
         samp.dStop = dStop
         self.samplers.push_back(samp)
+        return
 
     cpdef void printSamplers(self) except +:
         '''Prints the list of any/all sampling systems set up so far.
@@ -431,7 +467,9 @@ cdef class Sam:
                 print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
             elif self.samplers[s].samplerType == 1:
                 print s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
-                    self.samplers[s].nSteps, "steps with size", self.samplers[s].stepSize
+                    self.samplers[s].nSteps, "steps with size", self.samplers[s].tuningInfo[0]
+            elif self.samplers[s].samplerType == 2:
+                print s, "Correlated Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
         return
 
     cpdef void clearSamplers(self) except +:
@@ -768,7 +806,7 @@ cdef class Sam:
             N: the total number of iterations to be done.
             header: a string to display before the progress bar.
 
-        Example:
+        Example::
             self.progressBar(55,100,"Something")
             # Restarts the line and prints:
             Something: <=====     > (55/100)
@@ -890,7 +928,7 @@ cdef class Sam:
         except:
             logProbSource = "Source code not available."
         np.savez_compressed(
-            filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn
+            filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn,
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource, stats=stats)

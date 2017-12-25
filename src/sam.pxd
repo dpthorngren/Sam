@@ -35,10 +35,9 @@ cpdef double logit(double x) except +
 # Type definitions
 ctypedef Py_ssize_t Size
 cdef struct SamplerData:
-    # 0 = metropolis, 1 = HMC
-    int samplerType
-    Size dStart, dStop, nSteps
-    double stepSize
+    # 0 = metropolis, 1 = HMC, 2 = corrMetropolis
+    Size samplerType, dStart, dStop, nSteps
+    vector[double] tuningInfo
 
 include "distributions.pxd"
 
@@ -88,6 +87,7 @@ cdef class Sam:
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?) except +
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?) except +
     cpdef void addMetropolis(self, Size dStart, Size dStop) except +
+    cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
     cpdef void printSamplers(self) except +
     cpdef void clearSamplers(self) except +
