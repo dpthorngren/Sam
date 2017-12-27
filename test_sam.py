@@ -192,7 +192,7 @@ class SamTester(unittest.TestCase):
 
     def testAdaptiveMetropolis(self):
         a = sam.Sam(logProb4,np.ones(2))
-        a.addCorrMetropolis(np.array([[1,.1],[.1,1.]])/2.,0,2)
+        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.,0,2)
         samples = a.run(50000,5*np.ones(2),1000,showProgress=False)
         self.assertAlmostEqual(samples[:,0].mean(),0.,delta=.05)
         self.assertAlmostEqual(samples[:,0].std(),1.,delta=.1)

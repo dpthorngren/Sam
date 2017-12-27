@@ -146,7 +146,7 @@ cdef class Sam:
                     self.samplers[s].dStart,
                     self.samplers[s].dStop, logP0)
             elif self.samplers[s].samplerType == 2:
-                m = self.samplers[s].dStop - self.samplers[s].dStart - 1
+                m = self.samplers[s].dStop - self.samplers[s].dStart
                 logP = self.metropolisCorrStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
@@ -155,7 +155,7 @@ cdef class Sam:
                 logP = self.adaptiveStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    self.samplers[s].tuningInfo,
+                    &self.samplers[s].tuningInfo,
                     &self.samplers[s].nSteps, logP0)
         return
 
@@ -253,18 +253,24 @@ cdef class Sam:
                 break
         return
 
-    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double] state, Size* t, double logP0=nan) except +:
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* state, Size* t, double logP0=nan) except +:
         # TODO: Documentation
-        cdef Size n = dStop - dStart - 1
-        # Cast the state vector as a mean, covariance, and cholesky
-        cdef double[:] mu = <double[:n]> &state[0]
-        cdef double[:,:] covar = <double[:n,:n]> &state[n]
-        cdef double[:,:] covChol = <double[:n,:n]> &state[n+n*n]
-        self.onlineCovar(mu,covar,self.x,t[0])
+        cdef Size i, j
+        cdef Size n = dStop - dStart
+        cdef double[:,:] chol
+        # Cast the state vector as the mean, covariance, cholesky, and epsilon
+        cdef double eps = state[0][0]
+        cdef double[:] mu = <double[:n]> &state[0][1]
+        cdef double[:,:] covar = <double[:n,:n]> &state[0][1+n]
+        cdef double[:,:] covChol = <double[:n,:n]> &state[0][1+n+n*n]
+        self.onlineCovar(mu,covar,self.x,t[0],eps)
         t[0] += 1
         # TODO: Add update frequency option for adaptive step
         if (t[0] >= 1000) and (t[0]%100 == 0):
-            covChol[:,:] = cholesky(np.asarray(covar))
+            chol = cholesky(np.asarray(covar))
+            for i in range(covar.shape[0]):
+                for j in range(i):
+                    covChol[i,j] = chol[i,j]
         return self.metropolisCorrStep(dStart, dStop, covChol,logP0)
 
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except +:
@@ -438,29 +444,29 @@ cdef class Sam:
         '''
         assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
-        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart-1
+        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart
         cdef SamplerData samp
         covChol = cholesky(covariance)
         samp.samplerType = 2
         samp.dStart = dStart
         samp.dStop = dStop
-        samp.tuningInfo = covChol
+        samp.tuningInfo = covChol.flatten()
         self.samplers.push_back(samp)
         return
 
 
-    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop) except +:
+    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop, double eps=1e-9) except +:
         # TODO: Documentation
         assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
-        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart-1
+        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
         cdef SamplerData samp
         covChol = cholesky(covariance)
         samp.samplerType = 3
         samp.dStart = dStart
         samp.dStop = dStop
         samp.nSteps = 0
-        samp.tuningInfo = np.concatenate([np.zeros(covariance.shape[0]),
+        samp.tuningInfo = np.concatenate([[eps],np.zeros(covariance.shape[0]),
                                           np.zeros(covariance.shape[0]**2),
                                           covChol.flatten()])
         self.samplers.push_back(samp)
@@ -492,6 +498,10 @@ cdef class Sam:
         self.samplers.push_back(samp)
         return
 
+    cpdef SamplerData getSampler(self,unsigned int i) except +:
+        assert i < self.samplers.size()
+        return self.samplers[i]
+
     cpdef void printSamplers(self) except +:
         '''Prints the list of any/all sampling systems set up so far.
 
@@ -501,6 +511,8 @@ cdef class Sam:
         type) are printed.
         '''
         cdef size_t s
+        if self.samplers.size() == 0:
+            print "No samplers defined."
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
                 print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
@@ -858,17 +870,22 @@ cdef class Sam:
         stdout.flush()
         return
 
-    cdef void onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, Size t) except +:
+    cdef void onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double eps=1e-9) except +:
         # TODO: Documentation
         cdef Size i, j
+        cdef Size n = mu.shape[0]
+        cdef double scalingParam = 5.76/n
         # TODO: make more efficient?
         cdef double[:] muOld = mu.copy()
-        for i in range(mu.shape[0]):
+        for i in range(n):
             mu[i] = (t*mu[i]+x[i])/(t+1)
-        for i in range(covar.shape[0]):
-            for j in range(covar.shape[1]):
-                covar[i,j] = (t-1)*covar[i,j] + t*muOld[i]*muOld[j] - (t+1)*mu[i]*mu[j] + x[i]*x[j]
-                covar[i,j] /= t
+        if t > 0:
+            for i in range(n):
+                for j in range(n):
+                    covar[i,j] = (t-1)*covar[i,j] + scalingParam*(t*muOld[i]*muOld[j] - (t+1)*mu[i]*mu[j] + x[i]*x[j])
+                    if i == j:
+                        covar[i,j] += eps
+                    covar[i,j] /= t
         return
 
     cdef void _setMemoryViews_(self) except +:
