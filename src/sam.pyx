@@ -150,7 +150,13 @@ cdef class Sam:
                 logP = self.metropolisCorrStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    np.asarray(self.samplers[s].tuningInfo).reshape((m,m)))
+                    np.asarray(self.samplers[s].tuningInfo).reshape((m,m)),logP0)
+            elif self.samplers[s].samplerType == 3:
+                logP = self.adaptiveStep(
+                    self.samplers[s].dStart,
+                    self.samplers[s].dStop,
+                    self.samplers[s].tuningInfo,
+                    &self.samplers[s].nSteps, logP0)
         return
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
@@ -246,6 +252,20 @@ cdef class Sam:
                     continue
                 break
         return
+
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double] state, Size* t, double logP0=nan) except +:
+        # TODO: Documentation
+        cdef Size n = dStop - dStart - 1
+        # Cast the state vector as a mean, covariance, and cholesky
+        cdef double[:] mu = <double[:n]> &state[0]
+        cdef double[:,:] covar = <double[:n,:n]> &state[n]
+        cdef double[:,:] covChol = <double[:n,:n]> &state[n+n*n]
+        self.onlineCovar(mu,covar,self.x,t[0])
+        t[0] += 1
+        # TODO: Add update frequency option for adaptive step
+        if (t[0] >= 1000) and (t[0]%100 == 0):
+            covChol[:,:] = cholesky(np.asarray(covar))
+        return self.metropolisCorrStep(dStart, dStop, covChol,logP0)
 
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except +:
         '''Conducts a single Metropolis-Hastings step.
@@ -401,6 +421,7 @@ cdef class Sam:
         self.samplers.push_back(samp)
         return
 
+
     cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +:
         '''Adds a metropolis sampler with a non-diagonal covariance.
 
@@ -424,6 +445,24 @@ cdef class Sam:
         samp.dStart = dStart
         samp.dStop = dStop
         samp.tuningInfo = covChol
+        self.samplers.push_back(samp)
+        return
+
+
+    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop) except +:
+        # TODO: Documentation
+        assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
+        assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
+        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart-1
+        cdef SamplerData samp
+        covChol = cholesky(covariance)
+        samp.samplerType = 3
+        samp.dStart = dStart
+        samp.dStop = dStop
+        samp.nSteps = 0
+        samp.tuningInfo = np.concatenate([np.zeros(covariance.shape[0]),
+                                          np.zeros(covariance.shape[0]**2),
+                                          covChol.flatten()])
         self.samplers.push_back(samp)
         return
 
@@ -470,6 +509,9 @@ cdef class Sam:
                     self.samplers[s].nSteps, "steps with size", self.samplers[s].tuningInfo[0]
             elif self.samplers[s].samplerType == 2:
                 print s, "Correlated Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+            elif self.samplers[s].samplerType == 3:
+                # TODO: Print more detals
+                print s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
         return
 
     cpdef void clearSamplers(self) except +:
@@ -814,6 +856,19 @@ cdef class Sam:
         f = (10*i)/N
         stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
         stdout.flush()
+        return
+
+    cdef void onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, Size t) except +:
+        # TODO: Documentation
+        cdef Size i, j
+        # TODO: make more efficient?
+        cdef double[:] muOld = mu.copy()
+        for i in range(mu.shape[0]):
+            mu[i] = (t*mu[i]+x[i])/(t+1)
+        for i in range(covar.shape[0]):
+            for j in range(covar.shape[1]):
+                covar[i,j] = (t-1)*covar[i,j] + t*muOld[i]*muOld[j] - (t+1)*mu[i]*mu[j] + x[i]*x[j]
+                covar[i,j] /= t
         return
 
     cdef void _setMemoryViews_(self) except +:

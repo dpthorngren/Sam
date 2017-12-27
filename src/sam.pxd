@@ -1,4 +1,3 @@
-cimport numpy as np
 cimport cython
 
 # Standard library
@@ -35,7 +34,7 @@ cpdef double logit(double x) except +
 # Type definitions
 ctypedef Py_ssize_t Size
 cdef struct SamplerData:
-    # 0 = metropolis, 1 = HMC, 2 = corrMetropolis
+    # 0 = metropolis, 1 = HMC, 2 = corrMetropolis, 3 = adaptiveMetropolis
     Size samplerType, dStart, dStop, nSteps
     vector[double] tuningInfo
 
@@ -88,6 +87,7 @@ cdef class Sam:
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?) except +
     cpdef void addMetropolis(self, Size dStart, Size dStop) except +
     cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +
+    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop) except +
     cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
     cpdef void printSamplers(self) except +
     cpdef void clearSamplers(self) except +
@@ -99,10 +99,12 @@ cdef class Sam:
     cdef void record(self,Size i) except +
     cdef void recordStats(self) except +
     cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +
+    cdef void onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, Size t) except +
 
     # Sampling functions
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=?) except +
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=?) except +
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double] state, Size* t, double logP0=?) except +
     cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=?) except +
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?) except +
 
