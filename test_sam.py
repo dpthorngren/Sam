@@ -3,7 +3,7 @@ import sam
 from math import log, sqrt
 import numpy as np
 from scipy.stats import multivariate_normal
-from scipy.special import expit, logit
+from scipy.special import logit
 
 
 def logProb1(x, gradient, getGradient):
@@ -109,6 +109,29 @@ class SamTester(unittest.TestCase):
         a.run(20000,.5,showProgress=False)
         self.assertGreaterEqual(len(a.summary(None,True)),0)
 
+    def testGetCovar(self):
+        a = sam.Sam(logProb4,np.ones(2))
+        a.addMetropolis()
+        c = a.getProposalCov()
+        for i, j in zip(c.flatten(), [1, 0., 0., 1]):
+            self.assertAlmostEqual(i,j)
+        a.clearSamplers()
+        a.addMetropolis(np.array([[1,.1],[.1,1.]])/2.)
+        c = a.getProposalCov(0)
+        for i, j in zip(c.flatten(), np.array([1, .1, .1, 1])/2.):
+            self.assertAlmostEqual(i,j)
+        a.clearSamplers()
+        a.addHMC(10,.1)
+        c = a.getProposalCov()
+        for i, j in zip(c.flatten(), [1, 0., 0., 1]):
+            self.assertAlmostEqual(i,j)
+        a.clearSamplers()
+        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.)
+        c = a.getProposalCov(0)
+        # The covariance output is the sample covariance, which should be 0
+        for i, j in zip(c.flatten(), [0,0,0,0.]):
+            self.assertAlmostEqual(i,j)
+
     def test2DMetropolis(self):
         a = sam.Sam(logProb1,np.array([.5,.5]), np.array([0.,-np.inf]))
         samples = a.run(50000,np.array([.5,.5]),1000,showProgress=False)
@@ -125,7 +148,7 @@ class SamTester(unittest.TestCase):
     def testThreading(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
                     lowerBounds=np.array([0.,-np.inf]))
-        a.addMetropolis(0,2)
+        a.addMetropolis()
         samples = a.run(50000,np.array([.5,.5]),1000,threads=5,showProgress=False)
         for i in a.getAcceptance():
             self.assertGreaterEqual(i[0],0.)
@@ -150,7 +173,7 @@ class SamTester(unittest.TestCase):
     def testThreading2(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
                     lowerBounds=np.array([0.,-np.inf]))
-        a.addMetropolis(0,2)
+        a.addMetropolis()
         samples = a.run(50000,np.random.rand(5,2),1000,threads=5,showProgress=False)
         for i in a.getAcceptance():
             self.assertGreaterEqual(i[0],0.)
@@ -173,7 +196,7 @@ class SamTester(unittest.TestCase):
     def test2DHMC(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
                     lowerBounds=np.array([0.,-np.inf]))
-        a.addHMC(10,.1,0,2)
+        a.addHMC(10,.1)
         samples = a.run(50000,np.array([.5,.5]),10,showProgress=False)
         self.assertTrue((samples[:,0] >= 0).all())
         self.assertAlmostEqual(samples[:,0].mean(),sam.gammaMean(20,40),delta=.01)
@@ -183,7 +206,7 @@ class SamTester(unittest.TestCase):
 
     def testCorrelatedMetropolis(self):
         a = sam.Sam(logProb4,np.ones(2))
-        a.addCorrMetropolis(np.array([[1,.1],[.1,1.]])/2.,0,2)
+        a.addMetropolis(np.array([[1,.1],[.1,1.]])/2.)
         samples = a.run(50000,5*np.ones(2),1000,showProgress=False)
         self.assertAlmostEqual(samples[:,0].mean(),0.,delta=.05)
         self.assertAlmostEqual(samples[:,0].std(),1.,delta=.1)
@@ -192,7 +215,7 @@ class SamTester(unittest.TestCase):
 
     def testAdaptiveMetropolis(self):
         a = sam.Sam(logProb4,np.ones(2))
-        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.,0,2)
+        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.)
         samples = a.run(50000,5*np.ones(2),1000,showProgress=False)
         self.assertAlmostEqual(samples[:,0].mean(),0.,delta=.05)
         self.assertAlmostEqual(samples[:,0].std(),1.,delta=.1)
@@ -210,7 +233,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb3,np.array([.5,.5]),
                     lowerBounds=np.array([0.,-np.inf]),
                     upperBounds=np.array([1.,np.inf]))
-        a.addMetropolis(0,2)
+        a.addMetropolis()
         samples = a.run(100000,np.array([.5,.5]), 1000,recordStop=0,collectStats=True,showProgress=False)
         self.assertEqual(samples.size,0)
         self.assertAlmostEqual(a.getStats()[0][0], sam.betaMean(20,40),delta=.01)

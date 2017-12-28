@@ -34,9 +34,40 @@ cpdef double logit(double x) except +
 # Type definitions
 ctypedef Py_ssize_t Size
 cdef struct SamplerData:
-    # 0 = metropolis, 1 = HMC, 2 = corrMetropolis, 3 = adaptiveMetropolis
-    Size samplerType, dStart, dStop, nSteps
-    vector[double] tuningInfo
+    # Stores information for each sampler in the samplers list.
+    #
+    # The user should never need to interact with this struct directly, instead
+    # using the add* functions, clearSamplers(), and printSamplers() functions.
+    # This struct exists (as opposed to a class) because more logical methods
+    # of storage are either not pure c++ (and I'd really like this to be fast)
+    # or they are somehow not cython compatible.
+    #
+    # The sampler type is specified according to the following codes below in
+    # parentheses.  dStart and dStop indicate the first and last+1 parameter
+    # index that the sampler is to be applied to.  Additional data is stored
+    # in idata (for ints) and ddata (for doubles), and varies by the type of
+    # sampler, according to the folloing layout:
+    #
+    # Diagonal Metropolis (0):
+    #     idata: empty
+    #     ddata: empty
+    # HMC (1):
+    #     idata[0]: number of steps
+    #     ddata[0]: step size
+    # Metropolis (2):
+    #     idata: empty
+    #     ddata[0:n**2]: flattened proposal covariance matrix cholesky
+    # adaptiveMetropolis (3):
+    #     idata[0]: number of samples used so far to produce proposal covariance
+    #     idata[1]: number of samples to collect before using adapted covariance
+    #     idata[2]: samples between recomputation of the proposal covariance
+    #     ddata[0]: epsilon (added diagonal component of the proposal covariance)
+    #     ddata[1:1+n]: mean of adaptive samples
+    #     ddata[1+n:1+n+n**2]: covariance of adaptive samples
+    #     ddata[1+n+n**2:1+n+2*n**2]: current proposal cholesky
+    Size samplerType, dStart, dStop
+    vector[int] idata
+    vector[double] ddata
 
 include "distributions.pxd"
 
@@ -85,13 +116,13 @@ cdef class Sam:
     cpdef object testGradient(self, double[:] x0, double eps=?) except +
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?) except +
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?) except +
-    cpdef void addMetropolis(self, Size dStart, Size dStop) except +
-    cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +
-    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop, double eps=?) except +
-    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +
+    cpdef void addMetropolis(self, covariance=?, Size dStart=?, Size dStop=?) except +
+    cpdef void addAdaptiveMetropolis(self, covariance=?, int adaptAfter=?, int refreshPeriod=?, double eps=?,  Size dStart=?, Size dStop=?) except +
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart=?, Size dStop=?) except +
     cpdef void printSamplers(self) except +
     cpdef void clearSamplers(self) except +
-    cpdef SamplerData getSampler(self, unsigned int i) except +
+    cpdef SamplerData getSampler(self, unsigned int i=?) except +
+    cpdef object getProposalCov(self, unsigned int i=?) except +
     cpdef object summary(self, paramIndices=?, returnString=?) except +
 
     # Structural functions
@@ -105,7 +136,7 @@ cdef class Sam:
     # Sampling functions
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=?) except +
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=?) except +
-    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* state, Size* t, double logP0=?) except +
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* state, vector[int]* idata, double logP0=?) except +
     cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=?) except +
     cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=?) except +
 

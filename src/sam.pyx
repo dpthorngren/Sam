@@ -141,8 +141,8 @@ cdef class Sam:
                     self.samplers[s].dStop, logP0)
             elif self.samplers[s].samplerType == 1:
                 logP0 = self.hmcStep(
-                    self.samplers[s].nSteps,
-                    self.samplers[s].tuningInfo[0],
+                    self.samplers[s].idata[0],
+                    self.samplers[s].ddata[0],
                     self.samplers[s].dStart,
                     self.samplers[s].dStop, logP0)
             elif self.samplers[s].samplerType == 2:
@@ -150,13 +150,13 @@ cdef class Sam:
                 logP = self.metropolisCorrStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    np.asarray(self.samplers[s].tuningInfo).reshape((m,m)),logP0)
+                    np.asarray(self.samplers[s].ddata).reshape((m,m)),logP0)
             elif self.samplers[s].samplerType == 3:
                 logP = self.adaptiveStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    &self.samplers[s].tuningInfo,
-                    &self.samplers[s].nSteps, logP0)
+                    &self.samplers[s].ddata,
+                    &self.samplers[s].idata, logP0)
         return
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
@@ -253,20 +253,21 @@ cdef class Sam:
                 break
         return
 
-    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* state, Size* t, double logP0=nan) except +:
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* ddata, vector[int]* idata, double logP0=nan) except +:
         # TODO: Documentation
         cdef Size i, j
         cdef Size n = dStop - dStart
         cdef double[:,:] chol
         # Cast the state vector as the mean, covariance, cholesky, and epsilon
-        cdef double eps = state[0][0]
-        cdef double[:] mu = <double[:n]> &state[0][1]
-        cdef double[:,:] covar = <double[:n,:n]> &state[0][1+n]
-        cdef double[:,:] covChol = <double[:n,:n]> &state[0][1+n+n*n]
+        cdef double eps = ddata[0][0]
+        cdef double[:] mu = <double[:n]> &ddata[0][1]
+        cdef double[:,:] covar = <double[:n,:n]> &ddata[0][1+n]
+        cdef double[:,:] covChol = <double[:n,:n]> &ddata[0][1+n+n*n]
+        cdef int* t = &idata[0][0]
         self.onlineCovar(mu,covar,self.x,t[0],eps)
         t[0] += 1
         # TODO: Add update frequency option for adaptive step
-        if (t[0] >= 1000) and (t[0]%100 == 0):
+        if (t[0] >= idata[0][1]) and (t[0]%idata[0][2] == 0):
             chol = cholesky(np.asarray(covar))
             for i in range(covar.shape[0]):
                 for j in range(i):
@@ -406,73 +407,101 @@ cdef class Sam:
         return output
 
 
-    cpdef void addMetropolis(self,Size dStart, Size dStop) except +:
-        '''Adds a metropolis sampler to the sampling procedure.
-
-        This sampler sets up a Metropolis-Hastings sampler to be used during
-        the sampling procedure.  The proposal distribution is a normal
-        distribution centered at self.x, with diagonal covariance where
-        self.scale is the diagonal components.
-
-        Args:
-            dStart: The index of the first parameter to be included.
-            dStop: The index of the last parameter to be included, plus one.
-        '''
-        assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
-        assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
-        cdef SamplerData samp
-        samp.samplerType = 0
-        samp.dStart = dStart
-        samp.dStop = dStop
-        self.samplers.push_back(samp)
-        return
-
-
-    cpdef void addCorrMetropolis(self, covariance, Size dStart, Size dStop) except +:
+    cpdef void addMetropolis(self, covariance=None, Size dStart=0, Size dStop=-1) except +:
         '''Adds a metropolis sampler with a non-diagonal covariance.
 
         This sampler sets up a Metropolis-Hastings sampler to be used during
         the sampling procedure.  The proposal distribution is a normal
-        distribution centered at self.x, with non-diagonal covariance where
-        the covariance matrix is user-specified.
+        distribution centered at self.x, with a covariance supplied by the
+        user.  If no covariance is supplied, default is a matrix
+        with self.scale (set during initialization) as the diagonal (this is
+        slightly faster to produce random numbers for).
 
         Args:
             covariance: The covariance matrix to be used.  Should be [M x M],
-                where M=dStop-dStart-1
-            dStart: The index of the first parameter to be included.
+                where M=dStop-dStart.  May be None to use a diagonal matrix
+                with self.scale as the diagonals.
+            dStart: The index of the first parameter to be included. Default
+                is zero.
             dStop: The index of the last parameter to be included, plus one.
+                Default is the last index + 1.
         '''
+        if dStop < 0:
+            dStop = self.nDim
         assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
-        assert covariance.shape[0] == covariance.shape[1] == dStop-dStart
         cdef SamplerData samp
-        covChol = cholesky(covariance)
-        samp.samplerType = 2
+        if covariance is not None:
+            assert covariance.shape[0] == covariance.shape[1] == dStop-dStart
+            samp.samplerType = 2
+            covChol = cholesky(covariance)
+            samp.ddata = covChol.flatten()
+        else:
+            samp.samplerType = 0
         samp.dStart = dStart
         samp.dStop = dStop
-        samp.tuningInfo = covChol.flatten()
         self.samplers.push_back(samp)
         return
 
 
-    cpdef void addAdaptiveMetropolis(self, covariance, Size dStart, Size dStop, double eps=1e-9) except +:
-        # TODO: Documentation
+    cpdef void addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double eps=1e-9, Size dStart=0, Size dStop=-1) except +:
+        '''Adds an Adaptive Metropolis sampler to the sampling procedure.
+
+        This sampler is the Adaptive Metropolis (AM) algorithm presented in
+        Haario et al. (2001).  The algorithm initially samples with a given
+        proposal covariance, but after a number of steps, uses the covariance
+        of the samples to estimate the optimal proposal covariance.  Each time
+        the propsal is updated, the cholesky (order n^3) must be computed, so
+        it may be advisable not to set the refresh period too low if n is
+        large.  Note that the estimated covariance is updated every time the
+        sampler is called, but that this is not propagated to the sampler
+        until the refresh occurs.
+
+        Args:
+            covariance: The initial proposal covariance to sample with.
+                Should be [M x M], where M = nStop - nStart.
+            adaptAfter: How many times the sampler must be called (and thereby
+                collect samples) before the adapted covariance is used.  Must
+                be larger than the number of dimensions being adapted to.  The
+                default (triggered by any negative number) is three times that.
+            refreshPeriod: How many times the sampler is called between the
+                cholesky of the covariance being updated (the expensive part).
+            eps: The epsilon parameter in Haario et al. (2001).  It needs to be
+                small but nonzero for the theory to work, but in practice
+                seems to work at zero as well.  Default is 1e-9, and probably
+                will not need to be changed by the user unless the covariance
+                is on that scale or less.
+            dStart: The index of the first parameter to be included. Default
+                is zero.
+            dStop: The index of the last parameter to be included, plus one.
+                Default is the last index + 1.
+        '''
+        if dStop < 0:
+            dStop = self.nDim
         assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
+        assert refreshPeriod > 0
+        if adaptAfter < 0:
+            adaptAfter = 3*(dStop-dStart)
+        assert dStop-dStart < adaptAfter
+        if covariance is None:
+            covariance = np.diag(np.asarray(self.diag)[dStart:dStop])
         assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
         cdef SamplerData samp
         covChol = cholesky(covariance)
         samp.samplerType = 3
         samp.dStart = dStart
         samp.dStop = dStop
-        samp.nSteps = 0
-        samp.tuningInfo = np.concatenate([[eps],np.zeros(covariance.shape[0]),
+        samp.idata.push_back(0)
+        samp.idata.push_back(adaptAfter)
+        samp.idata.push_back(refreshPeriod)
+        samp.ddata = np.concatenate([[eps],np.zeros(covariance.shape[0]),
                                           np.zeros(covariance.shape[0]**2),
                                           covChol.flatten()])
         self.samplers.push_back(samp)
         return
 
-    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart, Size dStop) except +:
+    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart=0, Size dStop=-1) except +:
         '''Adds a Hamiltonian Monte Carlo sampler to the sampling procedure.
 
         This sampler sets up an HMC sampler to be used during the sampling
@@ -483,24 +512,43 @@ cdef class Sam:
         Args:
             nSteps: The number of steps in the trajectory
             stepSize: Multiplied by self.scale to scale the process.
-            dStart: The index of the first parameter to be included.
+            dStart: The index of the first parameter to be included. Default
+                is zero.
             dStop: The index of the last parameter to be included, plus one.
+                Default is the last index + 1.
         '''
+        if dStop < 0:
+            dStop = self.nDim
         assert dStart >= 0 and dStart < self.nDim, "The start parameter must be between 0 and nDim - 1 (inclusive)."
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
         assert nSteps > 0 and stepSize > 0, "The step size and the number of steps must be greater than zero."
         cdef SamplerData samp
         samp.samplerType = 1
-        samp.nSteps = nSteps
-        samp.tuningInfo.push_back(stepSize)
+        samp.idata.push_back(nSteps)
+        samp.ddata.push_back(stepSize)
         samp.dStart = dStart
         samp.dStop = dStop
         self.samplers.push_back(samp)
         return
 
-    cpdef SamplerData getSampler(self,unsigned int i) except +:
+    cpdef SamplerData getSampler(self, unsigned int i=0) except +:
         assert i < self.samplers.size()
         return self.samplers[i]
+
+    cpdef object getProposalCov(self, unsigned int i=0) except +:
+        assert i < self.samplers.size()
+        if self.samplers[i].samplerType == 0:
+            return np.diag(self.scale)
+        elif self.samplers[i].samplerType == 1:
+            return np.diag(1./np.asarray(self.scale))
+        elif self.samplers[i].samplerType == 2:
+            n = self.samplers[i].dStop - self.samplers[i].dStart
+            chol = np.asarray(self.samplers[i].ddata).reshape(n,n)
+            return np.matmul(chol,chol.T)
+        elif self.samplers[i].samplerType == 3:
+            n = self.samplers[i].dStop - self.samplers[i].dStart
+            return np.asarray(self.samplers[i].ddata[1+n:1+n+n**2]).reshape(n,n)
+
 
     cpdef void printSamplers(self) except +:
         '''Prints the list of any/all sampling systems set up so far.
@@ -515,15 +563,19 @@ cdef class Sam:
             print "No samplers defined."
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
-                print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+                print s, "Diagonal Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+                print '\tdiag(C) =', np.asarray(self.scale)
             elif self.samplers[s].samplerType == 1:
                 print s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
-                    self.samplers[s].nSteps, "steps with size", self.samplers[s].tuningInfo[0]
+                    self.samplers[s].idata[0], "steps with size", self.samplers[s].ddata[0]
             elif self.samplers[s].samplerType == 2:
-                print s, "Correlated Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+                print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), Cov ="
+                n = self.samplers[s].dStop - self.samplers[s].dStop
+                print np.asarray(self.samplers[s].ddata).reshape(n,n)
             elif self.samplers[s].samplerType == 3:
-                # TODO: Print more detals
-                print s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
+                print s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"),",\
+                    "Start adapting after", self.samplers[s].idata[1], \
+                    "steps, updating every", self.samplers[s].idata[2], "steps."
         return
 
     cpdef void clearSamplers(self) except +:
@@ -608,7 +660,7 @@ cdef class Sam:
         self.readyToRun = True
         # Default to metropolis
         if self.samplers.size() == 0:
-            self.addMetropolis(0,self.nDim)
+            self.addMetropolis()
         if threads > 1:
             if x0.ndim == 1:
                 x0 = np.array([x0]*threads)
