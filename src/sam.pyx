@@ -485,7 +485,7 @@ cdef class Sam:
             adaptAfter = 3*(dStop-dStart)
         assert dStop-dStart < adaptAfter
         if covariance is None:
-            covariance = np.diag(np.asarray(self.diag)[dStart:dStop])
+            covariance = np.diag(np.asarray(self.scale)[dStart:dStop])
         assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
         cdef SamplerData samp
         covChol = cholesky(covariance)
