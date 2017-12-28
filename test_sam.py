@@ -29,7 +29,26 @@ def logProb4(x):
     return _logProb4_(x)
 
 
+def raisesLogProb(x):
+    if x > np.inf:
+        raise ValueError("x can never be good enough!")
+    return -1
+
+
 class SamTester(unittest.TestCase):
+    def testErrorHandling(self):
+        a = sam.Sam(raisesLogProb,np.array([.5,.5]), np.array([0.,-np.inf]))
+        self.assertIsNone(a.results)
+        self.assertIsNone(a.samples)
+        self.assertRaises(AssertionError,a.getStats)
+        self.assertRaises(AssertionError,a.summary)
+        self.assertRaises(ValueError,a.run,1000,np.array([.5,.5]))
+        self.assertRaises(AttributeError,a.gradientDescent,np.array([.5,.5]))
+        self.assertRaises(ValueError,a.simulatedAnnealing,np.array([.5,.5]))
+        self.assertRaises(AssertionError,a.getSampler,2)
+        self.assertRaises(OverflowError,a.getSampler,-3)
+        self.assertRaises(ValueError,sam.normalCDF,1,0,-1)
+
     def testModelSelection(self):
         samples = np.random.rand(10000,1)
         mu = sam.uniformMean()

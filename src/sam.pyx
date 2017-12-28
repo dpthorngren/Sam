@@ -13,16 +13,16 @@ cimport numpy as np
 
 
 # Special function wrappers
-cpdef double incBeta(double x, double a, double b):
+cpdef double incBeta(double x, double a, double b) except -1.:
     return _incBeta(a,b,x)
 
 
 # Special functions
-cpdef double expit(double x) except +:
+cpdef double expit(double x) except -1.:
     return exp(x) / (1 + exp(x))
 
 
-cpdef double logit(double x) except +:
+cpdef double logit(double x) except? -1.:
     return log(x) - log(1-x)
 
 
@@ -98,7 +98,7 @@ cdef class Sam:
         print np.mean(samples), np.std(samples)
     '''
 
-    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except +:
+    cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.:
         '''Computes the log probability and gradient for the given parameters.
 
         Args:
@@ -121,7 +121,7 @@ cdef class Sam:
             return self.pyLogProbability(np.asarray(position))
         return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
 
-    cdef void sample(self):
+    cdef int sample(self) except -1:
         '''Conducts a single sampling step in the metropolis algorithm.
 
         The actual act of sampling is determined by which samplers
@@ -157,9 +157,9 @@ cdef class Sam:
                     self.samplers[s].dStop,
                     &self.samplers[s].ddata,
                     &self.samplers[s].idata, logP0)
-        return
+        return 0
 
-    cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except +:
+    cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except 999.:
         '''Conducts a single Hamiltonian Monte Carlo trajectory.
 
         The operation is conducted on the internal variables of the object,
@@ -222,7 +222,7 @@ cdef class Sam:
             return new
         return logP0
 
-    cdef void bouncingMove(self, double stepSize, Size dStart, Size dStop) except +:
+    cdef int bouncingMove(self, double stepSize, Size dStart, Size dStop) except -1:
         '''Attempts to move self.xPropose, bouncing off of any boundaries.
 
         The update rule is: x_p[n+1] = x_p[n] + p[n] * stepSize * scale,
@@ -251,9 +251,9 @@ cdef class Sam:
                     self.momentum[d] = -self.momentum[d]
                     continue
                 break
-        return
+        return 0
 
-    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* ddata, vector[int]* idata, double logP0=nan) except +:
+    cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* ddata, vector[int]* idata, double logP0=nan) except 999.:
         # TODO: Documentation
         cdef Size i, j
         cdef Size n = dStop - dStart
@@ -274,7 +274,7 @@ cdef class Sam:
                     covChol[i,j] = chol[i,j]
         return self.metropolisCorrStep(dStart, dStop, covChol,logP0)
 
-    cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except +:
+    cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except 999.:
         '''Conducts a single Metropolis-Hastings step.
 
         The proposal distribution is a normal distribution centered at self.x,
@@ -317,7 +317,7 @@ cdef class Sam:
             return logP1
         return logP0
 
-    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=nan) except +:
+    cdef double metropolisCorrStep(self, Size dStart, Size dStop, double[:,:] proposeChol, double logP0=nan) except 999.:
         '''Conducts a single Metropolis-Hastings step for a general covariance.
 
         The proposal distribution is a normal distribution centered at self.x,
@@ -364,7 +364,7 @@ cdef class Sam:
             return logP1
         return logP0
 
-    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except +:
+    cdef double[:] regressionStep(self, double[:,:] x1, double[:] y1, double[:] output=None) except *:
         '''Draws from a Bayesian linear regression with normal errors on x,y.
 
         This is a sampler, and so the return is not the maximum likelihood
@@ -407,7 +407,7 @@ cdef class Sam:
         return output
 
 
-    cpdef void addMetropolis(self, covariance=None, Size dStart=0, Size dStop=-1) except +:
+    cpdef object addMetropolis(self, covariance=None, Size dStart=0, Size dStop=-1):
         '''Adds a metropolis sampler with a non-diagonal covariance.
 
         This sampler sets up a Metropolis-Hastings sampler to be used during
@@ -444,7 +444,7 @@ cdef class Sam:
         return
 
 
-    cpdef void addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double eps=1e-9, Size dStart=0, Size dStop=-1) except +:
+    cpdef object addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double eps=1e-9, Size dStart=0, Size dStop=-1):
         '''Adds an Adaptive Metropolis sampler to the sampling procedure.
 
         This sampler is the Adaptive Metropolis (AM) algorithm presented in
@@ -501,7 +501,7 @@ cdef class Sam:
         self.samplers.push_back(samp)
         return
 
-    cpdef void addHMC(self, Size nSteps, double stepSize, Size dStart=0, Size dStop=-1) except +:
+    cpdef object addHMC(self, Size nSteps, double stepSize, Size dStart=0, Size dStop=-1):
         '''Adds a Hamiltonian Monte Carlo sampler to the sampling procedure.
 
         This sampler sets up an HMC sampler to be used during the sampling
@@ -531,11 +531,11 @@ cdef class Sam:
         self.samplers.push_back(samp)
         return
 
-    cpdef SamplerData getSampler(self, unsigned int i=0) except +:
+    cpdef object getSampler(self, unsigned int i=0):
         assert i < self.samplers.size()
         return self.samplers[i]
 
-    cpdef object getProposalCov(self, unsigned int i=0) except +:
+    cpdef object getProposalCov(self, unsigned int i=0):
         assert i < self.samplers.size()
         if self.samplers[i].samplerType == 0:
             return np.diag(self.scale)
@@ -550,7 +550,7 @@ cdef class Sam:
             return np.asarray(self.samplers[i].ddata[1+n:1+n+n**2]).reshape(n,n)
 
 
-    cpdef void printSamplers(self) except +:
+    cpdef object printSamplers(self):
         '''Prints the list of any/all sampling systems set up so far.
 
         This refers to samplers added using e.g. addMetropolis() functions. See
@@ -578,11 +578,11 @@ cdef class Sam:
                     "steps, updating every", self.samplers[s].idata[2], "steps."
         return
 
-    cpdef void clearSamplers(self) except +:
+    cpdef object clearSamplers(self):
         '''Clears the list of samplers.'''
         self.samplers.clear()
 
-    cdef void record(self,Size i) except +:
+    cdef int record(self,Size i) except -1:
         '''Internal function that records the current position to self.samples.
 
         Only parameters with indices between recordStart and recordStop
@@ -595,9 +595,9 @@ cdef class Sam:
         cdef Size d
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
-        return
+        return 0
 
-    cdef void recordStats(self) except +:
+    cdef int recordStats(self) except -1:
         '''Internal function that accumulates statistics about the samples.
 
         This function is called each time a sample needs to be
@@ -607,9 +607,9 @@ cdef class Sam:
         cdef Size d
         for d in range(self.nDim):
             self.sampleStats[d](self.x[d])
-        return
+        return 0
 
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True) except +:
+    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True):
         '''Begin sampling the parameters from the given logProbability dist.
 
         Args:
@@ -719,7 +719,7 @@ cdef class Sam:
             print ""
         return self.samples, self.accepted
 
-    cpdef object getStats(self) except +:
+    cpdef object getStats(self):
         '''Returns running-average and standard deviation statistics.
 
         Note that this is only applicable if collectStats was enabled during
@@ -733,8 +733,9 @@ cdef class Sam:
             An array of means and an array of standard deviations of the
             parameter samples.
         '''
-        assert(not self.sampleStats.size(),"Cannot report statistics without having run the sampler!")
-        assert(self.collectStats,"Running statistics collection is turned off.")
+        assert self.collectStats, "Running statistics collection is turned off."
+        assert self.trials > 0, "Cannot report statistics without having run the sampler!"
+        assert self.sampleStats.size() > 0, "Cannot report statistics without having run the sampler!"
         cdef Size d
         means = np.empty(self.nDim,dtype=np.double)
         stds = np.empty(self.nDim,dtype=np.double)
@@ -745,7 +746,7 @@ cdef class Sam:
             stdsView[d] = sqrt(variance(self.sampleStats[d]))
         return (means, stds)
 
-    cpdef object getAcceptance(self) except +:
+    cpdef object getAcceptance(self):
         '''Calculates the acceptance rate for each dimension.
 
         This includes burn-in and thinning samples.  Throws an
@@ -760,7 +761,7 @@ cdef class Sam:
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
 
-    cpdef object summary(self, paramIndices=None, returnString=False) except +:
+    cpdef object summary(self, paramIndices=None, returnString=False):
         '''Prints/returns some summary statistics of the previous sampling run.
 
         Statistics are the parameter index, the acceptance rate, mean, and
@@ -801,7 +802,7 @@ cdef class Sam:
         if self.samples.ndim == 3:
             return np.array([acf(self.samples[i,:,i]) for i in range(self.samples.shape[0])])
 
-    cpdef object testGradient(self, double[:] x0, double eps=1e-5) except +:
+    cpdef object testGradient(self, double[:] x0, double eps=1e-5):
         '''Compares gradients from logProbability and finite difference method
 
         This function computes a gradient estimate using the finite difference
@@ -836,7 +837,7 @@ cdef class Sam:
             x0[d] -= self.scale[d]*eps
         return output
 
-    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10) except +:
+    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert step > 0 and eps > 0, "Both the step size and the error bound must be positive."
         cdef Size d, i
@@ -861,7 +862,7 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0) except +:
+    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert nSteps > 0 and T0 > 0 and width > 0, "The step number, initial temperature, and width must be positive"
         cdef Size d, i
@@ -904,7 +905,7 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cdef void progressBar(self, Size i, Size N, object header) except +:
+    cdef int progressBar(self, Size i, Size N, object header) except -1:
         '''Displays or updates a simple ASCII progress bar.
 
         Args:
@@ -920,9 +921,9 @@ cdef class Sam:
         f = (10*i)/N
         stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
         stdout.flush()
-        return
+        return 0
 
-    cdef void onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double eps=1e-9) except +:
+    cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double eps=1e-9) except -1:
         # TODO: Documentation
         cdef Size i, j
         cdef Size n = mu.shape[0]
@@ -938,9 +939,9 @@ cdef class Sam:
                     if i == j:
                         covar[i,j] += eps
                     covar[i,j] /= t
-        return
+        return 0
 
-    cdef void _setMemoryViews_(self) except +:
+    cdef int _setMemoryViews_(self) except -1:
         '''Sets up the memoryviews of the working memory in the sampler.
 
         This function ensures that the various memoryviews used by the class
@@ -955,7 +956,7 @@ cdef class Sam:
         self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
         self.acceptedView = self.accepted
-        return
+        return 0
 
     def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None):
         '''Instantiates the sampler class and sets the logProbability function.
@@ -1095,11 +1096,14 @@ cdef class Sam:
         self.extraInitialization()
         return
 
-    cdef void extraInitialization(self):
+    cdef int extraInitialization(self) except -1:
         '''This function can be overloaded to do extra initialization.
 
         By default it does nothing.  It is provided in case the user wishes
         to subclass Sam and needs a function which is always called when the
         object is instantiated or copied for multithreading.
+
+        It should return 0 to indicate no exception occurred.  This is the only
+        purpose of its return value
         '''
-        return
+        return 0

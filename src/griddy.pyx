@@ -55,28 +55,28 @@ cdef class Griddy:
         self.tempIndices = np.empty((self.nDim),dtype=int)
         return
 
-    cpdef object getValues(self) except +:
+    cpdef object getValues(self):
         return np.asarray(self.values).copy()
 
-    cpdef object getNPoints(self) except +:
+    cpdef object getNPoints(self):
         return np.asarray(self.nPoints).copy()
 
-    cpdef object getIndices(self) except +:
+    cpdef object getIndices(self):
         return np.asarray(self.indices).copy()
 
-    cpdef object getWeights(self) except +:
+    cpdef object getWeights(self):
         return np.asarray(self.weights).copy()
 
-    cpdef object getStrides(self) except +:
+    cpdef object getStrides(self):
         return np.asarray(self.strides).copy()
 
-    cpdef Size ind(self,Size[:] p) except +:
+    cpdef Size ind(self,Size[:] p) except -1:
         cdef Size d, index = 0
         for d in range(self.nDim):
             index += p[d]*self.strides[d]
         return index
 
-    cpdef bint locatePoints(self, double[:] point) except +:
+    cpdef bint locatePoints(self, double[:] point) except? True:
         # Locates the indices corresponding to the point
         # Writes to self.indices, returns whether out of bounds
         cdef Size d, i, low, high
@@ -149,7 +149,7 @@ cdef class Griddy:
                 return outputs[0]
             return outputs
 
-    cpdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True, bint debug=False) except +:
+    cpdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True, bint debug=False) except? -1.:
         # Locate indices and compute weights, or return nan
         cdef Size b, d, offset
         if debug:
@@ -216,7 +216,7 @@ cdef class Griddy:
                 print ""
         return result
 
-    cpdef void bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced) except +:
+    cpdef int bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced) except -1:
         '''
         x0: the initial position -- length nDim, has new position written to it
         displacement: How much we would like to move x by -- length nDim
@@ -247,21 +247,21 @@ cdef class Griddy:
                 bounced[d] = True
             else:
                 bounced[d] = False
-        return
+        return 0
 
-    cpdef double findEdge(self, Size index, Size dim) except +:
+    cpdef double findEdge(self, Size index, Size dim) except? 999.:
         if isnan(self.axes[dim,1]):
             return index*self.axes[dim,2] + self.axes[dim,0]
         return self.axes[dim,index]
 
-    cpdef void interpN(self,double[:,:] points, double[:] output) except +:
+    cpdef int interpN(self,double[:,:] points, double[:] output) except -1:
         cdef Size i
         assert output.shape[0] == points.shape[0]
         for i in range(points.shape[0]):
             output[i] = self.interp(points[i,:])
-        return
+        return 0
 
-    cpdef void printInfo(self) except +:
+    cpdef object printInfo(self):
         cdef Size d, i
         for d in range(self.nDim):
             print "Axis {0}:".format(d),

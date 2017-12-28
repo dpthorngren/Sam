@@ -68,7 +68,7 @@ cdef extern from "<boost/random/binomial_distribution.hpp>":
         void param(param_type)
 
 cdef class RandomEngine:
-    cpdef setSeed(self,unsigned long int i)
+    cpdef object setSeed(self,unsigned long int i)
     # RNG
     cdef mTwister source
     cdef uniform_rng uniform_rand
@@ -82,103 +82,103 @@ cdef class RandomEngine:
 cdef RandomEngine defaultEngine
 
 # Uniform Distribution
-cpdef double uniformRand(double lower=?, double upper=?, RandomEngine engine=?)
-cpdef double uniformPDF(double x, double lower=?, double upper=?)
-cpdef double uniformLogPDF(double x, double lower=?, double upper=?)
-cpdef double uniformCDF(double x, double lower=?, double upper=?)
-cpdef double uniformDLDU(double x, double lower=?, double upper=?)
-cpdef double uniformDLDL(double x, double lower=?, double upper=?)
-cpdef double uniformMean(double lower=?, double upper=?)
-cpdef double uniformVar(double lower=?, double upper=?)
-cpdef double uniformStd(double lower=?, double upper=?)
+cpdef double uniformRand(double lower=?, double upper=?, RandomEngine engine=?) except? 999.
+cpdef double uniformPDF(double x, double lower=?, double upper=?) except? 999.
+cpdef double uniformLogPDF(double x, double lower=?, double upper=?) except? 999.
+cpdef double uniformCDF(double x, double lower=?, double upper=?) except? 999.
+cpdef double uniformDLDU(double x, double lower=?, double upper=?) except? 999.
+cpdef double uniformDLDL(double x, double lower=?, double upper=?) except? 999.
+cpdef double uniformMean(double lower=?, double upper=?) except? 999.
+cpdef double uniformVar(double lower=?, double upper=?) except? 999.
+cpdef double uniformStd(double lower=?, double upper=?) except? 999.
 
 
 # Normal
-cpdef double normalRand(double mean=?, double sigma=?, RandomEngine engine = ?)
-cpdef double normalPDF(double x, double mean=?, double sigma=?)
-cpdef double normalLogPDF(double x, double mean=?, double sigma=?)
-cpdef double normalCDF(double x, double mean=?, double sigma=?)
-cpdef double normalDLDM(double x, double mean=?, double sigma=?)
-cpdef double normalDLDX(double x, double mean=?, double sigma=?)
-cpdef double normalDLDV(double x, double mean=?, double sigma=?)
-cpdef double normalDLDS(double x, double mean=?, double sigma=?)
-cpdef double normalMean(double mean=?, double sigma=?)
-cpdef double normalVar(double mean=?, double sigma=?)
-cpdef double normalStd(double mean=?, double sigma=?)
-cpdef double normalMode(double mean=?, double sigma=?)
+cpdef double normalRand(double mean=?, double sigma=?, RandomEngine engine = ?) except? 999.
+cpdef double normalPDF(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalLogPDF(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalCDF(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalDLDM(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalDLDX(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalDLDV(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalDLDS(double x, double mean=?, double sigma=?) except? 999.
+cpdef double normalMean(double mean=?, double sigma=?) except? 999.
+cpdef double normalVar(double mean=?, double sigma=?) except? 999.
+cpdef double normalStd(double mean=?, double sigma=?) except? 999.
+cpdef double normalMode(double mean=?, double sigma=?) except? 999.
 
 # Multivariate Normal
-cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output=?, bint isChol=?, RandomEngine engine=?)
-cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?)
-cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?)
+cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output=?, bint isChol=?, RandomEngine engine=?) except *
+cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?) except? 999.
+cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=?) except? 999.
 
 # Gamma
-cpdef double gammaRand(double shape, double rate, RandomEngine engine = ?)
-cpdef double gammaPDF(double x, double shape, double rate)
-cpdef double gammaLogPDF(double x, double shape, double rate)
-cpdef double gammaCDF(double x, double shape, double rate)
-cpdef double gammaDLDA(double x, double shape, double rate)
-cpdef double gammaDLDB(double x, double shape, double rate)
-cpdef double gammaDLDX(double x, double shape, double rate)
-cpdef double gammaMean(double shape, double rate)
-cpdef double gammaVar(double shape, double rate)
-cpdef double gammaStd(double shape, double rate)
-cpdef double gammaMode(double shape, double rate)
+cpdef double gammaRand(double shape, double rate, RandomEngine engine = ?) except? 999.
+cpdef double gammaPDF(double x, double shape, double rate) except? 999.
+cpdef double gammaLogPDF(double x, double shape, double rate) except? 999.
+cpdef double gammaCDF(double x, double shape, double rate) except? 999.
+cpdef double gammaDLDA(double x, double shape, double rate) except? 999.
+cpdef double gammaDLDB(double x, double shape, double rate) except? 999.
+cpdef double gammaDLDX(double x, double shape, double rate) except? 999.
+cpdef double gammaMean(double shape, double rate) except? 999.
+cpdef double gammaVar(double shape, double rate) except? 999.
+cpdef double gammaStd(double shape, double rate) except? 999.
+cpdef double gammaMode(double shape, double rate) except? 999.
 
 # Inverse-Gamma
-cpdef double invGammaRand(double shape, double rate, RandomEngine engine=?)
-cpdef double invGammaPDF(double x, double shape, double rate)
-cpdef double invGammaLogPDF(double x, double shape, double rate)
-cpdef double invGammaCDF(double x, double shape, double rate)
-cpdef double invGammaDLDA(double x, double shape, double rate)
-cpdef double invGammaDLDB(double x, double shape, double rate)
-cpdef double invGammaDLDX(double x, double shape, double rate)
-cpdef double invGammaMean(double shape, double rate)
-cpdef double invGammaVar(double shape, double rate)
-cpdef double invGammaStd(double shape, double rate)
-cpdef double invGammaMode(double shape, double rate)
+cpdef double invGammaRand(double shape, double rate, RandomEngine engine=?) except? 999.
+cpdef double invGammaPDF(double x, double shape, double rate) except? 999.
+cpdef double invGammaLogPDF(double x, double shape, double rate) except? 999.
+cpdef double invGammaCDF(double x, double shape, double rate) except? 999.
+cpdef double invGammaDLDA(double x, double shape, double rate) except? 999.
+cpdef double invGammaDLDB(double x, double shape, double rate) except? 999.
+cpdef double invGammaDLDX(double x, double shape, double rate) except? 999.
+cpdef double invGammaMean(double shape, double rate) except? 999.
+cpdef double invGammaVar(double shape, double rate) except? 999.
+cpdef double invGammaStd(double shape, double rate) except? 999.
+cpdef double invGammaMode(double shape, double rate) except? 999.
 
 # Beta
-cpdef double betaRand(double alpha, double beta, RandomEngine engine = ?)
-cpdef double betaPDF(double x, double alpha, double beta)
-cpdef double betaLogPDF(double x, double alpha, double beta)
-cpdef double betaCDF(double x, double alpha, double beta)
-cpdef double betaDLDA(double x, double alpha, double beta)
-cpdef double betaDLDB(double x, double alpha, double beta)
-cpdef double betaMean(double alpha, double beta)
-cpdef double betaVar(double alpha, double beta)
-cpdef double betaStd(double alpha, double beta)
-cpdef double betaMode(double alpha, double beta)
+cpdef double betaRand(double alpha, double beta, RandomEngine engine = ?) except? 999.
+cpdef double betaPDF(double x, double alpha, double beta) except? 999.
+cpdef double betaLogPDF(double x, double alpha, double beta) except? 999.
+cpdef double betaCDF(double x, double alpha, double beta) except? 999.
+cpdef double betaDLDA(double x, double alpha, double beta) except? 999.
+cpdef double betaDLDB(double x, double alpha, double beta) except? 999.
+cpdef double betaMean(double alpha, double beta) except? 999.
+cpdef double betaVar(double alpha, double beta) except? 999.
+cpdef double betaStd(double alpha, double beta) except? 999.
+cpdef double betaMode(double alpha, double beta) except? 999.
 
 # Poisson
-cpdef double poissonRand(double lamb, RandomEngine engine=?)
-cpdef double poissonPDF(int x, double lamb)
-cpdef double poissonLogPDF(int x, double lamb)
-cpdef double poissonCDF(double x, double lamb)
-cpdef double poissonDLDL(int x, double lamb)
-cpdef double poissonMean(double lamb)
-cpdef double poissonVar(double lamb)
-cpdef double poissonStd(double lamb)
-cpdef int poissonMode(double lamb)
+cpdef double poissonRand(double lamb, RandomEngine engine=?) except? 999.
+cpdef double poissonPDF(int x, double lamb) except? 999.
+cpdef double poissonLogPDF(int x, double lamb) except? 999.
+cpdef double poissonCDF(double x, double lamb) except? 999.
+cpdef double poissonDLDL(int x, double lamb) except? 999.
+cpdef double poissonMean(double lamb) except? 999.
+cpdef double poissonVar(double lamb) except? 999.
+cpdef double poissonStd(double lamb) except? 999.
+cpdef int poissonMode(double lamb) except? -1
 
 # Exponential
-cpdef double exponentialRand(double lamb, RandomEngine engine=?)
-cpdef double exponentialPDF(double x, double lamb)
-cpdef double exponentialLogPDF(double x, double lamb)
-cpdef double exponentialCDF(double x, double lamb)
-cpdef double exponentialDLDL(double x, double lamb)
-cpdef double exponentialMean(double lamb)
-cpdef double exponentialVar(double lamb)
-cpdef double exponentialStd(double lamb)
-cpdef double exponentialMode(double lamb)
+cpdef double exponentialRand(double lamb, RandomEngine engine=?) except? 999.
+cpdef double exponentialPDF(double x, double lamb) except? 999.
+cpdef double exponentialLogPDF(double x, double lamb) except? 999.
+cpdef double exponentialCDF(double x, double lamb) except? 999.
+cpdef double exponentialDLDL(double x, double lamb) except? 999.
+cpdef double exponentialMean(double lamb) except? 999.
+cpdef double exponentialVar(double lamb) except? 999.
+cpdef double exponentialStd(double lamb) except? 999.
+cpdef double exponentialMode(double lamb) except? 999.
 
 # Binomial
-cpdef int binomialRand(int n, double probability, RandomEngine engine=?)
-cpdef double binomialPDF(int x, int n, double probability)
-cpdef double binomialLogPDF(int x, int n, double probability)
-cpdef double binomialCDF(double x, int n, double probability)
-cpdef double binomialDLDP(int x, int n, double probability)
-cpdef double binomialMean(int n, double probability)
-cpdef double binomialVar(int n, double probability)
-cpdef double binomialStd(int n, double probability)
-cpdef double binomialMode(int n, double probability)
+cpdef int binomialRand(int n, double probability, RandomEngine engine=?) except? -1
+cpdef double binomialPDF(int x, int n, double probability) except? 999.
+cpdef double binomialLogPDF(int x, int n, double probability) except? 999.
+cpdef double binomialCDF(double x, int n, double probability) except? 999.
+cpdef double binomialDLDP(int x, int n, double probability) except? 999.
+cpdef double binomialMean(int n, double probability) except? 999.
+cpdef double binomialVar(int n, double probability) except? 999.
+cpdef double binomialStd(int n, double probability) except? 999.
+cpdef double binomialMode(int n, double probability) except? 999.
