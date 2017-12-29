@@ -1,5 +1,9 @@
 cimport cython
 
+# BLAS and LAPACK
+cimport scipy.linalg.cython_lapack as lapack
+cimport scipy.linalg.cython_blas as blas
+
 # Standard library
 from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan
 from libcpp.vector cimport vector
@@ -30,6 +34,9 @@ cpdef double incBeta(double x, double a, double b) except -1.
 # Special functions
 cpdef double expit(double x) except -1.
 cpdef double logit(double x) except? -1.
+
+# Linear algebra wrappers
+cpdef int choleskyInplace(double[:,:] x) except -1
 
 # Type definitions
 ctypedef Py_ssize_t Size

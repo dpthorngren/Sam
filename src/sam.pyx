@@ -26,6 +26,20 @@ cpdef double logit(double x) except? -1.:
     return log(x) - log(1-x)
 
 
+# Linear algebra wrappers
+cpdef int choleskyInplace(double[:,:] x) except -1:
+    if x is None:
+        raise ValueError("Input must not be None!")
+    if x.shape[0] != x.shape[1]:
+        raise ValueError("Must be a square matrix. Got:"+str(x.shape[0])+" x "+str(x.shape[1]))
+    cdef int n = x.shape[0]
+    cdef int output = 0
+    lapack.dpotrf('U',&n,&x[0,0],&n,&output)
+    if output != 0:
+        raise ValueError("Matrix was not positive definite!")
+    return 0
+
+
 # Helper functions
 def getDIC(logLike, samples, full_output=False):
     l = np.array([logLike(i) for i in samples])

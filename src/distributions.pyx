@@ -90,22 +90,25 @@ cpdef double normalMode(double mean=0, double sigma=1) except? 999.:
 
 # ===== Multivariate Normal Distribution =====
 
-# TODO: use LAPACK and optimize
-cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output = None, bint isChol=False, RandomEngine engine =defaultEngine) except *:
+cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output = None, bint isChol=False, RandomEngine engine=defaultEngine) except *:
+    # TODO: Dimension checks
     cdef Size i, j
+    cdef Size d = mean.shape[0]
     cdef double[:,:] covChol
     if isChol:
         covChol = covariance
     else:
-        covChol = np.linalg.cholesky(covariance)
+        covChol = covariance.copy()
+        choleskyInplace(covChol)
     if output is None:
-        output = np.empty(mean.shape[0])
-    randVect = np.zeros(mean.shape[0])
-    for i in range(mean.shape[0]):
-        randVect[i] = normalRand(engine=engine)
-        output[i] = mean[i]
-        for j in range(i+1):
-            output[i] += randVect[j]*covChol[i,j]
+        output = mean.copy()
+    for i in range(d):
+        output[i] = normalRand(engine=engine)
+    cdef int n = d
+    cdef int inc = 1
+    blas.dtrmv('U','N','N',&n,&covChol[0,0],&n,&output[0],&inc)
+    for i in range(d):
+        output[i] += mean[i]
     return output
 
 # TODO: use LAPACK and optimize
