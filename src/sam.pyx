@@ -150,7 +150,7 @@ cdef class Sam:
                 logP = self.metropolisCorrStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    np.asarray(self.samplers[s].ddata).reshape((m,m)),logP0)
+                    <double[:m,:m]> &self.samplers[s].ddata[0],logP0)
             elif self.samplers[s].samplerType == 3:
                 logP = self.adaptiveStep(
                     self.samplers[s].dStart,
@@ -260,11 +260,12 @@ cdef class Sam:
         cdef double[:,:] chol
         # Cast the state vector as the mean, covariance, cholesky, and epsilon
         cdef double eps = ddata[0][0]
-        cdef double[:] mu = <double[:n]> &ddata[0][1]
-        cdef double[:,:] covar = <double[:n,:n]> &ddata[0][1+n]
-        cdef double[:,:] covChol = <double[:n,:n]> &ddata[0][1+n+n*n]
+        cdef double scaling = ddata[0][1]
+        cdef double[:] mu = <double[:n]> &ddata[0][2]
+        cdef double[:,:] covar = <double[:n,:n]> &ddata[0][2+n]
+        cdef double[:,:] covChol = <double[:n,:n]> &ddata[0][2+n+n*n]
         cdef int* t = &idata[0][0]
-        self.onlineCovar(mu,covar,self.x,t[0],eps)
+        self.onlineCovar(mu,covar,self.x,t[0],scaling,eps)
         t[0] += 1
         # TODO: Add update frequency option for adaptive step
         if (t[0] >= idata[0][1]) and (t[0]%idata[0][2] == 0):
@@ -301,9 +302,10 @@ cdef class Sam:
         cdef double logP1
         for d in range(0,self.nDim):
             if d >= dStart and d < dStop:
-                self.xPropose[d] = self.x[d] + normalRand(0,self.scale[d])
+                self.xPropose[d] = normalRand(self.x[d],self.scale[d])
                 if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
+                    # TODO: Smart reflection, rather than rejection
                     return logP0
             else:
                 self.xPropose[d] = self.x[d]
@@ -332,7 +334,7 @@ cdef class Sam:
             dStart: The index of the first parameter to be included.
             dStop: The index of the last parameter to be included, plus one.
             proposeChol: A [N x N] array-like which is the cholesky of the
-                desired proposal covariance, and N is dStop-dStart-1
+                desired proposal covariance, and N is dStop-dStart
             logP0: If the logProbability is known at the starting position,
                 providing this will save a small amount of time by not
                 recomputing it.
@@ -444,7 +446,7 @@ cdef class Sam:
         return
 
 
-    cpdef object addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double eps=1e-9, Size dStart=0, Size dStop=-1):
+    cpdef object addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double scaling=-1, double eps=1e-9, Size dStart=0, Size dStop=-1):
         '''Adds an Adaptive Metropolis sampler to the sampling procedure.
 
         This sampler is the Adaptive Metropolis (AM) algorithm presented in
@@ -466,6 +468,9 @@ cdef class Sam:
                 default (triggered by any negative number) is three times that.
             refreshPeriod: How many times the sampler is called between the
                 cholesky of the covariance being updated (the expensive part).
+            scaling:  How much to scale the estimated covariance to get the 
+                proposal covariance.  Default, signified by -1, is to use
+                5.76/nDim, suggested in Haario et al.
             eps: The epsilon parameter in Haario et al. (2001).  It needs to be
                 small but nonzero for the theory to work, but in practice
                 seems to work at zero as well.  Default is 1e-9, and probably
@@ -484,6 +489,8 @@ cdef class Sam:
         if adaptAfter < 0:
             adaptAfter = 3*(dStop-dStart)
         assert dStop-dStart < adaptAfter
+        if scaling <= 0:
+            scaling = 5.74/self.nDim
         if covariance is None:
             covariance = np.diag(np.asarray(self.scale)[dStart:dStop])
         assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
@@ -495,7 +502,7 @@ cdef class Sam:
         samp.idata.push_back(0)
         samp.idata.push_back(adaptAfter)
         samp.idata.push_back(refreshPeriod)
-        samp.ddata = np.concatenate([[eps],np.zeros(covariance.shape[0]),
+        samp.ddata = np.concatenate([[eps,scaling],np.zeros(covariance.shape[0]),
                                           np.zeros(covariance.shape[0]**2),
                                           covChol.flatten()])
         self.samplers.push_back(samp)
@@ -570,8 +577,9 @@ cdef class Sam:
                     self.samplers[s].idata[0], "steps with size", self.samplers[s].ddata[0]
             elif self.samplers[s].samplerType == 2:
                 print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), Cov ="
-                n = self.samplers[s].dStop - self.samplers[s].dStop
-                print np.asarray(self.samplers[s].ddata).reshape(n,n)
+                n = self.samplers[s].dStop - self.samplers[s].dStart
+                a = np.asarray(self.samplers[s].ddata).reshape(n,n)
+                print np.matmul(a,a.T)
             elif self.samplers[s].samplerType == 3:
                 print s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"),",\
                     "Start adapting after", self.samplers[s].idata[1], \
@@ -923,11 +931,10 @@ cdef class Sam:
         stdout.flush()
         return 0
 
-    cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double eps=1e-9) except -1:
+    cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double scaling, double eps=1e-9) except -1:
         # TODO: Documentation
         cdef Size i, j
         cdef Size n = mu.shape[0]
-        cdef double scalingParam = 5.76/n
         # TODO: make more efficient?
         cdef double[:] muOld = mu.copy()
         for i in range(n):
@@ -935,7 +942,7 @@ cdef class Sam:
         if t > 0:
             for i in range(n):
                 for j in range(n):
-                    covar[i,j] = (t-1)*covar[i,j] + scalingParam*(t*muOld[i]*muOld[j] - (t+1)*mu[i]*mu[j] + x[i]*x[j])
+                    covar[i,j] = (t-1)*covar[i,j] + scaling*(t*muOld[i]*muOld[j] - (t+1)*mu[i]*mu[j] + x[i]*x[j])
                     if i == j:
                         covar[i,j] += eps
                     covar[i,j] /= t

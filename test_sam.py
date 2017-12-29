@@ -234,7 +234,7 @@ class SamTester(unittest.TestCase):
 
     def testAdaptiveMetropolis(self):
         a = sam.Sam(logProb4,np.ones(2))
-        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.)
+        a.addAdaptiveMetropolis(np.array([[1,.1],[.1,1.]])/2.,scaling=4.)
         samples = a.run(50000,5*np.ones(2),1000,showProgress=False)
         self.assertAlmostEqual(samples[:,0].mean(),0.,delta=.05)
         self.assertAlmostEqual(samples[:,0].std(),1.,delta=.1)
@@ -289,18 +289,18 @@ class DistributionTester(unittest.TestCase):
         targetCov = targetCov*targetCov.T/2. + np.eye(3)
         a = np.empty((10000,3))
         a = np.array([sam.mvNormalRand(np.array([1.,5.,-3.]),targetCov) for i in range(10000)])
-        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
-        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
-        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=.05)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=.05)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=.05)
         for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
             self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.2)
         targetChol = np.linalg.cholesky(targetCov)
         a = np.array([sam.mvNormalRand(np.array([1.,5.,-3.]),targetChol,isChol=True) for i in range(10000)])
-        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=1*.1)
-        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=5*.1)
-        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=3*.1)
+        self.assertAlmostEqual(np.mean(a[:,0]),1.,delta=.05)
+        self.assertAlmostEqual(np.mean(a[:,1]),5.,delta=.05)
+        self.assertAlmostEqual(np.mean(a[:,2]),-3.,delta=.05)
         for i, c in enumerate(np.cov(a.T,ddof=0).flatten()):
-            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.2)
+            self.assertAlmostEqual(targetCov.flatten()[i],c,delta=.1)
         self.assertAlmostEqual(sam.mvNormalLogPDF(np.ones(3),np.zeros(3),targetCov.copy()),
                                multivariate_normal.logpdf(np.ones(3),np.zeros(3),targetCov))
         self.assertAlmostEqual(sam.mvNormalPDF(np.ones(3),np.zeros(3),targetCov.copy()),
