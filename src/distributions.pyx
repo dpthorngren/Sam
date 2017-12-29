@@ -91,40 +91,64 @@ cpdef double normalMode(double mean=0, double sigma=1) except? 999.:
 # ===== Multivariate Normal Distribution =====
 
 cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] output = None, bint isChol=False, RandomEngine engine=defaultEngine) except *:
-    # TODO: Dimension checks
+    if (mean is None) or (covariance is None):
+        raise ValueError("Only the output may be None.")
     cdef Size i, j
     cdef Size d = mean.shape[0]
+    cdef double[:,:] covChol
+    if (d != covariance.shape[0]) or (d != covariance.shape[1]):
+        raise ValueError("Covariance matrix shape does not max mean vector.")
+    if output is None:
+        output = mean.copy()
+    elif d != output.shape[0]:
+        raise ValueError("Output vector length does not max mean vector.")
+    if isChol:
+        covChol = covariance
+    else:
+        covChol = covariance.copy()
+        choleskyInplace(covChol)
+    for i in range(d):
+        output[i] = normalRand(engine=engine)
+    cdef int n = d
+    cdef int increment = 1
+    blas.dtrmv('U','N','N',&n,&covChol[0,0],&n,&output[0],&increment)
+    for i in range(d):
+        output[i] += mean[i]
+    return output
+
+cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False) except? 999.:
+    return exp(mvNormalLogPDF(x,mean,covariance,isChol))
+
+cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False) except? 999.:
+    cdef Size i;
+    cdef Size d = mean.shape[0]
+    if (x is None) or (mean is None) or (covariance is None):
+        raise ValueError("Inputs may not be None!")
+    if (d != covariance.shape[0]) or (d != covariance.shape[1]):
+        raise ValueError("Covariance matrix shape does not max mean vector.")
+    if d != x.shape[0]:
+        raise ValueError("X vector length does not max mean vector.")
     cdef double[:,:] covChol
     if isChol:
         covChol = covariance
     else:
         covChol = covariance.copy()
         choleskyInplace(covChol)
-    if output is None:
-        output = mean.copy()
+    cdef double result = 0.
+    cdef double[:] offset = x.copy()
     for i in range(d):
-        output[i] = normalRand(engine=engine)
+        # Compute determinant portion of the pdf:
+        result -= log(covChol[i,i])
+        offset[i] -= mean[i]
+
+    # (x-mean) * L.T^-1 * L^-1 * (x-mean)
     cdef int n = d
-    cdef int inc = 1
-    blas.dtrmv('U','N','N',&n,&covChol[0,0],&n,&output[0],&inc)
+    cdef int increment = 1
+    blas.dtrsv('U','T','N',&n,&covChol[0,0],&n,&offset[0],&increment)
+    blas.dtrsv('U','N','N',&n,&covChol[0,0],&n,&offset[0],&increment)
     for i in range(d):
-        output[i] += mean[i]
-    return output
-
-# TODO: use LAPACK and optimize
-cpdef double mvNormalPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False) except? 999.:
-    return exp(mvNormalLogPDF(x,mean,covariance,isChol))
-
-# TODO: use LAPACK and optimize
-cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance, bint isChol=False) except? 999.:
-    if isChol:
-        covChol = covariance
-    else:
-        covChol = np.linalg.cholesky(covariance)
-    cdef double det = np.sum(np.log(np.diag(covChol)))
-    offset = np.asarray(x)-np.asarray(mean)
-    covChol = solve_triangular(np.transpose(covChol),solve_triangular(covChol,offset,lower=True))
-    return -.5 * (np.sum(offset*covChol) + mean.shape[0] * log(2*pi)) - det
+        result -= .5*offset[i]*(x[i] - mean[i])
+    return result -.5*d*log(2.*pi)
 
 # ===== Gamma Distribution =====
 
