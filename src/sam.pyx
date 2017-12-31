@@ -67,18 +67,19 @@ def acf(x, length=50):
          return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
 
 
-def gpGaussKernel(x,xPrime,theta):
-    return theta[1]*np.exp(-distance(x,xPrime)**2/(2*theta[0]**2))
-
-
-def gpExpKernel(x,xPrime,theta):
-    return theta[1]*np.exp(-distance(x,xPrime)/theta[0])
-
-
-def distance(x,xPrime):
-    x = np.atleast_2d(x.T).T
-    xPrime = np.atleast_2d(xPrime.T).T
-    return np.sqrt(np.sum((x[:,np.newaxis,:]-xPrime[np.newaxis,:,:])**2,axis=-1))
+def gelmanRubin(x,warn=True):
+    x = np.asarray(x)
+    if x.ndim == 2:
+        if warn:
+            print "Warning: the G.R. diagnostic was not designed for " +\
+                "the case where chains are not completely independent."
+        x = np.stack([x[:x.shape[0]/2],x[x.shape[0]/2:]],axis=0)
+    elif x.ndim != 3:
+        raise ValueError("Input has an invalid shape: must be 3-d.")
+    n = np.shape(x)[1]
+    W = np.mean(np.var(x,axis=1,ddof=1),axis=0)
+    B_n = np.var(np.mean(x,axis=1),axis=0,ddof=1)
+    return np.sqrt((1.-1./n) + B_n/W)
 
 
 cdef double gpGaussCovariance(double scaledDist):
@@ -876,10 +877,14 @@ cdef class Sam:
             paramIndices = range(self.nDim)
         means = np.mean(self.results,axis=0)
         stds = np.std(self.results,axis=0)
+        grs = gelmanRubin(self.samples,False)
+        grLabel = "GR"
+        if np.ndim(self.samples) == 2:
+            grLabel = "GR*"
         percents = np.percentile(self.results,(16,50,84),axis=0)
-        output = ("{:<4}"+" {:>6}"+" |"+2*" {:>10}"+" |"+3*" {:>10}").format("Dim.","Accept","Mean","Std.","16%","50%","84%")
+        output = ("{:<4}"+" {:>6}"+" {:>6}"+" |"+2*" {:>10}"+" |"+3*" {:>10}").format("Dim.","Accept",grLabel,"Mean","Std.","16%","50%","84%")
         for i in paramIndices:
-            output += '\n' + ("{:<4}"+" {:>6.1%}"+" |"+2*" {:>10.4g}"+" |"+3*" {:>10.4g}").format(i,acceptance[i],means[i],stds[i],percents[0,i],percents[1,i],percents[2,i])
+            output += '\n' + ("{:<4}"+" {:>6.1%}"+" {:>6.3f}" + " |"+2*" {:>10.4g}"+" |"+3*" {:>10.4g}").format(i,acceptance[i],grs[i],means[i],stds[i],percents[0,i],percents[1,i],percents[2,i])
         output += '\n'
         if returnString:
             return output
