@@ -99,17 +99,22 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess(self):
         x = np.linspace(0,10,100)
         y = np.sin(x)
-        gpMean, gpVar = sam.gaussianProcess(x,y,np.array([10,.5,0]),np.array([5]))
+        loglike = sam.gaussianProcess(x[:,np.newaxis],y,np.array([10,.5,0]),kernel='exp')
+        gpMean, gpVar = sam.gaussianProcess(x[:,np.newaxis],y,np.array([10,.5,0]),np.array([[5.,]]),'exp')
         gpVar = np.sqrt(np.diag(gpVar))
-        self.assertAlmostEqual(gpMean[0],-0.95768933)
-        self.assertAlmostEqual(gpVar[0],0.05025168)
+        self.assertAlmostEqual(gpMean[0],-0.957698488)
+        self.assertAlmostEqual(gpVar[0],0.0355334149)
+        self.assertAlmostEqual(loglike,117.96284971)
 
     def testGaussianProcess2D(self):
-        x = np.random.rand(200,2)
+        x = np.linspace(0,1,400).reshape(200,2)
         z = np.sin(np.sum(x,axis=-1))
-        gpMean, gpVar = sam.gaussianProcess(x,z,np.array([1,.5,0]),np.array([.5,.5])[np.newaxis,:])
+        loglike = sam.gaussianProcess(x,z,np.array([1,.5,0]),kernel='exp')
+        gpMean, gpVar = sam.gaussianProcess(x,z,np.array([1,.5,0]),np.array([.5,.5])[np.newaxis,:],'exp')
         gpVar = np.sqrt(np.diag(gpVar))
-        self.assertAlmostEqual(gpMean[0],0.841,delta=.01)
+        self.assertAlmostEqual(gpMean[0],0.84145777089874052,delta=.01)
+        self.assertAlmostEqual(gpVar[0], 0.035399579210645495,delta=.01)
+        self.assertAlmostEqual(loglike,342.4717258782832)
 
     def test1DMetropolis(self):
         a = sam.Sam(logProb2,.5, 0., 1.)

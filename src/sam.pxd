@@ -5,7 +5,7 @@ cimport scipy.linalg.cython_lapack as lapack
 cimport scipy.linalg.cython_blas as blas
 
 # Standard library
-from libc.math cimport log, log10, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan
+from libc.math cimport log, log10, abs, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan
 from libcpp.vector cimport vector
 
 # Boost library (RNG functions declared separately in distributions.pxd)
@@ -35,8 +35,11 @@ cpdef double incBeta(double x, double a, double b) except -1.
 cpdef double expit(double x) except -1.
 cpdef double logit(double x) except? -1.
 
-# Linear algebra wrappers
+# Helper functions
 cpdef int choleskyInplace(double[:,:] x) except -1
+cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?) except -1
+cdef double gpGaussCovariance(double scaledDist)
+cdef double gpExpCovariance(double scaledDist)
 
 # Type definitions
 ctypedef Py_ssize_t Size

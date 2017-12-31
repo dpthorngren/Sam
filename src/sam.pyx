@@ -10,6 +10,7 @@ import inspect
 from numpy.linalg import solve, cholesky
 import os
 cimport numpy as np
+cimport cython
 
 
 # Special function wrappers
@@ -60,6 +61,12 @@ def getBIC(loglike, samples, nPoints):
     return log(nPoints)*np.shape(samples)[1] - 2 * lMax
 
 
+def acf(x, length=50):
+         if np.ndim(x) == 2:
+             return np.array([np.array([1]+[np.corrcoef(x[:-i,j],x[i:,j],0)[0,1] for i in range(1,length)]) for j in range(np.shape(x)[1])]).T
+         return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
+
+
 def gpGaussKernel(x,xPrime,theta):
     return theta[1]*np.exp(-distance(x,xPrime)**2/(2*theta[0]**2))
 
@@ -74,30 +81,93 @@ def distance(x,xPrime):
     return np.sqrt(np.sum((x[:,np.newaxis,:]-xPrime[np.newaxis,:,:])**2,axis=-1))
 
 
-def gaussianProcess(x, y, theta, xTest=None, kernel=gpExpKernel, kernelChol=None):
-    if kernelChol is None:
-        K = kernel(x,x,theta) + theta[2]*np.eye(len(x))
-        L = cholesky(K)
+cdef double gpGaussCovariance(double scaledDist):
+    return exp(-.5*scaledDist*scaledDist)
+
+
+cdef double gpExpCovariance(double scaledDist):
+    return exp(-.5*abs(scaledDist))
+
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+@cython.wraparound(False)
+@cython.initializedcheck(False)
+cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=None) except -1:
+    cdef Size n = output.shape[0]
+    cdef Size m = output.shape[1]
+    cdef Size p = x.shape[1]
+    cdef Size i, j, k
+    cdef Size jMax = m
+    cdef bint isSymmetric = False
+    cdef double distance
+
+    # Check that the inputs are valid
+    if (x is None) or (params is None) or (output is None):
+        raise ValueError("Only xPrime may be None.")
+    if params.shape[0] != 3:
+        raise ValueError("Params must be length 3.")
+    if x.shape[0] != output.shape[0]:
+        raise ValueError("Output and x have mismatched shapes.")
+    if xPrime is None:
+        isSymmetric =True
+        xPrime = x
+    elif (output.shape[1] != xPrime.shape[0]):
+        raise ValueError("Output and xPrime have mismatched shapes.")
+    elif (xPrime.shape[1] != x.shape[1]):
+        raise ValueError("The dimension of x and xPrime differ.")
+
+    # Construct the kernel.
+    for i in range(n):
+        # If the kernel is symmetric, only bother making the lower triangular part.
+        if isSymmetric:
+            jMax = i+1
+        for j in range(jMax):
+            distance = 0
+            for k in range(p):
+                distance += (x[i,k]-xPrime[j,k])/params[0]
+            output[i,j] = params[1]*kernel(distance)
+            if isSymmetric and (i==j):
+                output[i,j] += params[2]
+    return 0
+
+cpdef gaussianProcess(x, y, params, xTest=None, kernel="gauss", kernelChol=None):
+    # Match the kernel string to a covariance function
+    cdef double (*kernelPtr)(double)
+    if kernel.lower() == "gauss":
+        kernelPtr = &gpGaussCovariance
+    elif kernel.lower() == "exp":
+        kernelPtr = &gpExpCovariance
     else:
-        L = kernelChol
-    alpha = solve_triangular(L.T,solve_triangular(L,y,lower=True))
+        raise ValueError("Kernel name not recognized"+str(kernel))
+
+    # Get the kernel cholesky
+    if kernelChol is None:
+        kernelChol = np.empty((x.shape[0],x.shape[0]))
+        gpKernel(x,params,kernelChol,kernelPtr)
+        choleskyInplace(kernelChol)
+
+    # Make prediction if test points are provided
     if xTest is not None:
         if x.ndim != 1:
             assert xTest.ndim == 2
             assert x.shape[1] == xTest.shape[1]
         else:
             assert xTest.ndim == 1
-        KTest = kernel(x,xTest,theta)
-        v = solve_triangular(L,KTest,lower=True)
-        predVariance = kernel(xTest,xTest,theta) + np.eye(len(xTest))*theta[2] - np.matmul(v.T,v)
+        kernelChol[np.triu_indices(len(x),1)] = 0.
+        alpha = solve_triangular(kernelChol.T,solve_triangular(kernelChol,y,lower=True))
+        KTest = np.empty((x.shape[0],xTest.shape[0]))
+        gpKernel(x,params,KTest,kernelPtr,xTest)
+        v = solve_triangular(kernelChol,KTest,lower=True)
+
+        predVariance = np.empty((xTest.shape[0],xTest.shape[0]))
+        gpKernel(xTest,params,predVariance,kernelPtr)
+        predVariance += np.eye(len(xTest))*params[2] - np.matmul(v.T,v)
         return np.matmul(KTest.T,alpha), predVariance
-    return -.5*np.sum(y*alpha) - np.sum(np.log(np.diag(L)))
 
-
-def acf(x, length=50):
-         if np.ndim(x) == 2:
-             return np.array([np.array([1]+[np.corrcoef(x[:-i,j],x[i:,j],0)[0,1] for i in range(1,length)]) for j in range(np.shape(x)[1])]).T
-         return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
+    # Otherwise, return the log likelihood
+    cdef double[:] gpMean = np.zeros(y.shape[0])
+    return mvNormalLogPDF(y,gpMean,kernelChol,True)
 
 
 cdef class Sam:
