@@ -38,8 +38,10 @@ cpdef double logit(double x) except? -1.
 # Helper functions
 cpdef int choleskyInplace(double[:,:] x) except -1
 cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?) except -1
-cdef double gpGaussCovariance(double scaledDist)
+cdef double gpSqExpCovariance(double scaledDist)
 cdef double gpExpCovariance(double scaledDist)
+cdef double matern32(double scaledDist)
+cdef double matern52(double scaledDist)
 
 # Type definitions
 ctypedef Py_ssize_t Size

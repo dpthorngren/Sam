@@ -82,12 +82,22 @@ def gelmanRubin(x,warn=True):
     return np.sqrt((1.-1./n) + B_n/W)
 
 
-cdef double gpGaussCovariance(double scaledDist):
-    return exp(-.5*scaledDist*scaledDist)
+cdef double gpSqExpCovariance(double scaledDist):
+    return exp(-.5*scaledDist)
 
 
 cdef double gpExpCovariance(double scaledDist):
-    return exp(-.5*abs(scaledDist))
+    return exp(-sqrt(scaledDist))
+
+
+cdef double matern32(double scaledDist):
+    return (1.+sqrt(3*scaledDist))*exp(-sqrt(3.*scaledDist))
+
+
+@cython.cdivision(True)
+cdef double matern52(double scaledDist):
+    return ((1.+sqrt(5.*scaledDist)+5.*scaledDist/3.)*
+            exp(-sqrt(5*scaledDist)))
 
 
 @cython.boundscheck(False)
@@ -126,19 +136,23 @@ cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*k
         for j in range(jMax):
             distance = 0
             for k in range(p):
-                distance += (x[i,k]-xPrime[j,k])/params[0]
+                distance += ((x[i,k]-xPrime[j,k])/params[0])**2
             output[i,j] = params[1]*kernel(distance)
             if isSymmetric and (i==j):
                 output[i,j] += params[2]
     return 0
 
-cpdef gaussianProcess(x, y, params, xTest=None, kernel="gauss", kernelChol=None):
+cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=None):
     # Match the kernel string to a covariance function
     cdef double (*kernelPtr)(double)
-    if kernel.lower() == "gauss":
-        kernelPtr = &gpGaussCovariance
+    if kernel.lower() == "squaredExp":
+        kernelPtr = &gpSqExpCovariance
     elif kernel.lower() == "exp":
         kernelPtr = &gpExpCovariance
+    elif kernel.lower() == "matern32":
+        kernelPtr = &matern32
+    elif kernel.lower() == "matern52":
+        kernelPtr = &matern52
     else:
         raise ValueError("Kernel name not recognized"+str(kernel))
 
