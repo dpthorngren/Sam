@@ -281,6 +281,12 @@ class DistributionTester(unittest.TestCase):
 
     # ===== Distributions =====
     def testNormalDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.normalPDF(0,1,-3)
+        with self.assertRaises(ValueError):
+            sam.normalCDF(0.,1.,0.)
+        with self.assertRaises(ValueError):
+            sam.normalLogPDF(0,1,-5.)
         self.assertAlmostEqual(sam.normalPDF(1,3,4),0.08801633)
         self.assertAlmostEqual(sam.normalMean(2,4),2.)
         self.assertAlmostEqual(sam.normalVar(2,4),16.)
@@ -322,6 +328,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),3.5,delta=3.5*.01)
 
     def testGammaDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.gammaPDF(4.,1,-3)
+        with self.assertRaises(ValueError):
+            sam.gammaCDF(2.,0.,1.)
+        with self.assertRaises(ValueError):
+            sam.gammaMode(10.,-np.inf)
         self.assertAlmostEqual(sam.gammaMean(3,4),.75)
         self.assertAlmostEqual(sam.gammaVar(3,4),3./16)
         self.assertAlmostEqual(sam.gammaStd(3,4),sqrt(3)/4.)
@@ -332,6 +344,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),3./4,delta=.75*.01)
 
     def testInvGammaDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.invGammaPDF(4.,1,-3)
+        with self.assertRaises(ValueError):
+            sam.invGammaCDF(2.,0.,1.)
+        with self.assertRaises(ValueError):
+            sam.invGammaMode(10.,-np.inf)
         self.assertAlmostEqual(sam.invGammaMean(3,4),2.)
         self.assertAlmostEqual(sam.invGammaVar(3,4),4.)
         self.assertAlmostEqual(sam.invGammaStd(3,4),2.)
@@ -342,6 +360,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),2.,delta=2*.01)
 
     def testBetaDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.betaPDF(.3,1,-3)
+        with self.assertRaises(ValueError):
+            sam.betaCDF(2.,0.,1.)
+        with self.assertRaises(ValueError):
+            sam.betaMode(10.,-np.inf)
         self.assertAlmostEqual(sam.betaMean(3,4),3./7)
         self.assertAlmostEqual(sam.betaVar(3,4),.0306122)
         self.assertAlmostEqual(sam.betaStd(3,4),0.17496355305)
@@ -352,6 +376,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),3./7,delta=3./7.*.01)
 
     def testPoissonDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.poissonPDF(3,-1.5)
+        with self.assertRaises(ValueError):
+            sam.poissonStd(0.)
+        with self.assertRaises(ValueError):
+            sam.betaMode(-1.,3.)
         self.assertAlmostEqual(sam.poissonMean(2.4),2.4)
         self.assertAlmostEqual(sam.poissonVar(2.4),2.4)
         self.assertAlmostEqual(sam.poissonStd(2.4),sqrt(2.4))
@@ -362,6 +392,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),3.4,delta=3.4*.01)
 
     def testExponentialDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.exponentialPDF(3,-1.5)
+        with self.assertRaises(ValueError):
+            sam.exponentialStd(-3.)
+        with self.assertRaises(ValueError):
+            sam.exponentialMode(0.)
         self.assertAlmostEqual(sam.exponentialMean(2.4),1./2.4)
         self.assertAlmostEqual(sam.exponentialVar(2.4),2.4**-2)
         self.assertAlmostEqual(sam.exponentialStd(2.4),1./2.4)
@@ -372,6 +408,12 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a),1./3.4,delta=1./3.4 * .01)
 
     def testBinomialDistribution(self):
+        with self.assertRaises(ValueError):
+            sam.binomialPDF(-3,-4,.6)
+        with self.assertRaises(ValueError):
+            sam.binomialVar(5,1.1)
+        with self.assertRaises(ValueError):
+            sam.binomialMode(23,-.2)
         self.assertAlmostEqual(sam.binomialMean(10,.4),4.)
         self.assertAlmostEqual(sam.binomialVar(10,.4),.4*.6*10.)
         self.assertAlmostEqual(sam.binomialStd(10,.4),sqrt(.4*.6*10.))
