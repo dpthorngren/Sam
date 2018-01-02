@@ -129,7 +129,7 @@ cdef class Sam:
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
     cpdef object addMetropolis(self, covariance=?, Size dStart=?, Size dStop=?)
-    cpdef object addAdaptiveMetropolis(self, covariance=?, int adaptAfter=?, int refreshPeriod=?, double scaling=?, double eps=?,  Size dStart=?, Size dStop=?)
+    cpdef object addAdaptiveMetropolis(self, covariance=?, int adaptAfter=?, int recordAfter=?, int refreshPeriod=?, double scaling=?, double eps=?,  Size dStart=?, Size dStop=?)
     cpdef object addHMC(self, Size nSteps, double stepSize, Size dStart=?, Size dStop=?)
     cpdef object printSamplers(self)
     cpdef object clearSamplers(self)

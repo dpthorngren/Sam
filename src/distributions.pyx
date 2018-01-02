@@ -131,7 +131,7 @@ cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] o
         output[i] = normalRand(engine=engine)
     cdef int n = d
     cdef int increment = 1
-    blas.dtrmv('U','N','N',&n,&covChol[0,0],&n,&output[0],&increment)
+    blas.dtrmv('U','T','N',&n,&covChol[0,0],&n,&output[0],&increment)
     for i in range(d):
         output[i] += mean[i]
     return output

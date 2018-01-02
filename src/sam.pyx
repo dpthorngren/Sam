@@ -364,14 +364,18 @@ cdef class Sam:
         cdef double[:,:] covar = <double[:n,:n]> &ddata[0][2+n]
         cdef double[:,:] covChol = <double[:n,:n]> &ddata[0][2+n+n*n]
         cdef int* t = &idata[0][0]
-        self.onlineCovar(mu,covar,self.x,t[0],scaling,eps)
-        t[0] += 1
+        cdef int adaptAfter = idata[0][1]
+        cdef int recordAfter = idata[0][2]
+        cdef int refreshPeriod = idata[0][3]
+        if t[0] > recordAfter:
+            self.onlineCovar(mu,covar,self.x,t[0],scaling,eps)
         # TODO: Add update frequency option for adaptive step
-        if (t[0] >= idata[0][1]) and (t[0]%idata[0][2] == 0):
+        if (t[0] >= adaptAfter) and ((t[0]-adaptAfter)%refreshPeriod == 0):
             chol = cholesky(np.asarray(covar))
             for i in range(covar.shape[0]):
                 for j in range(i):
                     covChol[i,j] = chol[i,j]
+        t[0] += 1
         return self.metropolisCorrStep(dStart, dStop, covChol,logP0)
 
     cdef double metropolisStep(self, Size dStart, Size dStop, double logP0=nan) except 999.:
@@ -545,7 +549,7 @@ cdef class Sam:
         return
 
 
-    cpdef object addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int refreshPeriod=100, double scaling=-1, double eps=1e-9, Size dStart=0, Size dStop=-1):
+    cpdef object addAdaptiveMetropolis(self, covariance=None, int adaptAfter=-1, int recordAfter=-1, int refreshPeriod=100, double scaling=-1, double eps=1e-9, Size dStart=0, Size dStop=-1):
         '''Adds an Adaptive Metropolis sampler to the sampling procedure.
 
         This sampler is the Adaptive Metropolis (AM) algorithm presented in
@@ -564,7 +568,12 @@ cdef class Sam:
             adaptAfter: How many times the sampler must be called (and thereby
                 collect samples) before the adapted covariance is used.  Must
                 be larger than the number of dimensions being adapted to.  The
-                default (triggered by any negative number) is three times that.
+                default (triggered by any negative number) is three times that
+                or 100, whichever is greater.
+            recordAfter: How many times the sampler must be called before the
+                adapted covariance begins to take in samples.  This is to
+                prevent pre-burned-in samples from being used to adapt with,
+                which can dramatically reduce the effectiveness of sampling.
             refreshPeriod: How many times the sampler is called between the
                 cholesky of the covariance being updated (the expensive part).
             scaling:  How much to scale the estimated covariance to get the 
@@ -586,12 +595,15 @@ cdef class Sam:
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
         assert refreshPeriod > 0
         if adaptAfter < 0:
-            adaptAfter = 3*(dStop-dStart)
-        assert dStop-dStart < adaptAfter
+            adaptAfter = max(3*(dStop-dStart),100)
+        if recordAfter < 0:
+            recordAfter = <int>(adaptAfter/2.)
+        assert recordAfter < adaptAfter, "Must begin recording before adaptation can begin."
+        assert dStop-dStart < adaptAfter, "Must have enough samples to compute the covariance before adaptation can begin."
         if scaling <= 0:
             scaling = 5.74/self.nDim
         if covariance is None:
-            covariance = np.diag(np.asarray(self.scale)[dStart:dStop])
+            covariance = np.diag(np.asarray(self.scale)[dStart:dStop])**2
         assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
         cdef SamplerData samp
         covChol = cholesky(covariance)
@@ -600,6 +612,7 @@ cdef class Sam:
         samp.dStop = dStop
         samp.idata.push_back(0)
         samp.idata.push_back(adaptAfter)
+        samp.idata.push_back(recordAfter)
         samp.idata.push_back(refreshPeriod)
         samp.ddata = np.concatenate([[eps,scaling],np.zeros(covariance.shape[0]),
                                           np.zeros(covariance.shape[0]**2),
@@ -653,7 +666,7 @@ cdef class Sam:
             return np.matmul(chol,chol.T)
         elif self.samplers[i].samplerType == 3:
             n = self.samplers[i].dStop - self.samplers[i].dStart
-            return np.asarray(self.samplers[i].ddata[1+n:1+n+n**2]).reshape(n,n)
+            return np.asarray(self.samplers[i].ddata[2+n:2+n+n**2]).reshape(n,n)
 
 
     cpdef object printSamplers(self):
