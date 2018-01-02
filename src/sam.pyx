@@ -145,7 +145,7 @@ cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*k
 cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=None):
     # Match the kernel string to a covariance function
     cdef double (*kernelPtr)(double)
-    if kernel.lower() == "squaredExp":
+    if kernel.lower() == "squaredexp":
         kernelPtr = &gpSqExpCovariance
     elif kernel.lower() == "exp":
         kernelPtr = &gpExpCovariance
