@@ -168,6 +168,8 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+        for i in range(50000):
+            self.assertAlmostEqual(a.sampleLogProb[i],logProb1(a.samples[i],None,False))
 
     def testThreading(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
@@ -193,6 +195,9 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+        for i in range(50000):
+            for j in range(5):
+                self.assertAlmostEqual(a.sampleLogProb[j,i],logProb1(a.samples[j,i],None,False))
 
     def testThreading2(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
@@ -216,6 +221,8 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
+        for i in range(len(a.resultLogProb)):
+            self.assertAlmostEqual(a.resultLogProb[i],logProb1(a.results[i],None,False))
 
     def test2DHMC(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),

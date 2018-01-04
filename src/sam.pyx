@@ -232,30 +232,33 @@ cdef class Sam:
         '''
         cdef size_t s
         cdef Size m
-        cdef double logP0 = nan
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
-                logP0 = self.metropolisStep(
+                self.lastLogProb = self.metropolisStep(
                     self.samplers[s].dStart,
-                    self.samplers[s].dStop, logP0)
+                    self.samplers[s].dStop,
+                    self.lastLogProb)
             elif self.samplers[s].samplerType == 1:
-                logP0 = self.hmcStep(
+                self.lastLogProb = self.hmcStep(
                     self.samplers[s].idata[0],
                     self.samplers[s].ddata[0],
                     self.samplers[s].dStart,
-                    self.samplers[s].dStop, logP0)
+                    self.samplers[s].dStop,
+                    self.lastLogProb)
             elif self.samplers[s].samplerType == 2:
                 m = self.samplers[s].dStop - self.samplers[s].dStart
-                logP = self.metropolisCorrStep(
+                self.lastLogProb = self.metropolisCorrStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
-                    <double[:m,:m]> &self.samplers[s].ddata[0],logP0)
+                    <double[:m,:m]> &self.samplers[s].ddata[0],
+                    self.lastLogProb)
             elif self.samplers[s].samplerType == 3:
-                logP = self.adaptiveStep(
+                self.lastLogProb = self.adaptiveStep(
                     self.samplers[s].dStart,
                     self.samplers[s].dStop,
                     &self.samplers[s].ddata,
-                    &self.samplers[s].idata, logP0)
+                    &self.samplers[s].idata,
+                    self.lastLogProb)
         return 0
 
     cdef double hmcStep(self,Size nSteps, double stepSize, Size dStart, Size dStop, double logP0=nan) except 999.:
@@ -282,7 +285,7 @@ cdef class Sam:
             one MCMC step.
         '''
         cdef Size d, i
-        cdef double new = inf
+        cdef double logP1 = inf
         for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
             if d >= dStart and d < dStop:
@@ -302,7 +305,7 @@ cdef class Sam:
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
             self.bouncingMove(stepSize, dStart, dStop)
-            new = self.logProbability(self.xPropose, self.gradient,True)
+            logP1 = self.logProbability(self.xPropose, self.gradient,True)
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
@@ -312,13 +315,13 @@ cdef class Sam:
             kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
-        if isnan(new) or isnan(logP0):
+        if isnan(logP1) or isnan(logP0):
             raise ValueError("Got NaN for the log probability!")
-        if (exponentialRand(1.) > logP0 - kinetic - new + kineticPropose):
+        if (exponentialRand(1.) > logP0 - kinetic - logP1 + kineticPropose):
             for d in range(dStart,dStop):
                 self.acceptedView[d] += 1
                 self.x[d] = self.xPropose[d]
-            return new
+            return logP1
         return logP0
 
     cdef int bouncingMove(self, double stepSize, Size dStart, Size dStop) except -1:
@@ -715,6 +718,7 @@ cdef class Sam:
         cdef Size d
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
+            self.sampleLogProbView[i] = self.lastLogProb
         return 0
 
     cdef int recordStats(self) except -1:
@@ -773,6 +777,7 @@ cdef class Sam:
         self.burnIn = burnIn
         self.thinning = thinning
         self.sampleStats.clear()
+        self.lastLogProb = nan
         self.collectStats = collectStats
         if collectStats:
             self.sampleStats.resize(self.nDim)
@@ -786,11 +791,13 @@ cdef class Sam:
                 x0 = np.array([x0]*threads)
             p = mp.Pool(threads)
             try:
-                self.samples, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
+                self.samples, self.sampleLogProb, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
                 p.terminate()
                 self.samples = np.array(self.samples)
+                self.sampleLogProb = np.array(self.sampleLogProb)
                 self.accepted = np.array(self.accepted)
                 self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
+                self.resultLogProb = np.reshape(self.sampleLogProb,(threads*self.nSamples))
                 return self.samples
             except KeyboardInterrupt:
                 p.terminate()
@@ -799,6 +806,7 @@ cdef class Sam:
         else:
             self(x0)
             self.results = self.samples
+            self.resultLogProb = self.sampleLogProb
             return self.samples
 
     def __call__(self, double[:] x0):
@@ -820,7 +828,9 @@ cdef class Sam:
         for d in range(self.nDim):
             self.x[d] = x0[d]
         self.samples = np.empty((self.nSamples,self.recordStop-self.recordStart),dtype=np.double)
+        self.sampleLogProb = np.empty((self.nSamples),dtype=np.double)
         self.sampleView = self.samples
+        self.sampleLogProbView = self.sampleLogProb
         cdef Size totalDraws = self.nSamples + self.burnIn
         for i in range(totalDraws):
             for j in range(self.thinning+1):
@@ -837,7 +847,7 @@ cdef class Sam:
         if self.showProgress:
             self.progressBar(self.nSamples,self.nSamples,"Sampling")
             print ""
-        return self.samples, self.accepted
+        return self.samples, self.sampleLogProb, self.accepted
 
     cpdef object getStats(self):
         '''Returns running-average and standard deviation statistics.
@@ -1179,7 +1189,8 @@ cdef class Sam:
             filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn,
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
-            samples = self.samples, acceptance = accept, logProbSource = logProbSource, stats=stats)
+            samples = self.samples, acceptance = accept, logProbSource = logProbSource,
+            sampleLogProb = self.sampleLogProb, stats=stats,)
 
     def __getstate__(self):
         '''Prepares internal memory for pickling.
@@ -1191,7 +1202,7 @@ cdef class Sam:
             A pickleable tuple of the internal variables.
         '''
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
-                self.recordStop, self.collectStats, self.readyToRun, self.samplers,
+                self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
                 self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
                 self.hasBoundaries, self.showProgress)
         return info
@@ -1210,7 +1221,7 @@ cdef class Sam:
             None
         '''
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
-         self.recordStop, self.collectStats, self.readyToRun, self.samplers,
+         self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
          self.hasBoundaries, self.showProgress) = info
         defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))

@@ -103,12 +103,16 @@ cdef class Sam:
     cdef double[:] xPropose
     cdef double[:] momentum
     cdef double[:] gradient
+    cdef double lastLogProb
 
     # Output
     cdef readonly object samples
     cdef readonly object results
+    cdef readonly object sampleLogProb
+    cdef readonly object resultLogProb
     cdef public object initialPosition
     cdef double[:,:] sampleView
+    cdef double[:] sampleLogProbView
     cdef public object accepted
     cdef int[:] acceptedView
     cdef Size trials
