@@ -108,11 +108,11 @@ cdef class Sam:
     # Output
     cdef readonly object samples
     cdef readonly object results
-    cdef readonly object sampleLogProb
-    cdef readonly object resultLogProb
+    cdef readonly object samplesLogProb
+    cdef readonly object resultsLogProb
     cdef public object initialPosition
     cdef double[:,:] sampleView
-    cdef double[:] sampleLogProbView
+    cdef double[:] samplesLogProbView
     cdef public object accepted
     cdef int[:] acceptedView
     cdef Size trials
@@ -129,6 +129,9 @@ cdef class Sam:
     cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?, bint showProgress=?)
     cpdef object getStats(self)
     cpdef object getAcceptance(self)
+    cpdef object getBIC(self,prior,nPoints)
+    cpdef object getAIC(self,prior)
+    cpdef object getDIC(self,prior)
     cpdef object testGradient(self, double[:] x0, double eps=?)
     cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)

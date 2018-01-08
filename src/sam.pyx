@@ -42,23 +42,46 @@ cpdef int choleskyInplace(double[:,:] x) except -1:
 
 
 # Helper functions
-def getDIC(logLike, samples, full_output=False):
-    l = np.array([logLike(i) for i in samples])
-    meanLike = np.mean(l)
-    nEff = .5*np.var(l)
-    if full_output:
-        return meanLike, nEff, -2*meanLike + nEff
+def getDIC(logLikeSamples):
+    '''A simple helper function to compute the DIC given its arguments.
+
+    args:
+        logLikeSamples: the log (base e) likelihood of MCMC samples of
+            the model of interest.
+
+    Returns:
+        The estimated DIC for the model as a floating point number.
+    '''
+    meanLike = np.mean(logLikeSamples)
+    nEff = .5*np.var(logLikeSamples)
     return -2*meanLike + nEff
 
 
-def getAIC(loglike, samples):
-    lMax = max([loglike(i) for i in samples])
-    return 2*np.shape(samples)[1] - 2*lMax
+def getAIC(maxLogLike, nParams):
+    '''A simple helper function to compute the AIC given its arguments.
+
+    args:
+        maxLogLike: the log (base e) of the maximum likelihood of the model.
+        nParams: the number of parameters used in the model
+
+    Returns:
+        The estimated AIC for the model as a floating point number.
+    '''
+    return 2*nParams - 2*maxLogLike
 
 
-def getBIC(loglike, samples, nPoints):
-    lMax = max([loglike(i) for i in samples])
-    return log(nPoints)*np.shape(samples)[1] - 2 * lMax
+def getBIC(maxLogLike, nParams, nPoints):
+    '''A simple helper function to compute the BIC given its arguments.
+
+    args:
+        maxLogLike: the log (base e) of the maximum likelihood of the model.
+        nParams: the number of parameters used in the model
+        nPoints: the number of data points used in evaluating the likelihood
+
+    Returns:
+        The estimated BIC for the model as a floating point number.
+    '''
+    return log(nPoints)*nParams - 2*maxLogLike
 
 
 def acf(x, length=50):
@@ -718,7 +741,7 @@ cdef class Sam:
         cdef Size d
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
-            self.sampleLogProbView[i] = self.lastLogProb
+            self.samplesLogProbView[i] = self.lastLogProb
         return 0
 
     cdef int recordStats(self) except -1:
@@ -791,13 +814,13 @@ cdef class Sam:
                 x0 = np.array([x0]*threads)
             p = mp.Pool(threads)
             try:
-                self.samples, self.sampleLogProb, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
+                self.samples, self.samplesLogProb, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
                 p.terminate()
                 self.samples = np.array(self.samples)
-                self.sampleLogProb = np.array(self.sampleLogProb)
+                self.samplesLogProb = np.array(self.samplesLogProb)
                 self.accepted = np.array(self.accepted)
                 self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
-                self.resultLogProb = np.reshape(self.sampleLogProb,(threads*self.nSamples))
+                self.resultsLogProb = np.reshape(self.samplesLogProb,(threads*self.nSamples))
                 return self.samples
             except KeyboardInterrupt:
                 p.terminate()
@@ -806,7 +829,7 @@ cdef class Sam:
         else:
             self(x0)
             self.results = self.samples
-            self.resultLogProb = self.sampleLogProb
+            self.resultsLogProb = self.samplesLogProb
             return self.samples
 
     def __call__(self, double[:] x0):
@@ -828,9 +851,9 @@ cdef class Sam:
         for d in range(self.nDim):
             self.x[d] = x0[d]
         self.samples = np.empty((self.nSamples,self.recordStop-self.recordStart),dtype=np.double)
-        self.sampleLogProb = np.empty((self.nSamples),dtype=np.double)
+        self.samplesLogProb = np.empty((self.nSamples),dtype=np.double)
         self.sampleView = self.samples
-        self.sampleLogProbView = self.sampleLogProb
+        self.samplesLogProbView = self.samplesLogProb
         cdef Size totalDraws = self.nSamples + self.burnIn
         for i in range(totalDraws):
             for j in range(self.thinning+1):
@@ -847,7 +870,7 @@ cdef class Sam:
         if self.showProgress:
             self.progressBar(self.nSamples,self.nSamples,"Sampling")
             print ""
-        return self.samples, self.sampleLogProb, self.accepted
+        return self.samples, self.samplesLogProb, self.accepted
 
     cpdef object getStats(self):
         '''Returns running-average and standard deviation statistics.
@@ -890,6 +913,78 @@ cdef class Sam:
         '''
         assert self.trials > 0, "The number of trials must be greater than zero to compute the acceptance rate."
         return self.accepted.astype(np.double)/self.trials
+
+    cpdef object getDIC(self,prior):
+        '''Approximates the DIC from the sampled values.
+
+        This function needs to know the prior because only the full posterior
+        probability was given to the sampler at runtime.  The value of the
+        prior is subtracted off, and the sample with the maximum resulting
+        likelihood is identified.  The BIC is computed assuming that this is
+        the global maximum likelihood; for a well sampled posterior, this will
+        be a good approximation.
+
+        Args:
+            prior: a function which takes an array of parameters (same length
+                as the logProbability function) and returns the prior for them.
+
+        Returns:
+            The estimated DIC for the model as a floating point number.
+        '''
+        assert self.trials > 0, "The number of trials must be greater than zero to compute a DIC."
+        l = np.array([logP-prior(theta) for logP, theta in zip(self.resultsLogProb,self.results)])
+        return getDIC(l)
+
+    cpdef object getAIC(self,prior):
+        '''Approximates the AIC from the sampled values.
+
+        This function needs to know the prior because only the full posterior
+        probability was given to the sampler at runtime.  The value of the
+        prior is subtracted off, and the sample with the maximum resulting
+        likelihood is identified.  The BIC is computed assuming that this is
+        the global maximum likelihood; for a well sampled posterior, this will
+        be a good approximation.
+
+        This function shouldn't be used in a heirarchical setting, as the AIC
+        is not defined for that case (the number of parameters isn't clearly
+        defined).  Consider the DIC instead.
+
+        Args:
+            prior: a function which takes an array of parameters (same length
+                as the logProbability function) and returns the prior for them.
+
+        Returns:
+            The estimated AIC for the model as a floating point number.
+        '''
+        assert self.trials > 0, "The number of trials must be greater than zero to compute a AIC."
+        lMax = max([logP-prior(theta) for logP, theta in zip(self.resultsLogProb,self.results)])
+        return getAIC(lMax,self.nDim)
+
+    cpdef object getBIC(self,prior,nPoints):
+        '''Approximates the BIC from the sampled values.
+
+        This function needs to know the prior because only the full posterior
+        probability was given to the sampler at runtime.  The value of the
+        prior is subtracted off, and the sample with the maximum resulting
+        likelihood is identified.  The BIC is computed assuming that this is
+        the global maximum likelihood; for a well sampled posterior, this will
+        be a good approximation.
+
+        This function shouldn't be used in a heirarchical setting, as the BIC
+        is not defined for that case (the number of parameters isn't clearly
+        defined).  Consider the DIC instead.
+
+        Args:
+            prior: a function which takes an array of parameters (same length
+                as the logProbability function) and returns the prior for them.
+            nPoints: The number of data points used to evaluate the likelihood.
+
+        Returns:
+            The estimated BIC for the model as a floating point number.
+        '''
+        assert self.trials > 0, "The number of trials must be greater than zero to compute a BIC."
+        lMax = max([logP-prior(theta) for logP, theta in zip(self.resultsLogProb,self.results)])
+        return getBIC(lMax,self.nDim,nPoints)
 
     cpdef object summary(self, paramIndices=None, returnString=False):
         '''Prints/returns some summary statistics of the previous sampling run.
@@ -1190,7 +1285,7 @@ cdef class Sam:
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource,
-            sampleLogProb = self.sampleLogProb, stats=stats,)
+            samplesLogProb = self.samplesLogProb, stats=stats,)
 
     def __getstate__(self):
         '''Prepares internal memory for pickling.

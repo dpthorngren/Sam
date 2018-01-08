@@ -50,34 +50,42 @@ class SamTester(unittest.TestCase):
         self.assertRaises(ValueError,sam.normalCDF,1,0,-1)
 
     def testModelSelection(self):
-        samples = np.random.rand(10000,1)
-        mu = sam.uniformMean()
-        sigma = sam.uniformStd()
+        # This is a roundabout way to test them, but it does work
 
         def rightModel(x):
-            return 1.
+            return sam.normalLogPDF(x,0,1.)
 
         def wrongModel(x):
-            return sam.normalLogPDF(mu,sigma)
+            return sam.normalLogPDF(x,0,2.)
+
+        def flatPrior(x):
+            return 0.
+
+        a = sam.Sam(rightModel,.5)
+        a.run(100000,.5,showProgress=False)
+        b = sam.Sam(wrongModel,.5)
+        b.run(100000,.5,showProgress=False)
+        assert not any(np.isnan(a.resultsLogProb))
+        assert not any(np.isnan(b.resultsLogProb))
 
         # DIC
-        right = sam.getDIC(rightModel,samples)
-        wrong = sam.getDIC(wrongModel,samples)
+        right = a.getDIC(flatPrior)
+        wrong = b.getDIC(flatPrior)
         self.assertLessEqual(right, wrong)
-        self.assertAlmostEqual(wrong,1.88253526515)
-        self.assertAlmostEqual(right,-2.0)
+        self.assertAlmostEqual(right,3.,delta=.2)
+        self.assertAlmostEqual(wrong,4.4,delta=.2)
         # AIC
-        right = sam.getAIC(rightModel,samples)
-        wrong = sam.getAIC(wrongModel,samples)
+        right = a.getAIC(flatPrior)
+        wrong = b.getAIC(flatPrior)
         self.assertLessEqual(right, wrong)
-        self.assertAlmostEqual(wrong,3.88253526515)
-        self.assertAlmostEqual(right,0.0)
+        self.assertAlmostEqual(right,3.837,delta=.01)
+        self.assertAlmostEqual(wrong,5.224,delta=.01)
         # BIC
-        right = sam.getBIC(rightModel,samples,1000)
-        wrong = sam.getBIC(wrongModel,samples,1000)
+        right = a.getBIC(flatPrior,1000)
+        wrong = b.getBIC(flatPrior,1000)
         self.assertLessEqual(right, wrong)
-        self.assertAlmostEqual(wrong,8.79029054413)
-        self.assertAlmostEqual(right,4.90775527898)
+        self.assertAlmostEqual(right,8.74,delta=.01)
+        self.assertAlmostEqual(wrong,10.13,delta=.01)
         return
 
     def testACF(self):
@@ -169,7 +177,7 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
         for i in range(50000):
-            self.assertAlmostEqual(a.sampleLogProb[i],logProb1(a.samples[i],None,False))
+            self.assertAlmostEqual(a.samplesLogProb[i],logProb1(a.samples[i],None,False))
 
     def testThreading(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
@@ -197,7 +205,7 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
         for i in range(50000):
             for j in range(5):
-                self.assertAlmostEqual(a.sampleLogProb[j,i],logProb1(a.samples[j,i],None,False))
+                self.assertAlmostEqual(a.samplesLogProb[j,i],logProb1(a.samples[j,i],None,False))
 
     def testThreading2(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
@@ -221,8 +229,8 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:,0].std(),sam.gammaStd(20,40),delta=.01)
         self.assertAlmostEqual(samples[:,1].mean(),5.,delta=.1)
         self.assertAlmostEqual(samples[:,1].std(),1.,delta=.1)
-        for i in range(len(a.resultLogProb)):
-            self.assertAlmostEqual(a.resultLogProb[i],logProb1(a.results[i],None,False))
+        for i in range(len(a.resultsLogProb)):
+            self.assertAlmostEqual(a.resultsLogProb[i],logProb1(a.results[i],None,False))
 
     def test2DHMC(self):
         a = sam.Sam(logProb1,np.array([.5,.5]),
