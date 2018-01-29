@@ -159,8 +159,8 @@ cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*k
         for j in range(jMax):
             distance = 0
             for k in range(p):
-                distance += ((x[i,k]-xPrime[j,k])/params[0])**2
-            output[i,j] = params[1]*kernel(distance)
+                distance += (x[i,k]-xPrime[j,k])**2
+            output[i,j] = params[1]*kernel(distance/(params[0]*params[0]))
             if isSymmetric and (i==j):
                 output[i,j] += params[2]
     return 0
