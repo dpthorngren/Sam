@@ -107,8 +107,8 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess(self):
         x = np.linspace(0,10,100)
         y = np.sin(x)
-        loglike = sam.gaussianProcess(x[:,np.newaxis],y,np.array([10,.5,0]),kernel='exp')
-        gpMean, gpVar = sam.gaussianProcess(x[:,np.newaxis],y,np.array([10,.5,0]),np.array([[5.,]]),'exp')
+        loglike = sam.gaussianProcess(x,y,np.array([10,.5,0]),kernel='exp')
+        gpMean, gpVar = sam.gaussianProcess(x[:,np.newaxis],y,np.array([10,.5,0]),np.array([5.]),'exp')
         gpVar = np.sqrt(np.diag(gpVar))
         self.assertAlmostEqual(gpMean[0],-0.957698488,delta=.01)
         self.assertAlmostEqual(gpVar[0],0.0502516,delta=.01)

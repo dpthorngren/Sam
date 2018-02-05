@@ -166,6 +166,11 @@ cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*k
     return 0
 
 cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=None):
+    # Interpret inputs
+    if x.ndim == 1:
+        x = x[:,np.newaxis]
+    assert x.ndim ==2, "x must be 1 or 2 dimensional."
+
     # Match the kernel string to a covariance function
     cdef double (*kernelPtr)(double)
     if kernel.lower() == "squaredexp":
@@ -177,7 +182,7 @@ cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=
     elif kernel.lower() == "matern52":
         kernelPtr = &matern52
     else:
-        raise ValueError("Kernel name not recognized"+str(kernel))
+        raise ValueError("Kernel name not recognized: "+str(kernel))
 
     # Get the kernel cholesky
     if kernelChol is None:
@@ -187,11 +192,10 @@ cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=
 
     # Make prediction if test points are provided
     if xTest is not None:
-        if x.ndim != 1:
-            assert xTest.ndim == 2
-            assert x.shape[1] == xTest.shape[1]
-        else:
-            assert xTest.ndim == 1
+        if xTest.ndim == 1:
+            xTest = xTest[:,np.newaxis]
+        assert xTest.ndim == 2, "xTest must be 1 or 2 dimensional"
+        assert x.shape[1] == xTest.shape[1], "xTest shape is incompatible with x."
         kernelChol[np.triu_indices(len(x),1)] = 0.
         alpha = solve_triangular(kernelChol.T,solve_triangular(kernelChol,y,lower=True))
         KTest = np.empty((x.shape[0],xTest.shape[0]))
@@ -563,7 +567,7 @@ cdef class Sam:
         assert dStop > 0 and dStop <= self.nDim, "The stop parameter must be between 1 and nDim (inclusive)."
         cdef SamplerData samp
         if covariance is not None:
-            assert covariance.shape[0] == covariance.shape[1] == dStop-dStart
+            assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
             samp.samplerType = 2
             covChol = cholesky(covariance)
             samp.ddata = covChol.flatten()
