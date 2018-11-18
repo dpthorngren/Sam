@@ -16,13 +16,17 @@ Sam requires the following libraries to compile:
 
 * [Cython](https://cython.org/)
 * [Numpy](http://www.numpy.org/)
-* [Scipy](https://www.scipy.org/)
-* [Boost.Random](https://www.boost.org/doc/libs/1_68_0/doc/html/boost_random.html)
-* [Boost.Special](https://www.boost.org/doc/libs/1_68_0/libs/math/doc/html/special.html)
+* [Boost](https://www.boost.org/) -- specifically the Random, Special, and Math libraries.
 
-Once these are installed, Sam is compiled with the following command:
+Once these are installed, you can install any remaining missing python dependencies (Scipy and Multiprocessing) and compile Sam with the following command from the Sam directory:
 
-`python setup.py build_ext --inplace`
+`pip install --user .`
+
+If you prefer not to use pip, you may instead use:
+
+`python setup.py install --user`
+
+Finally, for a system-wide install, you may omit the --user, although this may require elevated user privileges.
 
 Example Usage
 -------------
