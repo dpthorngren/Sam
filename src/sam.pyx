@@ -760,11 +760,12 @@ cdef class Sam:
             self.sampleStats[d](self.x[d])
         return 0
 
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True):
+    cpdef object run(self, Size nSamples, x, Size burnIn=0, Size thinning=0, Size recordStart=0, Size recordStop=-1, bint collectStats=False, Size threads=1, bint showProgress=True):
         '''Begin sampling the parameters from the given logProbability dist.
 
         Args:
             nSamples: The desired number of samples to record per thread.
+            x: The initial position(s) to start the sampler at.
             burnIn:  The number of MCMC steps to take before recording begins.
             thinning: The number of MCMC steps to take between recordings and
                 burn-in steps.  This directly multiplies the amount of work
@@ -789,9 +790,9 @@ cdef class Sam:
             is also stored internally and can be accessed later using other
             functions.
         '''
+        x0 = np.atleast_1d(x).astype(np.double)
         assert nSamples > 0, "The number of samples must be greater than 0."
         assert threads > 0, "Threads must be > 0."
-        x0 = np.atleast_1d(x0)
         assert (x0.shape == (self.nDim,) or x0.shape == (threads,self.nDim)), "The initial guess must have shape [nDim], or [threads, nDim]."
         self.initialPosition = x0.copy()
         self.showProgress = showProgress
@@ -1035,7 +1036,7 @@ cdef class Sam:
         if self.samples.ndim == 3:
             return np.array([acf(self.samples[i,:,i]) for i in range(self.samples.shape[0])])
 
-    cpdef object testGradient(self, double[:] x0, double eps=1e-5):
+    cpdef object testGradient(self, x, double eps=1e-5):
         '''Compares gradients from logProbability and finite difference method
 
         This function computes a gradient estimate using the finite difference
@@ -1043,7 +1044,7 @@ cdef class Sam:
         function (specified at initialization).
 
         Args:
-            x0: The central location to compute the gradient at.
+            x: The central location to compute the gradient at.
             eps: scales the finite difference method.  Secondary samples are
                 taken in the direction of each parameter a distance scale*eps
                 away.
@@ -1052,6 +1053,7 @@ cdef class Sam:
             The relative difference between the logProbability gradient L and
             the finite difference gradient F: (L-F)/L+F)
         '''
+        cdef double[:] x0 = np.atleast_1d(x).astype(np.double)
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         cdef Size d
         for d in range(self.nDim):
@@ -1070,7 +1072,8 @@ cdef class Sam:
             x0[d] -= self.scale[d]*eps
         return output
 
-    cpdef object gradientDescent(self, double[:] x0, double step=.1, double eps=1e-10):
+    cpdef object gradientDescent(self, x, double step=.1, double eps=1e-10):
+        cdef double[:] x0 = np.atleast_1d(x).astype(np.double)
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert step > 0 and eps > 0, "Both the step size and the error bound must be positive."
         cdef Size d, i
@@ -1095,7 +1098,8 @@ cdef class Sam:
             output[d] = self.x[d]
         return output
 
-    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
+    cpdef object simulatedAnnealing(self, x, Size nSteps=200, Size nQuench=200, double T0=5, double width=1.0):
+        cdef double[:] x0 = np.atleast_1d(x).astype(np.double)
         assert x0.size == self.nDim, "The starting position given has wrong number of dimensions."
         assert nSteps > 0 and T0 > 0 and width > 0, "The step number, initial temperature, and width must be positive"
         cdef Size d, i
@@ -1212,7 +1216,7 @@ cdef class Sam:
         Returns:
             An instantiated object of the class.
         '''
-        scale = np.atleast_1d(scale)
+        scale = np.atleast_1d(scale).astype(np.double)
         self.nDim = scale.size
         assert logProbability is None or callable(logProbability), "The logProbability is neither callable nor None."
         if upperBounds is not None:

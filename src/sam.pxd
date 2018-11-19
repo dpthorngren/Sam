@@ -126,15 +126,15 @@ cdef class Sam:
     cdef int sample(self) except -1
 
     # User-called functions
-    cpdef object run(self, Size nSamples, object x0, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?, bint showProgress=?)
+    cpdef object run(self, Size nSamples, x, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?, bint showProgress=?)
     cpdef object getStats(self)
     cpdef object getAcceptance(self)
     cpdef object getBIC(self,prior,nPoints)
     cpdef object getAIC(self,prior)
     cpdef object getDIC(self,prior)
-    cpdef object testGradient(self, double[:] x0, double eps=?)
-    cpdef object gradientDescent(self, double[:] x0, double step=?, double eps=?)
-    cpdef object simulatedAnnealing(self, double[:] x0, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
+    cpdef object testGradient(self, x, double eps=?)
+    cpdef object gradientDescent(self, x, double step=?, double eps=?)
+    cpdef object simulatedAnnealing(self, x, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)
     cpdef object addMetropolis(self, covariance=?, Size dStart=?, Size dStop=?)
     cpdef object addAdaptiveMetropolis(self, covariance=?, int adaptAfter=?, int recordAfter=?, int refreshPeriod=?, double scaling=?, double eps=?,  Size dStart=?, Size dStop=?)
     cpdef object addHMC(self, Size nSteps, double stepSize, Size dStart=?, Size dStop=?)

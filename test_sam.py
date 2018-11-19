@@ -43,8 +43,8 @@ class SamTester(unittest.TestCase):
         self.assertRaises(AssertionError, a.getStats)
         self.assertRaises(AssertionError, a.summary)
         self.assertRaises(ValueError, a.run, 1000, [.5, .5])
-        self.assertRaises(AttributeError, a.gradientDescent, np.array([.5, .5]))
-        self.assertRaises(ValueError, a.simulatedAnnealing, np.array([.5, .5]))
+        self.assertRaises(AttributeError, a.gradientDescent, [.5, .5])
+        self.assertRaises(ValueError, a.simulatedAnnealing, [.5, .5])
         self.assertRaises(AssertionError, a.getSampler, 2)
         self.assertRaises(OverflowError, a.getSampler, -3)
         self.assertRaises(ValueError, sam.normalCDF, 1, 0, -1)
@@ -128,7 +128,7 @@ class SamTester(unittest.TestCase):
 
     def test1DMetropolis(self):
         a = sam.Sam(logProb2, .5, 0., 1.)
-        samples = a.run(20000, .5, showProgress=False)
+        samples = a.run(20000, 1, showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0], 0.)
         self.assertLessEqual(a.getAcceptance()[0], 1.)
         self.assertTrue((samples >= 0).all())
@@ -261,7 +261,7 @@ class SamTester(unittest.TestCase):
 
     def test2DGradientDescent(self):
         a = sam.Sam(logProb1, [.5, .5], lowerBounds=[0., -np.inf])
-        posteriorMax = a.gradientDescent(np.array([.5, .5]), step=.05)
+        posteriorMax = a.gradientDescent([.5, .5], step=.05)
         self.assertAlmostEqual(posteriorMax[0], 19./40., delta=1e-4)
         self.assertAlmostEqual(posteriorMax[1], 5., delta=1e-4)
 
@@ -314,7 +314,7 @@ class DistributionTester(unittest.TestCase):
         self.assertAlmostEqual(np.mean(a[:, 1]), 5., delta=.05)
         self.assertAlmostEqual(np.mean(a[:, 2]), -3., delta=.05)
         for i, c in enumerate(np.cov(a.T, ddof=0).flatten()):
-            self.assertAlmostEqual(targetCov.flatten()[i], c, delta=.01)
+            self.assertAlmostEqual(targetCov.flatten()[i], c, delta=.05)
         targetChol = np.linalg.cholesky(targetCov)
         a = np.array([sam.mvNormalRand(np.array([1., 5., -3.]), targetChol, isChol=True)
                       for i in range(100000)])
