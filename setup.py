@@ -15,7 +15,6 @@ setup(
     include_dirs=[np.get_include()],
     install_requires=[
         'scipy',
-        'numpy',
-        'multiprocessing'],
+        'numpy'],
     test_suite="test_sam.SamTester"
 )

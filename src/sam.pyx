@@ -96,7 +96,7 @@ def gelmanRubin(x,warn=True):
         if warn:
             print "Warning: the G.R. diagnostic was not designed for " +\
                 "the case where chains are not completely independent."
-        x = np.stack([x[:x.shape[0]/2],x[x.shape[0]/2:]],axis=0)
+        x = np.stack([x[:x.shape[0]//2],x[x.shape[0]//2:]],axis=0)
     elif x.ndim != 3:
         raise ValueError("Input has an invalid shape: must be 3-d.")
     n = np.shape(x)[1]
@@ -1235,7 +1235,10 @@ cdef class Sam:
         self._setMemoryViews_()
         self.pyLogProbability = logProbability
         if self.pyLogProbability is not None:
-            self.pyLogProbArgNum = len(inspect.getargspec(self.pyLogProbability).args)
+            if (sys.version_info > (3, 0)):
+                self.pyLogProbArgNum = len(inspect.signature(self.pyLogProbability).parameters)
+            else:
+                self.pyLogProbArgNum = len(inspect.getargspec(self.pyLogProbability).args)
             assert ((self.pyLogProbArgNum == 1) or (self.pyLogProbArgNum == 3)), "The logProbability function must take either one or three arguments."
         else:
             self.pyLogProbArgNum = -1
@@ -1327,8 +1330,12 @@ cdef class Sam:
          self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
          self.hasBoundaries, self.showProgress) = info
-        defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
-        np.random.seed(int(os.urandom(4).encode("hex"),16))
+        if (sys.version_info > (3, 0)):
+            defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).hex(),16))
+            np.random.seed(int(os.urandom(4).hex(),16))
+        else:
+            defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).encode("hex"),16))
+            np.random.seed(int(os.urandom(4).encode("hex"),16))
         self._setMemoryViews_()
         self.extraInitialization()
         return

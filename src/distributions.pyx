@@ -1,6 +1,7 @@
 import time
 import os
 import numpy as np
+import sys
 from scipy.linalg import solve_triangular
 cdef class RandomEngine:
     def __init__(self, unsigned long int i):
@@ -9,7 +10,10 @@ cdef class RandomEngine:
     cpdef object setSeed(self,unsigned long int i):
         self.source = mTwister(i)
 
-defaultEngine = RandomEngine(<unsigned long int>int(os.urandom(4).encode("hex"),16))
+if (sys.version_info > (3, 0)):
+    defaultEngine = RandomEngine(<unsigned long int>int(os.urandom(4).hex(),16))
+else:
+    defaultEngine = RandomEngine(<unsigned long int>int(os.urandom(4).encode("hex"),16))
 
 # ===== Uniform Distribution =====
 

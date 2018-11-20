@@ -128,7 +128,7 @@ class SamTester(unittest.TestCase):
 
     def test1DMetropolis(self):
         a = sam.Sam(logProb2, .5, 0., 1.)
-        samples = a.run(20000, 1, showProgress=False)
+        samples = a.run(100000, 1, showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0], 0.)
         self.assertLessEqual(a.getAcceptance()[0], 1.)
         self.assertTrue((samples >= 0).all())
@@ -140,7 +140,7 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb2, .5, 0., 1.)
         with self.assertRaises(AssertionError):
             a.summary()
-        a.run(20000, .5, showProgress=False)
+        a.run(100000, .5, showProgress=False)
         self.assertGreaterEqual(len(a.summary(None, True)), 0)
 
     def testGetCovar(self):
@@ -168,7 +168,7 @@ class SamTester(unittest.TestCase):
 
     def test2DMetropolis(self):
         a = sam.Sam(logProb1, [.5, .5], [0., -np.inf])
-        samples = a.run(50000, [.5, .5], 1000, showProgress=False)
+        samples = a.run(100000, [.5, .5], 1000, showProgress=False)
         self.assertGreaterEqual(a.getAcceptance()[0], 0.)
         self.assertLessEqual(a.getAcceptance()[0], 1.)
         self.assertGreaterEqual(a.getAcceptance()[1], 0.)
@@ -183,18 +183,18 @@ class SamTester(unittest.TestCase):
 
     def testThreading(self):
         a = sam.Sam(logProb1, [.5, .5], lowerBounds=[0., -np.inf])
-        samples = a.run(50000, [.5, .5], 1000, threads=5, showProgress=False)
+        samples = a.run(100000, [.5, .5], 1000, threads=5, showProgress=False)
         for i in a.getAcceptance():
             self.assertGreaterEqual(i[0], 0.)
             self.assertLessEqual(i[0], 1.)
             self.assertGreaterEqual(i[1], 0.)
             self.assertLessEqual(i[1], 1.)
         self.assertEqual(len(a.results.shape), 2)
-        self.assertEqual(a.results.shape[0], 5*50000)
+        self.assertEqual(a.results.shape[0], 5*100000)
         self.assertEqual(a.results.shape[1], 2)
         self.assertEqual(len(a.samples.shape), 3)
         self.assertEqual(a.samples.shape[0], 5)
-        self.assertEqual(a.samples.shape[1], 50000)
+        self.assertEqual(a.samples.shape[1], 100000)
         self.assertEqual(a.samples.shape[2], 2)
         self.assertNotEqual(samples[0, -1, -1], samples[1, -1, -1])
         samples = np.concatenate([samples[0], samples[1]], axis=1)
@@ -203,14 +203,14 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:, 0].std(), sam.gammaStd(20, 40), delta=.01)
         self.assertAlmostEqual(samples[:, 1].mean(), 5., delta=.1)
         self.assertAlmostEqual(samples[:, 1].std(), 1., delta=.1)
-        for i in range(50000):
+        for i in range(100000):
             for j in range(5):
                 self.assertAlmostEqual(a.samplesLogProb[j, i],
                                        logProb1(a.samples[j, i], None, False))
 
     def testThreading2(self):
         a = sam.Sam(logProb1, [.5, .5], lowerBounds=[0., -np.inf])
-        samples = a.run(50000, np.random.rand(5, 2), 1000, threads=5, showProgress=False)
+        samples = a.run(100000, np.random.rand(5, 2), 1000, threads=5, showProgress=False)
         for i in a.getAcceptance():
             self.assertGreaterEqual(i[0], 0.)
             self.assertLessEqual(i[0], 1.)
@@ -219,7 +219,7 @@ class SamTester(unittest.TestCase):
         with self.assertRaises(AttributeError):
             a.samples = np.ones(5)
         self.assertEqual(samples.shape[0], 5)
-        self.assertEqual(samples.shape[1], 50000)
+        self.assertEqual(samples.shape[1], 100000)
         self.assertEqual(samples.shape[2], 2)
         self.assertNotEqual(samples[0, -1, -1], samples[1, -1, -1])
         samples = np.concatenate([samples[0], samples[1]], axis=1)
@@ -236,15 +236,15 @@ class SamTester(unittest.TestCase):
         a.addHMC(10, .1)
         samples = a.run(50000, [.5, .5], 10, showProgress=False)
         self.assertTrue((samples[:, 0] >= 0).all())
-        self.assertAlmostEqual(samples[:, 0].mean(), sam.gammaMean(20, 40), delta=.01)
-        self.assertAlmostEqual(samples[:, 0].std(), sam.gammaStd(20, 40), delta=.01)
-        self.assertAlmostEqual(samples[:, 1].mean(), 5., delta=.1)
-        self.assertAlmostEqual(samples[:, 1].std(), 1., delta=.1)
+        self.assertAlmostEqual(samples[:, 0].mean(), sam.gammaMean(20, 40), delta=.05)
+        self.assertAlmostEqual(samples[:, 0].std(), sam.gammaStd(20, 40), delta=.05)
+        self.assertAlmostEqual(samples[:, 1].mean(), 5., delta=.2)
+        self.assertAlmostEqual(samples[:, 1].std(), 1., delta=.2)
 
     def testCorrelatedMetropolis(self):
         a = sam.Sam(logProb4, np.ones(2))
         a.addMetropolis(np.array([[1, .1], [.1, 1.]])/2.)
-        samples = a.run(50000, 5*np.ones(2), 1000, showProgress=False)
+        samples = a.run(100000, 5*np.ones(2), 1000, showProgress=False)
         self.assertAlmostEqual(samples[:, 0].mean(), 0., delta=.05)
         self.assertAlmostEqual(samples[:, 0].std(), 1., delta=.1)
         self.assertAlmostEqual(samples[:, 1].mean(), 0., delta=.05)
@@ -254,9 +254,9 @@ class SamTester(unittest.TestCase):
         a = sam.Sam(logProb4, np.ones(2))
         a.addAdaptiveMetropolis(np.array([[1, .1], [.1, 1.]])/2., scaling=4.)
         samples = a.run(50000, 5*np.ones(2), 1000, showProgress=False)
-        self.assertAlmostEqual(samples[:, 0].mean(), 0., delta=.05)
+        self.assertAlmostEqual(samples[:, 0].mean(), 0., delta=.1)
         self.assertAlmostEqual(samples[:, 0].std(), 1., delta=.1)
-        self.assertAlmostEqual(samples[:, 1].mean(), 0., delta=.05)
+        self.assertAlmostEqual(samples[:, 1].mean(), 0., delta=.1)
         self.assertAlmostEqual(samples[:, 1].std(), 1., delta=.1)
 
     def test2DGradientDescent(self):

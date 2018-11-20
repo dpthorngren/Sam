@@ -17,6 +17,7 @@ Sam requires the following libraries to compile:
 * [Cython](https://cython.org/)
 * [Numpy](http://www.numpy.org/)
 * [Boost](https://www.boost.org/) -- specifically the Random, Special, and Math libraries.
+* The Python dev libraries (e.g. python-dev or python3-dev)
 
 Once these are installed, you can install any remaining missing python dependencies (Scipy and Multiprocessing) and compile Sam with the following command from the Sam directory:
 
