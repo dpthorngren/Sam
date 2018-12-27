@@ -149,7 +149,7 @@ cdef class GaussianProcess:
 	plt.plot(x,y,'.')
     '''
 
-    def __init__(self,x,y,kernel="matern32"):
+    def __init__(self,x,y,kernel="squaredExp"):
         '''Initializes the Gaussian process (GP) object with the observations and a kernel type.
         
         args:
@@ -174,7 +174,7 @@ cdef class GaussianProcess:
         # Initialize arrays
         self.covChol = np.zeros((self.nData,self.nData))
         self.alpha = np.zeros(self.nData)
-        self.params = np.ones(self.nParams)
+        self.params = np.array([1.,np.mean(np.asarray(self.y)**2),1e-4])
         # Match the kernel string to a covariance function
         if kernel.lower() == "squaredexp":
             self.kernelPtr = &sqExpKernel
@@ -263,7 +263,7 @@ cdef class GaussianProcess:
         self.ready = False
         return results
     
-    cpdef predict(self, xTest):
+    cpdef predict(self, object xTest):
         '''Compute the Gaussian process' prediction for a given set of points.
         
         args:
@@ -288,6 +288,29 @@ cdef class GaussianProcess:
         makeCov(xTest,self.params,predVariance,self.kernelPtr)
         predVariance += np.eye(len(xTest))*self.params[2] - np.matmul(v.T,v)
         return predMean, predVariance
+
+
+    cpdef object draw(self, object xTest, Size nDraws=1):
+        '''Draws a random vector from the Gaussian process at the specified test points.
+        
+        args:
+            xTest: the points to make predictions at.  Should be [nPoints x nDimensions].
+            nDraws: the number of draws to produce.  The first draw is much more
+                computationally than subsequent draws.
+
+        Returns:
+            A matrix of values sampled from the Gaussian process.  [nDraws x nPoints]
+        '''
+        cdef Size i
+        prediction = self.predict(xTest)
+        cdef double[:] predMean = prediction[0]
+        cdef double[:,:] predVar = prediction[1]
+        output = np.zeros((nDraws,predMean.shape[0]))
+        cdef double[:,:] out = output
+        choleskyInplace(predVar)
+        for i in range(nDraws):
+            mvNormalRand(predMean,predVar,out[i],True)
+        return output
 
 
     cpdef gradient(self, xTest):

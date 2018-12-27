@@ -27,4 +27,5 @@ cdef class GaussianProcess:
     cpdef int precompute(self, double[:] params=?) except -1
     cpdef double logLikelihood(self, double[:] params=?) except? 999.
     cpdef object predict(self, object xTest)
+    cpdef object draw(self, object xTest, Size nDraws=?)
     cpdef object gradient(self, object xTest)
