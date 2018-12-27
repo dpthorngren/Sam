@@ -116,11 +116,11 @@ cpdef double[:] mvNormalRand(double[:] mean, double[:,:] covariance, double[:] o
     cdef Size d = mean.shape[0]
     cdef double[:,:] covChol
     if (d != covariance.shape[0]) or (d != covariance.shape[1]):
-        raise ValueError("Covariance matrix shape does not max mean vector.")
+        raise ValueError("Covariance matrix shape does not match mean vector.")
     if output is None:
         output = mean.copy()
     elif d != output.shape[0]:
-        raise ValueError("Output vector length does not max mean vector.")
+        raise ValueError("Output vector length does not match mean vector.")
     if isChol:
         covChol = covariance
     else:
@@ -144,9 +144,9 @@ cpdef double mvNormalLogPDF(double[:] x, double[:] mean, double[:,:] covariance,
     if (x is None) or (mean is None) or (covariance is None):
         raise ValueError("Inputs may not be None!")
     if (d != covariance.shape[0]) or (d != covariance.shape[1]):
-        raise ValueError("Covariance matrix shape does not max mean vector.")
+        raise ValueError("Covariance matrix shape does not match mean vector.")
     if d != x.shape[0]:
-        raise ValueError("X vector length does not max mean vector.")
+        raise ValueError("X vector length does not match mean vector.")
     cdef double[:,:] covChol
     if isChol:
         covChol = covariance

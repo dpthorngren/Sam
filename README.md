@@ -46,7 +46,7 @@ def logProb(theta):
 2. **Initialize the sampler**.  You will need to provide the log probability function as well as a scale vector, which is a tuning parameter of the same length as the parameter vector.  This serves different purposes depending on the sampler, but usually you can use a rough guess of the posterior standard deviation.  In Metropolis-Hastings sampler, for example, this sets the default proposal standard deviation.  You can optionally pick a sampler to use at this point, or stick with the default Metropolis sampler.
 
 ```python
-s = sam.Sam(logProb,x0=[1.,2.,3.,4.,5.])
+s = sam.Sam(logProb,[1.,1.])
 # Optionally:
 # s.addAdaptiveMetropolis()
 # s.addMetrpolis(proposalCovariance)
@@ -56,7 +56,7 @@ s = sam.Sam(logProb,x0=[1.,2.,3.,4.,5.])
 3. **Run the sampler**.  You must provide an initial position to begin sampling from.  You may run several identical samplers in parallel using the ```threads``` keyword.
 
 ```python
-s.run(samples=10000,burnIn=1000,thinning=10,threads=2)
+s.run([1.,1.],samples=10000,burnIn=1000,thinning=10,threads=2)
 ```
 
 4. **Examine the results**.  Once sampling is complete, the samples can be accessed as ```s.samples```, and ```s.results``` (for the thread-flattened version -- these will be the same if only one thread was used).  Sam provides a few functions to assist in saving the results and checking for convergence.  First, calling ```s.summary()``` prints a brief summary of the posterior sample for each dimension, including the acceptance fraction, Gelman-Rubin diagnostic, mean, standard deviation, and some percentiles.  Additionally ```s.save("filename.npz")``` can be used to save the samples and supporting information to a [Numpy .npz file](https://docs.scipy.org/doc/numpy-1.15.1/reference/generated/numpy.savez.html).
