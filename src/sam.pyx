@@ -1,16 +1,19 @@
 # distutils: language = c++
-include "distributions.pyx"
-include "griddy.pyx"
 import multiprocessing as mp
 from scipy.misc import logsumexp
+from scipy.optimize import minimize
 from scipy.linalg import solve_triangular
-from sys import stdout
+import time
+import sys
 import numpy as np
 import inspect
 from numpy.linalg import solve, cholesky
 import os
 cimport numpy as np
-cimport cython
+
+include "distributions.pyx"
+include "gaussianProcess.pyx"
+include "griddy.pyx"
 
 
 # Special function wrappers
@@ -103,113 +106,6 @@ def gelmanRubin(x,warn=True):
     W = np.mean(np.var(x,axis=1,ddof=1),axis=0)
     B_n = np.var(np.mean(x,axis=1),axis=0,ddof=1)
     return np.sqrt((1.-1./n) + B_n/W)
-
-
-cdef double gpSqExpCovariance(double scaledDist):
-    return exp(-.5*scaledDist)
-
-
-cdef double gpExpCovariance(double scaledDist):
-    return exp(-sqrt(scaledDist))
-
-
-cdef double matern32(double scaledDist):
-    return (1.+sqrt(3*scaledDist))*exp(-sqrt(3.*scaledDist))
-
-
-@cython.cdivision(True)
-cdef double matern52(double scaledDist):
-    return ((1.+sqrt(5.*scaledDist)+5.*scaledDist/3.)*
-            exp(-sqrt(5*scaledDist)))
-
-
-@cython.boundscheck(False)
-@cython.cdivision(True)
-@cython.wraparound(False)
-@cython.initializedcheck(False)
-cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=None) except -1:
-    cdef Size n = output.shape[0]
-    cdef Size m = output.shape[1]
-    cdef Size p = x.shape[1]
-    cdef Size i, j, k
-    cdef Size jMax = m
-    cdef bint isSymmetric = False
-    cdef double distance
-
-    # Check that the inputs are valid
-    if (x is None) or (params is None) or (output is None):
-        raise ValueError("Only xPrime may be None.")
-    if params.shape[0] != 3:
-        raise ValueError("Params must be length 3.")
-    if x.shape[0] != output.shape[0]:
-        raise ValueError("Output and x have mismatched shapes.")
-    if xPrime is None:
-        isSymmetric =True
-        xPrime = x
-    elif (output.shape[1] != xPrime.shape[0]):
-        raise ValueError("Output and xPrime have mismatched shapes.")
-    elif (xPrime.shape[1] != x.shape[1]):
-        raise ValueError("The dimension of x and xPrime differ.")
-
-    # Construct the kernel.
-    for i in range(n):
-        # If the kernel is symmetric, only bother making the lower triangular part.
-        if isSymmetric:
-            jMax = i+1
-        for j in range(jMax):
-            distance = 0
-            for k in range(p):
-                distance += (x[i,k]-xPrime[j,k])**2
-            output[i,j] = params[1]*kernel(distance/(params[0]*params[0]))
-            if isSymmetric and (i==j):
-                output[i,j] += params[2]
-    return 0
-
-cpdef gaussianProcess(x, y, params, xTest=None, kernel="squaredExp", kernelChol=None):
-    # Interpret inputs
-    if x.ndim == 1:
-        x = x[:,np.newaxis]
-    assert x.ndim ==2, "x must be 1 or 2 dimensional."
-
-    # Match the kernel string to a covariance function
-    cdef double (*kernelPtr)(double)
-    if kernel.lower() == "squaredexp":
-        kernelPtr = &gpSqExpCovariance
-    elif kernel.lower() == "exp":
-        kernelPtr = &gpExpCovariance
-    elif kernel.lower() == "matern32":
-        kernelPtr = &matern32
-    elif kernel.lower() == "matern52":
-        kernelPtr = &matern52
-    else:
-        raise ValueError("Kernel name not recognized: "+str(kernel))
-
-    # Get the kernel cholesky
-    if kernelChol is None:
-        kernelChol = np.empty((x.shape[0],x.shape[0]))
-        gpKernel(x,params,kernelChol,kernelPtr)
-        choleskyInplace(kernelChol)
-
-    # Make prediction if test points are provided
-    if xTest is not None:
-        if xTest.ndim == 1:
-            xTest = xTest[:,np.newaxis]
-        assert xTest.ndim == 2, "xTest must be 1 or 2 dimensional"
-        assert x.shape[1] == xTest.shape[1], "xTest shape is incompatible with x."
-        kernelChol[np.triu_indices(len(x),1)] = 0.
-        alpha = solve_triangular(kernelChol.T,solve_triangular(kernelChol,y,lower=True))
-        KTest = np.empty((x.shape[0],xTest.shape[0]))
-        gpKernel(x,params,KTest,kernelPtr,xTest)
-        v = solve_triangular(kernelChol,KTest,lower=True)
-
-        predVariance = np.empty((xTest.shape[0],xTest.shape[0]))
-        gpKernel(xTest,params,predVariance,kernelPtr)
-        predVariance += np.eye(len(xTest))*params[2] - np.matmul(v.T,v)
-        return np.matmul(KTest.T,alpha), predVariance
-
-    # Otherwise, return the log likelihood
-    cdef double[:] gpMean = np.zeros(y.shape[0])
-    return mvNormalLogPDF(y,gpMean,kernelChol,True)
 
 
 cdef class Sam:
@@ -1156,8 +1052,8 @@ cdef class Sam:
             Something: <=====     > (55/100)
         '''
         f = (10*i)/N
-        stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
-        stdout.flush()
+        sys.stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
+        sys.stdout.flush()
         return 0
 
     cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double scaling, double eps=1e-9) except -1:

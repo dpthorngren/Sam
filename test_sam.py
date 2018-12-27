@@ -107,10 +107,12 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess(self):
         x = np.linspace(0, 10, 100)
         y = np.sin(x)
-        loglike = sam.gaussianProcess(x, y, np.array([10, .5, 0]), kernel='exp')
-        gpMean, gpVar = sam.gaussianProcess(x[:, None], y, np.array([10, .5, 0]),
-                                            np.array([5.]), 'exp')
+        f = sam.GaussianProcess(x, y, 'exp')
+        loglike = f.logLikelihood(np.array([10, .5, 0]))
+        gpMean, gpVar = f.predict(np.array([5.]))
         gpVar = np.sqrt(np.diag(gpVar))
+        with self.assertRaises(ValueError):
+            f.gradient(3.5)
         self.assertAlmostEqual(gpMean[0], -0.957698488, delta=.01)
         self.assertAlmostEqual(gpVar[0], 0.0502516, delta=.01)
         self.assertAlmostEqual(loglike, 109.90324, delta=.01)
@@ -118,13 +120,16 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess2D(self):
         x = np.linspace(0, 1, 400).reshape(200, 2)
         z = np.sin(np.sum(x, axis=-1))
-        loglike = sam.gaussianProcess(x, z, np.array([1, .5, 0]), kernel='exp')
-        gpMean, gpVar = sam.gaussianProcess(x, z, np.array([1, .5, 0]),
-                                            np.array([.5, .5])[None, :], 'exp')
+        f = sam.GaussianProcess(x, z, 'matern32')
+        loglike = f.logLikelihood(np.array([1, .5, 0]))
+        gpMean, gpVar = f.predict([[.5, .5]])
         gpVar = np.sqrt(np.diag(gpVar))
+        grad = f.gradient([.5, .5])
+        self.assertAlmostEqual(grad[0], 0.537, delta=.01)
+        self.assertAlmostEqual(grad[1], 0.542, delta=.01)
+        self.assertAlmostEqual(loglike, 1107.363, delta=.01)
         self.assertAlmostEqual(gpMean[0], 0.841, delta=.01)
-        self.assertAlmostEqual(gpVar[0], 0.0467, delta=.01)
-        self.assertAlmostEqual(loglike, 308.3075, delta=.01)
+        self.assertAlmostEqual(gpVar[0], 0.00217, delta=.01)
 
     def test1DMetropolis(self):
         a = sam.Sam(logProb2, .5, 0., 1.)

@@ -1,8 +1,3 @@
-import time
-import os
-import numpy as np
-import sys
-from scipy.linalg import solve_triangular
 cdef class RandomEngine:
     def __init__(self, unsigned long int i):
         self.setSeed(i)

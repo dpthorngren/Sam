@@ -34,14 +34,7 @@ cpdef double incBeta(double x, double a, double b) except -1.
 # Special functions
 cpdef double expit(double x) except -1.
 cpdef double logit(double x) except? -1.
-
-# Helper functions
 cpdef int choleskyInplace(double[:,:] x) except -1
-cdef int gpKernel(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?) except -1
-cdef double gpSqExpCovariance(double scaledDist)
-cdef double gpExpCovariance(double scaledDist)
-cdef double matern32(double scaledDist)
-cdef double matern52(double scaledDist)
 
 # Type definitions
 ctypedef Py_ssize_t Size
@@ -82,6 +75,7 @@ cdef struct SamplerData:
     vector[double] ddata
 
 include "distributions.pxd"
+include "gaussianProcess.pxd"
 
 cdef class Sam:
     # Parameters
