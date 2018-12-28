@@ -170,7 +170,8 @@ cdef class GaussianProcess:
         self.nData = self.x.shape[0]
         self.nDim = self.x.shape[1]
         self.nParams = 3
-        self.ready = False
+        self.choleskyFresh = False
+        self.alphaFresh = False
         # Initialize arrays
         self.covChol = np.zeros((self.nData,self.nData))
         self.alpha = np.zeros(self.nData)
@@ -191,7 +192,7 @@ cdef class GaussianProcess:
         else: raise ValueError("Kernel name not recognized: "+str(kernel))
         return
     
-    cpdef int precompute(self, double[:] params=None) except -1:
+    cpdef int precompute(self, double[:] params=None, bint force=False) except -1:
         '''Conducts essential precomputation for the Gaussian Process.
             Specifically, this constructs the covariance matrix, the Cholesky thereof (L), and
             alpha = L.T * L * y.  For certain inputs, the numerics are not very stable, and so 
@@ -201,25 +202,33 @@ cdef class GaussianProcess:
         
         args:
             params (optional): the parameters of the kernel to use.  Otherwise use whatever is
-            currently in self.params.
+                currently in self.params.
+            force (default False): Recompute even if cholesky and alpha are flagged as fresh.
+                This shouldn't be necessary under normal conditions, since it is automatically
+                set to True if params is not None.
         
         Returns:
             0 if successful, otherwise -1.'''
         if params is not None:
             self.params = params.copy()
-        # Construct the (lower diagonal portion of the) covariance matrix
-        makeCov(self.x,self.params,self.covChol,self.kernelPtr)
-        # Compute the cholesky of the covariance matrix
-        choleskyInplace(self.covChol)
-        # Compute alpha = L.T^-1 * L^-1 * y
+            force = True
+        if not self.choleskyFresh or force:
+            # Construct the (lower diagonal portion of the) covariance matrix
+            makeCov(self.x,self.params,self.covChol,self.kernelPtr)
+            # Compute the cholesky of the covariance matrix
+            choleskyInplace(self.covChol)
+            self.choleskyFresh = True
+            self.alphaFresh = False
         cdef Size i
         cdef int increment = 1
         cdef int n = self.nData
-        for i in range(self.nData):
-            self.alpha[i] = self.y[i]
-        blas.dtrsv('U','T','N',&n,&self.covChol[0,0],&n,&self.alpha[0],&increment)
-        blas.dtrsv('U','N','N',&n,&self.covChol[0,0],&n,&self.alpha[0],&increment)
-        self.ready = True
+        if not self.alphaFresh or force:
+            # Compute alpha = L.T^-1 * L^-1 * y
+            for i in range(self.nData):
+                self.alpha[i] = self.y[i]
+            blas.dtrsv('U','T','N',&n,&self.covChol[0,0],&n,&self.alpha[0],&increment)
+            blas.dtrsv('U','N','N',&n,&self.covChol[0,0],&n,&self.alpha[0],&increment)
+            self.alphaFresh = True
         return 0
 
     cpdef double logLikelihood(self, double[:] params=None) except? 999.:
@@ -233,8 +242,7 @@ cdef class GaussianProcess:
             The log-likelihood as a double.
         '''
         cdef Size i;
-        if params is not None or not self.ready:
-            self.precompute(params)
+        self.precompute(params)
         cdef double result = -.5*self.nData*log(2.*pi)
         for i in range(self.nData):
             result -= log(self.covChol[i,i]) + .5*self.alpha[i]*self.y[i]
@@ -260,7 +268,8 @@ cdef class GaussianProcess:
         assert len(paramsGuess) == self.nParams, "paramsGuess must be length " + str(self.nParams)
         results = minimize(lambda p: -self.logLikelihood(np.exp(p)),np.log10(paramsGuess),tol=tol,bounds=logBounds)
         self.params = np.exp(results.x)
-        self.ready = False
+        self.choleskyFresh = False
+        self.alphaFresh = False
         return results
     
     cpdef predict(self, object xTest, bint getCovariance=True):
@@ -279,8 +288,7 @@ cdef class GaussianProcess:
         xTest = np.atleast_2d(np.transpose(xTest)).T.astype(np.double)
         assert xTest.ndim == 2, "xTest must be 1 or 2 dimensional"
         assert self.nDim == xTest.shape[1], "xTest must be [n x p], with p = " + str(self.nDim)
-        if not self.ready:
-            self.precompute()
+        self.precompute()
         # Compute the test covariance
         KTest = np.empty((self.nData,xTest.shape[0]))
         makeCov(self.x,self.params,KTest,self.kernelPtr,xTest)
@@ -317,7 +325,7 @@ cdef class GaussianProcess:
         return output
 
 
-    cpdef gradient(self, xTest):
+    cpdef object gradient(self, xTest):
         '''Computes the expected gradient of the Gaussian process at a given point.
             Each component i is dy/dx_i.
 
@@ -332,9 +340,25 @@ cdef class GaussianProcess:
             raise ValueError("Selected kernel is not differentiable everywhere.")
         assert xTest.ndim == 1,"xTest must be a 1-dimensional array."
         assert xTest.shape[0] == self.nDim, "xTest must be length " + str(self.nDim)
-        if not self.ready:
-            self.precompute()
+        self.precompute()
         # Compute the test covariance
         KTest = np.empty((self.nData,self.nDim))
         makeGradientCov(self.x,self.params,KTest,self.kernelDerivPtr,xTest)
         return np.matmul(KTest.T,self.alpha)
+
+    cpdef object setY(self, object newY):
+        '''Changes the measured y values in a way that minimizes the required recomputation.
+            Specifically, this will need to recompute alpha O(n^2) but not the Cholesky O(n^3)
+
+        args:
+            newY: the new values of y to use.  Should be [nPoints].
+
+        Returns:
+            None
+        '''
+        newY = np.atleast_1d(newY).astype(np.double).copy()
+        assert self.x.shape[0] == newY.shape[0], \
+                "x and y must have the same length first dimension."
+        self.y = newY
+        self.alphaFresh = False
+        return None

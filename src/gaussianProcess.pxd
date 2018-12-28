@@ -17,15 +17,17 @@ cdef class GaussianProcess:
     cdef readonly double[:] params
     cdef readonly double[:,:] covChol
     cdef double[:] alpha
-    cdef bint ready
+    cdef bint choleskyFresh
+    cdef bint alphaFresh
     cdef double (*kernelPtr)(double)
     cdef double (*kernelDerivPtr)(double)
     cdef readonly Size nParams
     cdef readonly Size nDim
     cdef readonly Size nData
 
-    cpdef int precompute(self, double[:] params=?) except -1
+    cpdef int precompute(self, double[:] params=?, bint force=?) except -1
     cpdef double logLikelihood(self, double[:] params=?) except? 999.
     cpdef object predict(self, object xTest, bint getCovariance=?)
     cpdef object draw(self, object xTest, Size nDraws=?)
     cpdef object gradient(self, object xTest)
+    cpdef object setY(self, object newY)

@@ -107,6 +107,7 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess(self):
         x = np.linspace(0, 10, 100)
         y = np.sin(x)
+        y2 = np.cos(x)
         f = sam.GaussianProcess(x, y, 'exp')
         loglike = f.logLikelihood(np.array([10, .5, 0]))
         gpMean, gpVar = f.predict(np.array([5.]))
@@ -116,6 +117,9 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(gpMean[0], -0.957698488, delta=.01)
         self.assertAlmostEqual(gpVar[0], 0.0502516, delta=.01)
         self.assertAlmostEqual(loglike, 109.90324, delta=.01)
+        f.setY(y2)
+        gpMean = f.predict(np.array([5.]), False)
+        self.assertAlmostEqual(gpMean[0], np.cos(5.), delta=.01)
 
     def testGaussianProcess2D(self):
         x = np.linspace(0, 1, 400).reshape(200, 2)
