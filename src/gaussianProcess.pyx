@@ -263,15 +263,17 @@ cdef class GaussianProcess:
         self.ready = False
         return results
     
-    cpdef predict(self, object xTest):
+    cpdef predict(self, object xTest, bint getCovariance=True):
         '''Compute the Gaussian process' prediction for a given set of points.
         
         args:
             xTest: the points to make predictions at.  Should be [nPoints x nDimensions].
+            getCovariance: Whether to get the predictive covariance as well as the mean.
 
         Returns:
-            A vector of predicted means and the covariance matrix of the predictions.  For
-                reference, the marginal uncertainties are np.sqrt(np.diag(var)).
+            A vector of predicted means and (if getCovariance==True),
+            the covariance matrix of the predictions.  For reference, the marginal
+            uncertainties are np.sqrt(np.diag(var)).
         '''
         # Sanitize inputs
         xTest = np.atleast_2d(np.transpose(xTest)).T.astype(np.double)
@@ -283,6 +285,8 @@ cdef class GaussianProcess:
         KTest = np.empty((self.nData,xTest.shape[0]))
         makeCov(self.x,self.params,KTest,self.kernelPtr,xTest)
         predMean = np.matmul(KTest.T,self.alpha)
+        if not getCovariance:
+            return predMean
         v = solve_triangular(self.covChol,KTest,lower=True)
         predVariance = np.zeros((xTest.shape[0],xTest.shape[0]))
         makeCov(xTest,self.params,predVariance,self.kernelPtr)
