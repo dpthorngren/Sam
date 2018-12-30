@@ -167,6 +167,7 @@ cdef class GaussianProcess:
         assert self.x.shape[0] == self.y.shape[0], \
                 "x and y must have the same length first dimension."
         # Record basic information
+        self.kernelName = kernel
         self.nData = self.x.shape[0]
         self.nDim = self.x.shape[1]
         self.nParams = 3

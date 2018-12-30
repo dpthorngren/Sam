@@ -24,6 +24,7 @@ cdef class GaussianProcess:
     cdef readonly Size nParams
     cdef readonly Size nDim
     cdef readonly Size nData
+    cdef object kernelName
 
     cpdef int precompute(self, double[:] params=?, bint force=?) except -1
     cpdef double logLikelihood(self, double[:] params=?) except? 999.
