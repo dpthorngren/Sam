@@ -120,6 +120,46 @@ cdef class Sam:
         print np.mean(samples), np.std(samples)
     '''
 
+    cpdef double _logProbability_(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.:
+        '''Tries to get a surrogate model estimate of the logProbability if
+            useSurrogate is set, otherwise just calls logProbability.
+
+        Args:
+            position: an array-like indicating where to evaluate the probability.
+            gradient: an array-like where the gradient will be written to.
+            computeGradient: A boolean indicating whether a gradient
+                is needed.  Used to avoid unnecessary computation.
+
+        Returns:
+            The natural log of the probability function, evaluated at the
+            given point.  If a gradient was requested, it will have been
+            written to the gradient argument.
+        '''
+        cdef Size i
+        cdef double[:] grad
+        if self.useSurrogate:
+            p, pErr = self.surrogate.predict(np.asarray(position)[None,:])
+            if pErr > self.surrogateTol:
+                # Surrogate precision is inadequate, call true function
+                p = self.logProbability(position,gradient,computeGradient)
+                # Update surrogate with this new datapoint
+                params = np.asarray(self.surrogate.params).copy()
+                self.surrogate = GaussianProcess(
+                    np.vstack([self.surrogate.x,position]),
+                    np.concatenate([self.surrogate.y,[p]]),
+                    self.surrogate.kernelName)
+                self.surrogateSamples += 1
+                if self.surrogateSamples > self.surrogateUpdateRate*self.surrogateLastOptimize:
+                    self.surrogate.optimizeParams(params)
+                else:
+                    self.surrogate.precompute(params)
+            if computeGradient:
+                grad = self.surrogate.gradient(np.asarray(position))
+                for i in range(self.nDim):
+                    self.gradient[i] = grad[i]
+            return p
+        return self.logProbability(position,gradient,computeGradient)
+
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.:
         '''Computes the log probability and gradient for the given parameters.
 
@@ -223,12 +263,12 @@ cdef class Sam:
 
         # Simulate the trajectory
         if isnan(logP0):
-            logP0 = self.logProbability(self.xPropose,self.gradient,True)
+            logP0 = self._logProbability_(self.xPropose,self.gradient,True)
         for i in range(nSteps):
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
             self.bouncingMove(stepSize, dStart, dStop)
-            logP1 = self.logProbability(self.xPropose, self.gradient,True)
+            logP1 = self._logProbability_(self.xPropose, self.gradient,True)
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
 
@@ -339,8 +379,8 @@ cdef class Sam:
             else:
                 self.xPropose[d] = self.x[d]
         if isnan(logP0):
-            logP0 = self.logProbability(self.x,self.gradient,False)
-        logP1 = self.logProbability(self.xPropose,self.gradient,False)
+            logP0 = self._logProbability_(self.x,self.gradient,False)
+        logP1 = self._logProbability_(self.xPropose,self.gradient,False)
         if (exponentialRand(1.) > logP0 - logP1):
             for d in range(dStart,dStop):
                 self.acceptedView[d] += 1
@@ -386,8 +426,8 @@ cdef class Sam:
             else:
                 self.xPropose[d] = self.x[d]
         if isnan(logP0):
-            logP0 = self.logProbability(self.x,self.gradient,False)
-        logP1 = self.logProbability(self.xPropose,self.gradient,False)
+            logP0 = self._logProbability_(self.x,self.gradient,False)
+        logP1 = self._logProbability_(self.xPropose,self.gradient,False)
         if (exponentialRand(1.) > logP0 - logP1):
             for d in range(dStart,dStop):
                 self.acceptedView[d] += 1
@@ -574,6 +614,24 @@ cdef class Sam:
         samp.dStart = dStart
         samp.dStop = dStop
         self.samplers.push_back(samp)
+        return
+
+    cpdef object enableSurrogate(self,xInit,yInit,kernel='matern32',tol=1e-2):
+        if self.useSurrogate:
+            raise ValueError("Surrogate sampling is already enabled.")
+        self.surrogate = GaussianProcess(xInit,yInit,kernel)
+        self.surrogate.optimizeParams()
+        self.surrogateTol = tol
+        self.surrogateSamples = len(yInit)
+        self.surrogateLastOptimize = self.surrogateSamples
+        self.useSurrogate = True
+        return
+
+    cpdef object disableSurrogate(self):
+        if not self.useSurrogate:
+            raise ValueError("Surrogate sampling is already disabled.")
+        self.surrogate = None
+        self.useSurrogate = False
         return
 
     cpdef object getSampler(self, unsigned int i=0):

@@ -90,6 +90,9 @@ cdef class Sam:
     cdef double[:] lowerBoundaries
     cdef bint hasBoundaries
     cdef bint showProgress
+    cdef bint useSurrogate
+    cdef double surrogateTol
+    cdef double surrogateUpdateRate
 
     # Working memory
     cdef object _workingMemory_
@@ -98,6 +101,9 @@ cdef class Sam:
     cdef double[:] momentum
     cdef double[:] gradient
     cdef double lastLogProb
+    cdef public GaussianProcess surrogate
+    cdef Size surrogateSamples
+    cdef Size surrogateLastOptimize
 
     # Output
     cdef readonly object samples
@@ -115,6 +121,7 @@ cdef class Sam:
     # User Defined Functions
     cdef object pyLogProbability
     cdef int pyLogProbArgNum
+    cpdef double _logProbability_(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.
     cpdef double logProbability(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.
     cdef int extraInitialization(self) except -1
     cdef int sample(self) except -1
@@ -132,6 +139,8 @@ cdef class Sam:
     cpdef object addMetropolis(self, covariance=?, Size dStart=?, Size dStop=?)
     cpdef object addAdaptiveMetropolis(self, covariance=?, int adaptAfter=?, int recordAfter=?, int refreshPeriod=?, double scaling=?, double eps=?,  Size dStart=?, Size dStop=?)
     cpdef object addHMC(self, Size nSteps, double stepSize, Size dStart=?, Size dStop=?)
+    cpdef object enableSurrogate(self,xInit,yInit,kernel=?,tol=?)
+    cpdef object disableSurrogate(self)
     cpdef object printSamplers(self)
     cpdef object clearSamplers(self)
     cpdef object getSampler(self, unsigned int i=?)
