@@ -139,18 +139,22 @@ cdef class Sam:
         cdef double[:] grad
         if self.useSurrogate:
             p, pErr = self.surrogate.predict(np.asarray(position)[None,:])
+            p += self.surrogateOffset
             if pErr > self.surrogateTol:
                 # Surrogate precision is inadequate, call true function
                 p = self.logProbability(position,gradient,computeGradient)
                 # Update surrogate with this new datapoint
                 params = np.asarray(self.surrogate.params).copy()
+                newY = np.concatenate([np.asarray(self.surrogate.y)+self.surrogateOffset,[p]])
+                self.surrogateOffset = np.median(newY)
                 self.surrogate = GaussianProcess(
                     np.vstack([self.surrogate.x,position]),
-                    np.concatenate([self.surrogate.y,[p]]),
+                    newY - self.surrogateOffset,
                     self.surrogate.kernelName)
                 self.surrogateSamples += 1
                 if self.surrogateSamples > self.surrogateUpdateRate*self.surrogateLastOptimize:
                     self.surrogate.optimizeParams(params)
+                    self.surrogateLastOptimize = self.surrogateSamples
                 else:
                     self.surrogate.precompute(params)
             if computeGradient:
@@ -619,7 +623,8 @@ cdef class Sam:
     cpdef object enableSurrogate(self,xInit,yInit,kernel='matern32',tol=1e-2):
         if self.useSurrogate:
             raise ValueError("Surrogate sampling is already enabled.")
-        self.surrogate = GaussianProcess(xInit,yInit,kernel)
+        self.surrogateOffset = np.median(yInit)
+        self.surrogate = GaussianProcess(xInit,yInit-self.surrogateOffset,kernel)
         self.surrogate.optimizeParams()
         self.surrogateTol = tol
         self.surrogateSamples = len(yInit)

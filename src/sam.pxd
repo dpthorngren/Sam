@@ -104,6 +104,7 @@ cdef class Sam:
     cdef public GaussianProcess surrogate
     cdef Size surrogateSamples
     cdef Size surrogateLastOptimize
+    cdef double surrogateOffset
 
     # Output
     cdef readonly object samples
