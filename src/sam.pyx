@@ -138,7 +138,8 @@ cdef class Sam:
         cdef Size i
         cdef double[:] grad
         if self.useSurrogate:
-            p, pErr = self.surrogate.predict(np.asarray(position)[None,:])
+            scaledPosition = np.asarray(position)/np.asarray(self.scale)
+            p, pErr = self.surrogate.predict(scaledPosition[None,:])
             p += self.surrogateOffset
             if pErr > self.surrogateTol:
                 # Surrogate precision is inadequate, call true function
@@ -148,7 +149,7 @@ cdef class Sam:
                 newY = np.concatenate([np.asarray(self.surrogate.y)+self.surrogateOffset,[p]])
                 self.surrogateOffset = np.median(newY)
                 self.surrogate = GaussianProcess(
-                    np.vstack([self.surrogate.x,position]),
+                    np.vstack([self.surrogate.x,scaledPosition]),
                     newY - self.surrogateOffset,
                     self.surrogate.kernelName)
                 self.surrogateSamples += 1
@@ -158,7 +159,7 @@ cdef class Sam:
                 else:
                     self.surrogate.precompute(params)
             if computeGradient:
-                grad = self.surrogate.gradient(np.asarray(position))
+                grad = self.surrogate.gradient(scaledPosition)
                 for i in range(self.nDim):
                     self.gradient[i] = grad[i]
             return p
@@ -623,8 +624,9 @@ cdef class Sam:
     cpdef object enableSurrogate(self,xInit,yInit,kernel='matern32',tol=1e-2):
         if self.useSurrogate:
             raise ValueError("Surrogate sampling is already enabled.")
+        scaledPosition = xInit/np.asarray(self.scale)[None,:]
         self.surrogateOffset = np.median(yInit)
-        self.surrogate = GaussianProcess(xInit,yInit-self.surrogateOffset,kernel)
+        self.surrogate = GaussianProcess(scaledPosition,yInit-self.surrogateOffset,kernel)
         self.surrogate.optimizeParams()
         self.surrogateTol = tol
         self.surrogateSamples = len(yInit)
