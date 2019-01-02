@@ -241,7 +241,7 @@ class SamTester(unittest.TestCase):
             self.assertAlmostEqual(a.resultsLogProb[i], logProb1(a.results[i], None, False))
 
     def test2DHMC(self):
-        a = sam.Sam(logProb1, [.5, .5], lowerBounds=[0., -np.inf])
+        a = sam.Sam(logProb1, [1, 1], lowerBounds=[0., -np.inf])
         a.addHMC(10, .1)
         samples = a.run(50000, [.5, .5], 10, showProgress=False)
         self.assertTrue((samples[:, 0] >= 0).all())

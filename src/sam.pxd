@@ -153,7 +153,7 @@ cdef class Sam:
     cdef int _setMemoryViews_(self) except -1
     cdef int record(self,Size i) except -1
     cdef int recordStats(self) except -1
-    cdef int bouncingMove(self, double stepSize, Size dStart, Size dStop) except -1
+    cdef int bouncingMove(self, double stepSize, bint square, Size dStart, Size dStop) except -1
     cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double scaling, double eps=?) except -1
 
     # Sampling functions

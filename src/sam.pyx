@@ -257,14 +257,14 @@ cdef class Sam:
         for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
             if d >= dStart and d < dStop:
-                self.momentum[d] = normalRand(0,1./sqrt(self.scale[d]))
+                self.momentum[d] = normalRand(0,1./self.scale[d])
             else:
                 self.momentum[d] = 0
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
         for d in range(dStart,dStop):
-            kinetic += self.momentum[d]*self.momentum[d]*self.scale[d] / 2.0
+            kinetic += self.momentum[d]*self.momentum[d]*self.scale[d]*self.scale[d] / 2.0
 
         # Simulate the trajectory
         if isnan(logP0):
@@ -272,7 +272,7 @@ cdef class Sam:
         for i in range(nSteps):
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
-            self.bouncingMove(stepSize, dStart, dStop)
+            self.bouncingMove(stepSize, True, dStart, dStop)
             logP1 = self._logProbability_(self.xPropose, self.gradient,True)
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
@@ -280,7 +280,7 @@ cdef class Sam:
         # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
         for d in range(dStart,dStop):
-            kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]/2.0
+            kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]*self.scale[d]/2.0
 
         # Decide whether to accept the new point
         if isnan(logP1) or isnan(logP0):
@@ -292,7 +292,7 @@ cdef class Sam:
             return logP1
         return logP0
 
-    cdef int bouncingMove(self, double stepSize, Size dStart, Size dStop) except -1:
+    cdef int bouncingMove(self, double stepSize, bint square, Size dStart, Size dStop) except -1:
         '''Attempts to move self.xPropose, bouncing off of any boundaries.
 
         The update rule is: x_p[n+1] = x_p[n] + p[n] * stepSize * scale,
@@ -304,13 +304,19 @@ cdef class Sam:
         Args:
             stepSize: Scales the distance traveled (see above).  In classical
                 mechanics, this is the time-step.
+            square:  Whether to square the scale factor -- typically this is
+                True for HMC and False for metropolis.
             dStart: The index of the first parameter to be included.
             dStop: The index of the last parameter to be included, plus one.
         '''
         cdef Size d
         for d in range(dStart,dStop):
-            self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
+            if square:
+                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d] * self.scale[d]
+            else:
+                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
             # Enforce boundary conditions
+            # TODO: Make more efficient
             while self.hasBoundaries:
                 if self.xPropose[d] >= self.upperBoundaries[d]:
                     self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
