@@ -628,6 +628,20 @@ cdef class Sam:
         return
 
     cpdef object enableSurrogate(self,xInit,yInit,kernel='matern32',tol=1e-2):
+        '''Turns on surrogate sampling and initializes the surrogate GP.
+
+        In order to get reasonable parameters for the Gaussian process, you
+        must provide at least some initial points to optimize the GP on.
+        More points can help reduce the number of likelihood evaluations, but
+        will slow down GP computation, so don't overdo it.
+
+        Args:
+            xInit: The sample positions to initialize the GP with.
+            yInit: The values of the likelihood to initialize the GP with.
+            kernel: The kernel to use in the GP surrogate.  Must be
+                differentiable if you want to use the gradient.
+            tol: How much uncertainty in the log likelihood to permit before
+        '''
         if self.useSurrogate:
             raise ValueError("Surrogate sampling is already enabled.")
         scaledPosition = xInit/np.asarray(self.scale)[None,:]
@@ -641,6 +655,8 @@ cdef class Sam:
         return
 
     cpdef object disableSurrogate(self):
+        '''Disables the use of a surrogate model if previously enabled.
+        '''
         if not self.useSurrogate:
             raise ValueError("Surrogate sampling is already disabled.")
         self.surrogate = None
