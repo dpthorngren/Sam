@@ -9,7 +9,7 @@ cdef double matern52KernelDeriv(double scaledDist)
 
 # Covariance function builders
 cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?) except -1
-cdef int makeGradientCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernelDeriv)(double), double[:] xPrime) except -1
+# cdef int makeGradientCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernelDeriv)(double), double[:] xPrime) except -1
 
 cdef class GaussianProcess:
     cdef readonly double[:,:] x
@@ -31,4 +31,5 @@ cdef class GaussianProcess:
     cpdef object predict(self, object xTest, bint getCovariance=?)
     cpdef object draw(self, object xTest, Size nDraws=?)
     cpdef object gradient(self, object xTest)
+    cpdef int _gradient_(self, double[:] xTest, double[:] output) except -1
     cpdef object setY(self, object newY)

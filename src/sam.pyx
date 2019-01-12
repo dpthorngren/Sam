@@ -136,14 +136,13 @@ cdef class Sam:
             written to the gradient argument.
         '''
         cdef Size i
-        cdef double[:] grad
         if self.useSurrogate:
             scaledPosition = np.asarray(position)/np.asarray(self.scale)
             p, pErr = self.surrogate.predict(scaledPosition[None,:])
             p += self.surrogateOffset
             if pErr > self.surrogateTol:
                 # Surrogate precision is inadequate, call true function
-                p = self.logProbability(position,gradient,computeGradient)
+                p = self.logProbability(position,gradient,False)
                 # Update surrogate with this new datapoint
                 params = np.asarray(self.surrogate.params).copy()
                 newY = np.concatenate([np.asarray(self.surrogate.y)+self.surrogateOffset,[p]])
@@ -159,9 +158,7 @@ cdef class Sam:
                 else:
                     self.surrogate.precompute(params)
             if computeGradient:
-                grad = self.surrogate.gradient(scaledPosition)
-                for i in range(self.nDim):
-                    self.gradient[i] = grad[i]
+                self.surrogate._gradient_(scaledPosition,gradient)
             return p
         return self.logProbability(position,gradient,computeGradient)
 

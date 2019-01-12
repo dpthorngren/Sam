@@ -83,41 +83,6 @@ cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*ke
                 output[i,j] += params[2]
     return 0
 
-
-@cython.cdivision(True)
-@cython.boundscheck(False)
-@cython.cdivision(True)
-@cython.wraparound(False)
-@cython.initializedcheck(False)
-cdef int makeGradientCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernelDeriv)(double), double[:] xPrime) except -1:
-    '''Constructs a covariance matrix for deriving the gradient of the GP at the given
-        input locations, writing it to output.
-
-    args:
-        x: The matrix of input locations; should be [nSamples x nDimensions].
-        params: The parameters of the kernel to use.
-        output: An array to write the results to; should be [nDimensions x nDimensions].
-        kernelDeriv: A pointer to a function that takes the distance^2 / length^2 and returns the
-            the derivative of the covariance with respect to the scaled distance.
-            E.g., this is -.5*exp(-.5*scaledDist) for the squared exponential kernel.
-        xPrime: The location to compute the gradient.  Should be [nDimensions].
-
-    Returns:
-        0 if the calculation successfully wrote to 'output', -1 otherwise.
-    '''
-    cdef Size n = output.shape[0]
-    cdef Size p = x.shape[1]
-    cdef Size i, j, k
-    cdef double distance
-    for i in range(n):
-        distance = 0.
-        for j in range(p):
-            distance += (x[i,j]-xPrime[j])**2
-        for j in range(p):
-            output[i,j] = 2.*(xPrime[j]-x[i,j])*params[1]*kernelDeriv(distance/(params[0]*params[0]))/(params[0]*params[0])
-    return 0
-
-
 # Gaussian Process object
 @cython.cdivision(True)
 @cython.boundscheck(False)
@@ -341,11 +306,51 @@ cdef class GaussianProcess:
             raise ValueError("Selected kernel is not differentiable everywhere.")
         assert xTest.ndim == 1,"xTest must be a 1-dimensional array."
         assert xTest.shape[0] == self.nDim, "xTest must be length " + str(self.nDim)
+        output = np.zeros(self.nDim)
+        self._gradient_(xTest,output)
+        return output
+
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.cdivision(True)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
+    cpdef int _gradient_(self, double[:] xTest, double[:] output) except -1:
+        '''Internal function for expected gradient of the Gaussian process at a given point.
+
+        This function is the non-python internal version of gradient(), which does no
+            checking of inputs whatsoever.  When in doubt, use gradient() instead.
+
+        args:
+            xTest: the point to measure the gradient at.  Should be [nDimensions].
+            output: an array to write the results to.  Should be [nDimensions].
+
+        Returns
+            0 if successful, -1 if an exception was raised.
+        '''
+        cdef Size i, j, k
+        cdef double distance, covar
+        for j in range(self.nDim):
+            output[j] = 0.
+
+        # Make sure the precomputed data is ready.
         self.precompute()
-        # Compute the test covariance
-        KTest = np.empty((self.nData,self.nDim))
-        makeGradientCov(self.x,self.params,KTest,self.kernelDerivPtr,xTest)
-        return np.matmul(KTest.T,self.alpha)
+        # Compute the kernel matrix * alpha, write to output
+        for i in range(self.nData):
+            # Compute the scaled distance
+            distance = 0.
+            for j in range(self.nDim):
+                distance += (self.x[i,j]-xTest[j])**2
+            distance /= self.params[0]*self.params[0]
+            # Combination kernel computation and matrix-vector multiplication K*alpha
+            for j in range(self.nDim):
+                # Compute the covariance between data and gradient at xTest
+                covar = 2.*(xTest[j]-self.x[i,j])*self.params[1] / (self.params[0]*self.params[0])
+                covar *= self.kernelDerivPtr(distance)
+                # Gradient is above covariance * alpha
+                output[j] += covar * self.alpha[i]
+        return 0
 
     cpdef object setY(self, object newY):
         '''Changes the measured y values in a way that minimizes the required recomputation.
