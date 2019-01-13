@@ -1,0 +1,606 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Sam Class &#8212; Sam 0.5 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Gaussian Process Class" href="gaussianProcess.html" />
+    <link rel="prev" title="Welcome to Sam’s documentation!" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="gaussianProcess.html" title="Gaussian Process Class"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Sam’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Sam 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sam">
+<span id="sam-class"></span><h1>Sam Class<a class="headerlink" href="#module-sam" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="sam.Sam">
+<em class="property">class </em><code class="descclassname">sam.</code><code class="descname">Sam</code><span class="sig-paren">(</span><em>logProbability</em>, <em>scale</em>, <em>lowerBounds=None</em>, <em>upperBounds=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class for sampling from probability distributions.</p>
+<p class="rubric">Example</p>
+<p>import numpy as np
+import sam as s
+logProb = lambda x: s.normalLogPDF(x,3,.5)
+f = s.Sam(logProb, np.array([.1]))
+samples = f.run(10000,np.array([0.]))
+print np.mean(samples), np.std(samples)</p>
+<dl class="attribute">
+<dt id="sam.Sam.accepted">
+<code class="descname">accepted</code><a class="headerlink" href="#sam.Sam.accepted" title="Permalink to this definition">¶</a></dt>
+<dd><p>object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">accepted</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.addAdaptiveMetropolis">
+<code class="descname">addAdaptiveMetropolis</code><span class="sig-paren">(</span><em>self</em>, <em>covariance=None</em>, <em>int adaptAfter=-1</em>, <em>int recordAfter=-1</em>, <em>int refreshPeriod=100</em>, <em>double scaling=-1</em>, <em>double eps=1e-9</em>, <em>Size dStart=0</em>, <em>Size dStop=-1</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.addAdaptiveMetropolis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds an Adaptive Metropolis sampler to the sampling procedure.</p>
+<p>This sampler is the Adaptive Metropolis (AM) algorithm presented in
+Haario et al. (2001).  The algorithm initially samples with a given
+proposal covariance, but after a number of steps, uses the covariance
+of the samples to estimate the optimal proposal covariance.  Each time
+the propsal is updated, the cholesky (order n^3) must be computed, so
+it may be advisable not to set the refresh period too low if n is
+large.  Note that the estimated covariance is updated every time the
+sampler is called, but that this is not propagated to the sampler
+until the refresh occurs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>covariance</strong> – The initial proposal covariance to sample with.
+Should be [M x M], where M = nStop - nStart.</li>
+<li><strong>adaptAfter</strong> – How many times the sampler must be called (and thereby
+collect samples) before the adapted covariance is used.  Must
+be larger than the number of dimensions being adapted to.  The
+default (triggered by any negative number) is three times that
+or 100, whichever is greater.</li>
+<li><strong>recordAfter</strong> – How many times the sampler must be called before the
+adapted covariance begins to take in samples.  This is to
+prevent pre-burned-in samples from being used to adapt with,
+which can dramatically reduce the effectiveness of sampling.</li>
+<li><strong>refreshPeriod</strong> – How many times the sampler is called between the
+cholesky of the covariance being updated (the expensive part).</li>
+<li><strong>scaling</strong> – How much to scale the estimated covariance to get the
+proposal covariance.  Default, signified by -1, is to use
+5.76/nDim, suggested in Haario et al.</li>
+<li><strong>eps</strong> – The epsilon parameter in Haario et al. (2001).  It needs to be
+small but nonzero for the theory to work, but in practice
+seems to work at zero as well.  Default is 1e-9, and probably
+will not need to be changed by the user unless the covariance
+is on that scale or less.</li>
+<li><strong>dStart</strong> – The index of the first parameter to be included. Default
+is zero.</li>
+<li><strong>dStop</strong> – The index of the last parameter to be included, plus one.
+Default is the last index + 1.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.addHMC">
+<code class="descname">addHMC</code><span class="sig-paren">(</span><em>self</em>, <em>Size nSteps</em>, <em>double stepSize</em>, <em>Size dStart=0</em>, <em>Size dStop=-1</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.addHMC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a Hamiltonian Monte Carlo sampler to the sampling procedure.</p>
+<p>This sampler sets up an HMC sampler to be used during the sampling
+procedure.  The proposal distribution is a normal distribution
+centered at self.x, with diagonal covariance where the scale (set
+when the sampler object was initialized) is the diagonal components.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>nSteps</strong> – The number of steps in the trajectory</li>
+<li><strong>stepSize</strong> – Multiplied by self.scale to scale the process.</li>
+<li><strong>dStart</strong> – The index of the first parameter to be included. Default
+is zero.</li>
+<li><strong>dStop</strong> – The index of the last parameter to be included, plus one.
+Default is the last index + 1.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.addMetropolis">
+<code class="descname">addMetropolis</code><span class="sig-paren">(</span><em>self</em>, <em>covariance=None</em>, <em>Size dStart=0</em>, <em>Size dStop=-1</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.addMetropolis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a metropolis sampler with a non-diagonal covariance.</p>
+<p>This sampler sets up a Metropolis-Hastings sampler to be used during
+the sampling procedure.  The proposal distribution is a normal
+distribution centered at self.x, with a covariance supplied by the
+user.  If no covariance is supplied, default is a matrix
+with self.scale (set during initialization) as the diagonal (this is
+slightly faster to produce random numbers for).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>covariance</strong> – The covariance matrix to be used.  Should be [M x M],
+where M=dStop-dStart.  May be None to use a diagonal matrix
+with self.scale as the diagonals.</li>
+<li><strong>dStart</strong> – The index of the first parameter to be included. Default
+is zero.</li>
+<li><strong>dStop</strong> – The index of the last parameter to be included, plus one.
+Default is the last index + 1.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.clearSamplers">
+<code class="descname">clearSamplers</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.clearSamplers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clears the list of samplers.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.disableSurrogate">
+<code class="descname">disableSurrogate</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.disableSurrogate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disables the use of a surrogate model if previously enabled.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.enableSurrogate">
+<code class="descname">enableSurrogate</code><span class="sig-paren">(</span><em>self</em>, <em>xInit</em>, <em>yInit</em>, <em>kernel='matern32'</em>, <em>tol=1e-2</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.enableSurrogate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns on surrogate sampling and initializes the surrogate GP.</p>
+<p>In order to get reasonable parameters for the Gaussian process, you
+must provide at least some initial points to optimize the GP on.
+More points can help reduce the number of likelihood evaluations, but
+will slow down GP computation, so don’t overdo it.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>xInit</strong> – The sample positions to initialize the GP with.</li>
+<li><strong>yInit</strong> – The values of the likelihood to initialize the GP with.</li>
+<li><strong>kernel</strong> – The kernel to use in the GP surrogate.  Must be
+differentiable if you want to use the gradient.</li>
+<li><strong>tol</strong> – How much uncertainty in the log likelihood to permit before</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getACF">
+<code class="descname">getACF</code><span class="sig-paren">(</span><em>self</em>, <em>length=50</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getACF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getAIC">
+<code class="descname">getAIC</code><span class="sig-paren">(</span><em>self</em>, <em>prior</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getAIC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximates the AIC from the sampled values.</p>
+<p>This function needs to know the prior because only the full posterior
+probability was given to the sampler at runtime.  The value of the
+prior is subtracted off, and the sample with the maximum resulting
+likelihood is identified.  The BIC is computed assuming that this is
+the global maximum likelihood; for a well sampled posterior, this will
+be a good approximation.</p>
+<p>This function shouldn’t be used in a heirarchical setting, as the AIC
+is not defined for that case (the number of parameters isn’t clearly
+defined).  Consider the DIC instead.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prior</strong> – a function which takes an array of parameters (same length
+as the logProbability function) and returns the prior for them.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The estimated AIC for the model as a floating point number.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getAcceptance">
+<code class="descname">getAcceptance</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getAcceptance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the acceptance rate for each dimension.</p>
+<p>This includes burn-in and thinning samples.  Throws an
+assertion exception if the sampler has not yet been run.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The fraction of parameter samples which were accepted, with the
+shape [M X T], number of parameters of target distribution and
+T is the number of threads used.  If threads is 1 the second
+dimension is omitted.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getBIC">
+<code class="descname">getBIC</code><span class="sig-paren">(</span><em>self</em>, <em>prior</em>, <em>nPoints</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getBIC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximates the BIC from the sampled values.</p>
+<p>This function needs to know the prior because only the full posterior
+probability was given to the sampler at runtime.  The value of the
+prior is subtracted off, and the sample with the maximum resulting
+likelihood is identified.  The BIC is computed assuming that this is
+the global maximum likelihood; for a well sampled posterior, this will
+be a good approximation.</p>
+<p>This function shouldn’t be used in a heirarchical setting, as the BIC
+is not defined for that case (the number of parameters isn’t clearly
+defined).  Consider the DIC instead.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>prior</strong> – a function which takes an array of parameters (same length
+as the logProbability function) and returns the prior for them.</li>
+<li><strong>nPoints</strong> – The number of data points used to evaluate the likelihood.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The estimated BIC for the model as a floating point number.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getDIC">
+<code class="descname">getDIC</code><span class="sig-paren">(</span><em>self</em>, <em>prior</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getDIC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximates the DIC from the sampled values.</p>
+<p>This function needs to know the prior because only the full posterior
+probability was given to the sampler at runtime.  The value of the
+prior is subtracted off, and the sample with the maximum resulting
+likelihood is identified.  The BIC is computed assuming that this is
+the global maximum likelihood; for a well sampled posterior, this will
+be a good approximation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prior</strong> – a function which takes an array of parameters (same length
+as the logProbability function) and returns the prior for them.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The estimated DIC for the model as a floating point number.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getProposalCov">
+<code class="descname">getProposalCov</code><span class="sig-paren">(</span><em>self</em>, <em>unsigned int i=0</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getProposalCov" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getSampler">
+<code class="descname">getSampler</code><span class="sig-paren">(</span><em>self</em>, <em>unsigned int i=0</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getSampler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.getStats">
+<code class="descname">getStats</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.getStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns running-average and standard deviation statistics.</p>
+<p>Note that this is only applicable if collectStats was enabled during
+the sampling procedure (default is off).  You will need to compute the
+values directly from the sample otherwise.  This is intended as a tool
+for tracking nuisance parameters for which it was not worth recording
+the samples from – see recordStart and recordStop in the self.run
+arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An array of means and an array of standard deviations of the
+parameter samples.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.gradientDescent">
+<code class="descname">gradientDescent</code><span class="sig-paren">(</span><em>self</em>, <em>x</em>, <em>double step=.1</em>, <em>double eps=1e-10</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.gradientDescent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="sam.Sam.initialPosition">
+<code class="descname">initialPosition</code><a class="headerlink" href="#sam.Sam.initialPosition" title="Permalink to this definition">¶</a></dt>
+<dd><p>object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">initialPosition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.logProbability">
+<code class="descname">logProbability</code><span class="sig-paren">(</span><em>self</em>, <em>__Pyx_memviewslice position</em>, <em>__Pyx_memviewslice gradient</em>, <em>bool computeGradient</em><span class="sig-paren">)</span> &#x2192; double<a class="headerlink" href="#sam.Sam.logProbability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the log probability and gradient for the given parameters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>position</strong> – an array-like indicating where to evaluate the probability.</li>
+<li><strong>gradient</strong> – an array-like where the gradient will be written to.</li>
+<li><strong>computeGradient</strong> – A boolean indicating whether a gradient
+is needed.  Used to avoid unnecessary computation.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The natural log of the probability function, evaluated at the
+given point.  If a gradient was requested, it will have been
+written to the gradient argument.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.printSamplers">
+<code class="descname">printSamplers</code><span class="sig-paren">(</span><em>self</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.printSamplers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints the list of any/all sampling systems set up so far.</p>
+<p>This refers to samplers added using e.g. addMetropolis() functions. See
+the overall class documentation for more information on these.  The
+type of function and any parameters given (unique to each sampler
+type) are printed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>self</em>, <em>Size nSamples</em>, <em>x</em>, <em>Size burnIn=0</em>, <em>Size thinning=0</em>, <em>Size recordStart=0</em>, <em>Size recordStop=-1</em>, <em>bool collectStats=False</em>, <em>Size threads=1</em>, <em>bool showProgress=True</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Begin sampling the parameters from the given logProbability dist.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>nSamples</strong> – The desired number of samples to record per thread.</li>
+<li><strong>x</strong> – The initial position(s) to start the sampler at.</li>
+<li><strong>burnIn</strong> – The number of MCMC steps to take before recording begins.</li>
+<li><strong>thinning</strong> – The number of MCMC steps to take between recordings and
+burn-in steps.  This directly multiplies the amount of work
+the sampler needs to do.</li>
+<li><strong>recordStart</strong> – The index of the first parameter to be recorded.
+Default is 0.</li>
+<li><strong>recordStop</strong> – The index of the last parameter to be recorded, plus one.
+Default is the number of parameters (all are recorded).</li>
+<li><strong>collectStats</strong> – Whether the sampler should collect running statistics
+as it runs.  This is probably only desirable if not all
+parameters are being recorded.  Default is False</li>
+<li><strong>threads</strong> – The number of computational threads to run in.  If this is
+greater than 1, the multiprocessing library is used to run
+this many fully independent samplers in parallel.</li>
+<li><strong>showProgress</strong> – Whether to print a progress bar as the sampler runs.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The parameter samples, of the shape [N x M X T], where N is the
+number of parameters of target distribution, M is the number of
+samples requested (nSamples), and T is the number of threads
+used.  If threads is 1 the last dimension is omitted.  This data
+is also stored internally and can be accessed later using other
+functions.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.save">
+<code class="descname">save</code><span class="sig-paren">(</span><em>self</em>, <em>filename</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves the results of sampling and other information to an npz file.</p>
+<p>To be exact, it saves the current filename, the number of parameters,
+the number of samples collected, the thinning amount, the number of
+burn-in samples, the scale vector, the bounds vectors, the initial
+position vector (or matrix), the samples themselves, the acceptance
+rate, accumulated statistics, and the logProbability source code.  If
+some of those are not available, placeholders are saved instead.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> – The name of the file to save the information into.  The</li>
+<li><strong>'.npz' will automatically be added.</strong> (<em>suffix</em>) – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.simulatedAnnealing">
+<code class="descname">simulatedAnnealing</code><span class="sig-paren">(</span><em>self</em>, <em>x</em>, <em>Size nSteps=200</em>, <em>Size nQuench=200</em>, <em>double T0=5</em>, <em>double width=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.simulatedAnnealing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.summary">
+<code class="descname">summary</code><span class="sig-paren">(</span><em>self</em>, <em>paramIndices=None</em>, <em>returnString=False</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.summary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints/returns some summary statistics of the previous sampling run.</p>
+<p>Statistics are the parameter index, the acceptance rate, mean, and
+standard deviation, as well as teh 16th, 50th, and 84th percentiles.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>paramIndices</strong> – The indices of the parameters to be described.  If</li>
+<li><strong>to None</strong><strong>, </strong><strong>then all parameters will be described.</strong> (<em>set</em>) – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The summary message as a string if returnString is True, otherwise
+returns None.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sam.Sam.surrogate">
+<code class="descname">surrogate</code><a class="headerlink" href="#sam.Sam.surrogate" title="Permalink to this definition">¶</a></dt>
+<dd><p>sam.GaussianProcess</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">surrogate</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="sam.Sam.testGradient">
+<code class="descname">testGradient</code><span class="sig-paren">(</span><em>self</em>, <em>x</em>, <em>double eps=1e-5</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.testGradient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compares gradients from logProbability and finite difference method</p>
+<p>This function computes a gradient estimate using the finite difference
+method and compares it to the gradient computed by the logProbability
+function (specified at initialization).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> – The central location to compute the gradient at.</li>
+<li><strong>eps</strong> – scales the finite difference method.  Secondary samples are
+taken in the direction of each parameter a distance scale*eps
+away.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The relative difference between the logProbability gradient L and
+the finite difference gradient F: (L-F)/L+F)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to Sam’s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="gaussianProcess.html"
+                        title="next chapter">Gaussian Process Class</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/sam.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="gaussianProcess.html" title="Gaussian Process Class"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Sam’s documentation!"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Sam 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019, Daniel Thorngren.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.3.
+    </div>
+  </body>
+</html>
