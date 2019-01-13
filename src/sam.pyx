@@ -109,16 +109,7 @@ def gelmanRubin(x,warn=True):
 
 
 cdef class Sam:
-    '''A class for sampling from probability distributions.
-
-    Example:
-        import numpy as np
-        import sam as s
-        logProb = lambda x: s.normalLogPDF(x,3,.5)
-        f = s.Sam(logProb, np.array([.1]))
-        samples = f.run(10000,np.array([0.]))
-        print np.mean(samples), np.std(samples)
-    '''
+    '''A class for sampling from probability distributions.'''
 
     cpdef double _logProbability_(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.:
         '''Tries to get a surrogate model estimate of the logProbability if
@@ -637,7 +628,8 @@ cdef class Sam:
             yInit: The values of the likelihood to initialize the GP with.
             kernel: The kernel to use in the GP surrogate.  Must be
                 differentiable if you want to use the gradient.
-            tol: How much uncertainty in the log likelihood to permit before
+            tol: How much uncertainty in the log likelihood to permit without
+                calling the likelihood function.
         '''
         if self.useSurrogate:
             raise ValueError("Surrogate sampling is already enabled.")
@@ -1129,11 +1121,6 @@ cdef class Sam:
             i: the current iteration, should <= N.
             N: the total number of iterations to be done.
             header: a string to display before the progress bar.
-
-        Example::
-            self.progressBar(55,100,"Something")
-            # Restarts the line and prints:
-            Something: <=====     > (55/100)
         '''
         f = (10*i)/N
         sys.stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")

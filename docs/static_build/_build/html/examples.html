@@ -1,0 +1,156 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Examples &#8212; Sam 0.5 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Sam Class" href="sam.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="sam.html" title="Sam Class"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Sam 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
+<p>We start with a barebones example of sampling from a normal distribution with the default Metropolis sampler.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sam</span>
+
+<span class="k">def</span> <span class="nf">logProb</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sam</span><span class="o">.</span><span class="n">normalLogPDF</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mf">3.5</span><span class="p">,</span><span class="mf">1.2</span><span class="p">)</span>
+
+<span class="n">s</span> <span class="o">=</span> <span class="n">sam</span><span class="o">.</span><span class="n">Sam</span><span class="p">(</span><span class="n">logProb</span><span class="p">,</span><span class="n">scale</span><span class="o">=</span><span class="p">[</span><span class="o">.</span><span class="mi">5</span><span class="p">])</span>
+<span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="mi">100000</span><span class="p">,</span><span class="n">x0</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">])</span>
+<span class="n">s</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+
+<span class="c1"># Sampling: &lt;==========&gt; (100000 / 100000)</span>
+<span class="c1"># Dim. Accept    GR* |       Mean       Std. |        16%        50%        84%</span>
+<span class="c1"># 0     86.7%  1.001 |       3.47      1.204 |      2.277      3.465      4.667</span>
+</pre></div>
+</div>
+<p>Here is an example where we fit a logistic regression model to some data using an adaptive Metropolis sampler on four parallel chains:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sam</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="kn">import</span> <span class="n">expit</span><span class="p">,</span> <span class="n">logit</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">bernoulli</span>
+
+<span class="c1"># Create data to use for sampling</span>
+<span class="n">betaTrue</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">7.5</span><span class="p">,</span><span class="o">-</span><span class="mf">1.2</span><span class="p">])</span>
+<span class="n">n</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">column_stack</span><span class="p">([</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">),</span><span class="mi">10</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">bernoulli</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">expit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">betaTrue</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">logProb</span><span class="p">(</span><span class="n">beta</span><span class="p">):</span>
+        <span class="n">logLikeliood</span> <span class="o">=</span> <span class="n">bernoulli</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="n">expit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">beta</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">logPrior</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">beta</span><span class="p">,[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="mf">5.</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">logLikeliood</span> <span class="o">+</span> <span class="n">logPrior</span>
+
+<span class="c1"># Run the MCMC</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">sam</span><span class="o">.</span><span class="n">Sam</span><span class="p">(</span><span class="n">logProb</span><span class="p">,[</span><span class="mf">1.</span><span class="p">,</span><span class="mf">1.</span><span class="p">])</span>
+<span class="n">s</span><span class="o">.</span><span class="n">addAdaptiveMetropolis</span><span class="p">()</span>
+<span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span><span class="n">x0</span><span class="o">=</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span><span class="mf">1.</span><span class="p">],</span><span class="n">burnIn</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span><span class="n">thinning</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+
+<span class="c1"># Sampling: &lt;==========&gt; (10000 / 10000)</span>
+<span class="c1"># Sampling: &lt;==========&gt; (10000 / 10000)</span>
+<span class="c1"># Sampling: &lt;==========&gt; (10000 / 10000)</span>
+<span class="c1"># Sampling: &lt;==========&gt; (10000 / 10000)</span>
+<span class="c1"># Dim. Accept     GR |       Mean       Std. |        16%        50%        84%</span>
+<span class="c1"># 0      5.9%  1.001 |      7.914      1.626 |       6.33      7.761      9.544</span>
+<span class="c1"># 1      5.9%  1.001 |     -1.144     0.2328 |     -1.374     -1.124    -0.9185</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="sam.html"
+                        title="next chapter">Sam Class</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/examples.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="sam.html" title="Sam Class"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Sam 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019, Daniel Thorngren.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.3.
+    </div>
+  </body>
+</html>

@@ -10,6 +10,10 @@ Sam is a flexible MCMC sampler for Python and Cython (written in the latter).  I
 
 The sampler is working and usable, but development is still ongoing.  In particular, a Gaussian process HMC surrogate sampler is planned, and the whole project requires considerably more documentation.
 
+Documentation
+------------
+The full documentation can be found on Readthedocs at [https://sam-mcmc.readthedocs.io](https://sam-mcmc.readthedocs.io).
+
 Installation
 ------------
 Sam requires the following libraries to compile:
