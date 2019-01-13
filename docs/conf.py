@@ -12,7 +12,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
+import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -61,6 +61,11 @@ master_doc = 'index'
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
 language = None
+
+# Defaulting to version-controlled docs for readthedocs
+html_extra_path = []
+if os.environ.get('READTHEDOCS', None) == 'True':
+    html_extra_path.append('static_build/html')
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
