@@ -2,6 +2,13 @@
 Distributions Functions
 =======================
 
+To help with constructing functions computing log-probabilities and gradients
+thereof, Sam provides a large number of fast Cython functions.  For computing
+gradients, the functions of the form ``distributionDLD_`` return the derivative
+of the log-probability with respect to the given variable; e.g., ``normalDLDV``
+gives the derivative of the normal distribution with respect to the variance
+at the given position.
+
 .. module:: sam
 
 Uniform Distribution

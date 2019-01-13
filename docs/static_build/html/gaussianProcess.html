@@ -61,20 +61,25 @@
 </ul>
 </dd>
 </dl>
-<p class="rubric">Example</p>
-<p>import numpy as np
-from matplotlib import pyplot as plt
-from sam import GaussianProcess
-x = np.linspace(0,10,10)
-y = np.sin(x)
-f = GaussianProcess(x,y)
-f.optimizeParams(5*ones(3))
-xTest = np.linspace(0,10,100)
-yTest, yErr = f.predict(xTest)
-yErr = np.sqrt(np.diag(yErr))
-plt.plot(xTest,yTest)
-plt.fill_between(xTest,yTest-yErr,yTest+yErr,alpha=.5)
-plt.plot(x,y,’.’)</p>
+<p>Initializes the Gaussian process (GP) object with the observations and a kernel type.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> – The locations of the observations to condition the GP on;
+should be [nSamples x nDimensions].</li>
+<li><strong>y</strong> – The values of the input at the locations given by x. Should be [nSamples].</li>
+<li><strong>kernel</strong> – The name of the kernel to use.  See help(GaussianProcess) for more
+information.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The Gaussian processes object for further use.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="method">
 <dt id="sam.GaussianProcess.draw">
 <code class="descname">draw</code><span class="sig-paren">(</span><em>self</em>, <em>xTest</em>, <em>Size nDraws=1</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess.draw" title="Permalink to this definition">¶</a></dt>
@@ -240,6 +245,27 @@ uncertainties are np.sqrt(np.diag(var)).</p>
 
 </dd></dl>
 
+<div class="section" id="example-use">
+<h2>Example Use<a class="headerlink" href="#example-use" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">sam</span> <span class="kn">import</span> <span class="n">GaussianProcess</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="n">f</span> <span class="o">=</span> <span class="n">GaussianProcess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+<span class="n">f</span><span class="o">.</span><span class="n">optimizeParams</span><span class="p">(</span><span class="mi">5</span><span class="o">*</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+
+<span class="n">xTest</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">yTest</span><span class="p">,</span> <span class="n">yErr</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">xTest</span><span class="p">)</span>
+<span class="n">yErr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">yErr</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xTest</span><span class="p">,</span><span class="n">yTest</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">xTest</span><span class="p">,</span><span class="n">yTest</span><span class="o">-</span><span class="n">yErr</span><span class="p">,</span><span class="n">yTest</span><span class="o">+</span><span class="n">yErr</span><span class="p">,</span><span class="n">alpha</span><span class="o">=.</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -248,6 +274,14 @@ uncertainties are np.sqrt(np.diag(var)).</p>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Gaussian Process Class</a><ul>
+<li><a class="reference internal" href="#example-use">Example Use</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="sam.html"
                         title="previous chapter">Sam Class</a></p>
