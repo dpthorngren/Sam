@@ -6,6 +6,8 @@
 Welcome to Sam's documentation!
 ===============================
 
+Sam is a flexible MCMC sampler for Python and Cython, designed with astrophysics use cases in mind.
+
 .. toctree::
     :maxdepth: 2
     :caption: Contents:
