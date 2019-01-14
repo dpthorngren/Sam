@@ -967,11 +967,11 @@ cdef class Sam:
         '''Prints/returns some summary statistics of the previous sampling run.
 
         Statistics are the parameter index, the acceptance rate, mean, and
-        standard deviation, as well as teh 16th, 50th, and 84th percentiles.
+        standard deviation, as well as the 16th, 50th, and 84th percentiles.
 
         Args:
             paramIndices: The indices of the parameters to be described.  If
-            set to None, then all parameters will be described.
+                set to None, then all parameters will be described.
 
         Returns:
             The summary message as a string if returnString is True, otherwise

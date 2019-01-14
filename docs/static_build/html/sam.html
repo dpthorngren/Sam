@@ -83,9 +83,6 @@ the acceptance rate.  If None, no boundaries are enforced.</li>
 
 <div class="section" id="running-the-sampler">
 <h2>Running the Sampler<a class="headerlink" href="#running-the-sampler" title="Permalink to this headline">¶</a></h2>
-<p>The run function is used to begin sampling.  When sampling has completed, the
-results can be accessed via <code class="docutils literal notranslate"><span class="pre">Sam.results</span></code> (flattening threads) or
-<code class="docutils literal notranslate"><span class="pre">Sam.samples</span></code>.</p>
 <dl class="function">
 <dt id="sam.Sam.run">
 <code class="descclassname">sam.Sam.</code><code class="descname">run</code><span class="sig-paren">(</span><em>self</em>, <em>Size nSamples</em>, <em>x</em>, <em>Size burnIn=0</em>, <em>Size thinning=0</em>, <em>Size recordStart=0</em>, <em>Size recordStop=-1</em>, <em>bool collectStats=False</em>, <em>Size threads=1</em>, <em>bool showProgress=True</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.run" title="Permalink to this definition">¶</a></dt>
@@ -305,25 +302,31 @@ calling the likelihood function.</li>
 </div>
 <div class="section" id="examining-the-results">
 <h2>Examining the Results<a class="headerlink" href="#examining-the-results" title="Permalink to this headline">¶</a></h2>
+<dl class="data">
+<dt id="sam.Sam.samples">
+<code class="descclassname">sam.Sam.</code><code class="descname">samples</code><em class="property"> = the samples collected as a Numpy ndarray of shape [nThreads, nSamples, nParameters]</em><a class="headerlink" href="#sam.Sam.samples" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="data">
+<dt id="sam.Sam.results">
+<code class="descclassname">sam.Sam.</code><code class="descname">results</code><em class="property"> = same as ``samples``, but flattend across threads: [(nThreads x nSamples), nParameters]</em><a class="headerlink" href="#sam.Sam.results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="function">
 <dt id="sam.Sam.summary">
 <code class="descclassname">sam.Sam.</code><code class="descname">summary</code><span class="sig-paren">(</span><em>self</em>, <em>paramIndices=None</em>, <em>returnString=False</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.Sam.summary" title="Permalink to this definition">¶</a></dt>
 <dd><p>Prints/returns some summary statistics of the previous sampling run.</p>
 <p>Statistics are the parameter index, the acceptance rate, mean, and
-standard deviation, as well as teh 16th, 50th, and 84th percentiles.</p>
+standard deviation, as well as the 16th, 50th, and 84th percentiles.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>paramIndices</strong> – The indices of the parameters to be described.  If</li>
-<li><strong>to None</strong><strong>, </strong><strong>then all parameters will be described.</strong> (<em>set</em>) – </li>
-</ul>
-</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>paramIndices</strong> – The indices of the parameters to be described.  If
+set to None, then all parameters will be described.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The summary message as a string if returnString is True, otherwise
-returns None.</p>
-</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The summary message as a string if returnString is True, otherwise
+returns None.</td>
 </tr>
 </tbody>
 </table>

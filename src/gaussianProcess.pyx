@@ -90,24 +90,19 @@ cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*ke
 @cython.wraparound(False)
 @cython.initializedcheck(False)
 cdef class GaussianProcess:
-    '''A class for doing Gaussian process computation and modeling.
-
-    Currently supports the following kernels:
-        * Exponential
-        * Squared Exponential
-        * Matern(3/2)
-        * Matern(5/2)
-    '''
+    '''A class for doing Gaussian process computation and modeling.'''
 
     def __init__(self,x,y,kernel="squaredExp"):
         '''Initializes the Gaussian process (GP) object with the observations and a kernel type.
         
         args:
             x: The locations of the observations to condition the GP on;
-                should be [nSamples x nDimensions].
-            y: The values of the input at the locations given by x. Should be [nSamples].
-            kernel: The name of the kernel to use.  See help(GaussianProcess) for more
-                information.
+                should have shape [nSamples x nDimensions].
+            y: The values of the input at the locations given by x. Should
+                have shape [nSamples].
+            kernel: The name of the kernel to use.  Must be one of:
+                ``Exponential``, ``Squared Exponential``, ``Matern(3/2)``, or
+                ``Matern(5/2)``
         
         Returns:
             The Gaussian processes object for further use.'''
@@ -115,7 +110,7 @@ cdef class GaussianProcess:
         self.x = np.atleast_2d(np.transpose(x)).T.astype(np.double)
         self.y = np.atleast_1d(y).astype(np.double)
         assert self.x.shape[0] == self.y.shape[0], \
-                "x and y must have the same length first dimension."
+            "x and y must have the same length first dimension."
         # Record basic information
         self.kernelName = kernel
         self.nData = self.x.shape[0]
@@ -204,7 +199,7 @@ cdef class GaussianProcess:
         
         args:
             params (optional): the kernel parameters  to start from.  Otherwise use whatever is
-            currently in self.params.
+                currently in self.params.
             tol (optional): the error allowed by the optimizer before it is considered to be
                 converged.
             logBounds (optional): the bounds on the log of the parameters to be optimized.  This

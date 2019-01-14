@@ -97,8 +97,8 @@ Poisson Distribution
 .. autofunction:: poissonStd
 .. autofunction:: poissonMode
 
-Poisson Distribution
-====================
+Exponential Distribution
+========================
 .. autofunction:: exponentialRand
 .. autofunction:: exponentialPDF
 .. autofunction:: exponentialLogPDF

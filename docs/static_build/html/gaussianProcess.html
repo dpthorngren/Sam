@@ -51,16 +51,6 @@
 <dt id="sam.GaussianProcess">
 <em class="property">class </em><code class="descclassname">sam.</code><code class="descname">GaussianProcess</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>kernel='squaredExp'</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess" title="Permalink to this definition">¶</a></dt>
 <dd><p>A class for doing Gaussian process computation and modeling.</p>
-<dl class="docutils">
-<dt>Currently supports the following kernels:</dt>
-<dd><ul class="first last simple">
-<li>Exponential</li>
-<li>Squared Exponential</li>
-<li>Matern(3/2)</li>
-<li>Matern(5/2)</li>
-</ul>
-</dd>
-</dl>
 <p>Initializes the Gaussian process (GP) object with the observations and a kernel type.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -68,10 +58,12 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>x</strong> – The locations of the observations to condition the GP on;
-should be [nSamples x nDimensions].</li>
-<li><strong>y</strong> – The values of the input at the locations given by x. Should be [nSamples].</li>
-<li><strong>kernel</strong> – The name of the kernel to use.  See help(GaussianProcess) for more
-information.</li>
+should have shape [nSamples x nDimensions].</li>
+<li><strong>y</strong> – The values of the input at the locations given by x. Should
+have shape [nSamples].</li>
+<li><strong>kernel</strong> – The name of the kernel to use.  Must be one of:
+<code class="docutils literal notranslate"><span class="pre">Exponential</span></code>, <code class="docutils literal notranslate"><span class="pre">Squared</span> <span class="pre">Exponential</span></code>, <code class="docutils literal notranslate"><span class="pre">Matern(3/2)</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">Matern(5/2)</span></code></li>
 </ul>
 </td>
 </tr>
@@ -153,8 +145,8 @@ computationally than subsequent draws.</li>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>params</strong> (<em>optional</em>) – the kernel parameters  to start from.  Otherwise use whatever is</li>
-<li><strong>in self.params.</strong> (<em>currently</em>) – </li>
+<li><strong>params</strong> (<em>optional</em>) – the kernel parameters  to start from.  Otherwise use whatever is
+currently in self.params.</li>
 <li><strong>tol</strong> (<em>optional</em>) – the error allowed by the optimizer before it is considered to be
 converged.</li>
 <li><strong>logBounds</strong> (<em>optional</em>) – the bounds on the log of the parameters to be optimized.  This

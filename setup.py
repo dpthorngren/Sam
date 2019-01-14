@@ -14,6 +14,7 @@ setup(
     ext_modules=cythonize([ext], compiler_directives={'embedsignature': True}),
     include_dirs=[np.get_include()],
     install_requires=[
+        'cython',
         'scipy',
         'numpy'],
     test_suite="test_sam.SamTester"

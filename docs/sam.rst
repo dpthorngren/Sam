@@ -8,10 +8,6 @@ Sam Class
 
 Running the Sampler
 ===================
-The run function is used to begin sampling.  When sampling has completed, the
-results can be accessed via ``Sam.results`` (flattening threads) or
-``Sam.samples``.
-
 .. autofunction:: sam.Sam.run
 
 Picking Samplers
@@ -47,6 +43,10 @@ evaluations ( ``Sam.surrogate.x`` and ``Sam.surrogate.y``)
 
 Examining the Results
 =====================
+.. autodata:: sam.Sam.samples
+    :annotation: = the samples collected as a Numpy ndarray of shape [nThreads, nSamples, nParameters]
+.. autodata:: sam.Sam.results
+    :annotation: = same as ``samples``, but flattend across threads: [(nThreads x nSamples), nParameters]
 .. autofunction:: sam.Sam.summary
 .. autofunction:: sam.Sam.getStats
 
