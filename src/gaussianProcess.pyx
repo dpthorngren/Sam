@@ -230,9 +230,9 @@ cdef class GaussianProcess:
             results = minimize(lambda p: -self.logLikelihood(np.exp(p)),np.log10(paramsGuess),tol=tol,bounds=logBounds)
             self.params = np.exp(results.x)
         else:
-            results = minimize(lambda p: -self.logLikelihood(np.append(np.exp(p),fixWhiteNoise)),
+            results = minimize(lambda p: -self.logLikelihood(np.append(np.exp(p),fixWhiteNoise**2)),
                                np.log10(paramsGuess[:2]),tol=tol,bounds=logBounds[:2])
-            self.params = np.append(np.exp(results.x),fixWhiteNoise)
+            self.params = np.append(np.exp(results.x),fixWhiteNoise**2)
         self.choleskyFresh = False
         self.alphaFresh = False
         return results
