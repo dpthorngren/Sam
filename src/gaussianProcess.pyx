@@ -29,7 +29,7 @@ cdef double matern52KernelDeriv(double scaledDist):
 @cython.cdivision(True)
 @cython.wraparound(False)
 @cython.initializedcheck(False)
-cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=None) except -1:
+cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=None, double[:] yErr=None) except -1:
     '''Constructs a covariance matrix for the given inputs and writes it to output.
         For efficiency reasons, only writes the lower triangular portion of the matrix if
         xPrime is not None.
@@ -52,6 +52,7 @@ cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*ke
     cdef Size i, j, k
     cdef Size jMax = m
     cdef bint isSymmetric = False
+    cdef bint hasYerr = yErr is not None
     cdef double distance
 
     # Check that the inputs are valid
@@ -81,6 +82,8 @@ cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*ke
             output[i,j] = params[1]*kernel(distance/(params[0]*params[0]))
             if isSymmetric and (i==j):
                 output[i,j] += params[2]
+                if hasYerr:
+                    output[i,j] += yErr[i]
     return 0
 
 # Gaussian Process object
@@ -92,7 +95,7 @@ cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*ke
 cdef class GaussianProcess:
     '''A class for doing Gaussian process computation and modeling.'''
 
-    def __init__(self,x,y,kernel="squaredExp"):
+    def __init__(self,x,y,yErr=None,kernel="squaredExp"):
         '''Initializes the Gaussian process (GP) object with the observations and a kernel type.
         
         args:
@@ -100,15 +103,24 @@ cdef class GaussianProcess:
                 should have shape [nSamples x nDimensions].
             y: The values of the input at the locations given by x. Should
                 have shape [nSamples].
-            kernel: The name of the kernel to use.  Must be one of:
-                ``Exponential``, ``Squared Exponential``, ``Matern(3/2)``, or
-                ``Matern(5/2)``
+            yErr (optional): The uncertainty (as a standard deviation) of the y values,
+                if applicable.  Should have shape [nSamples].
+            kernel (optional): The name of the kernel to use.  Must be one of:
+                ``exp``, ``squaredexp``, ``matern32``, or
+                ``matern52``
         
         Returns:
             The Gaussian processes object for further use.'''
         # Sanitize inputs
         self.x = np.atleast_2d(np.transpose(x)).T.astype(np.double)
         self.y = np.atleast_1d(y).astype(np.double)
+        if yErr is not None:
+            self.yErr = (np.atleast_1d(yErr)**2).astype(np.double)
+            if len(self.yErr) == 1:
+                self.yErr *= np.ones(len(y))
+            assert self.y.shape[0] == self.yErr.shape[0], "y and yErr must have the same length."
+        else:
+            self.yErr = None
         assert self.x.shape[0] == self.y.shape[0], \
             "x and y must have the same length first dimension."
         # Record basic information
@@ -160,7 +172,7 @@ cdef class GaussianProcess:
             force = True
         if not self.choleskyFresh or force:
             # Construct the (lower diagonal portion of the) covariance matrix
-            makeCov(self.x,self.params,self.covChol,self.kernelPtr)
+            makeCov(self.x,self.params,self.covChol,self.kernelPtr,None,self.yErr)
             # Compute the cholesky of the covariance matrix
             choleskyInplace(self.covChol)
             self.choleskyFresh = True
@@ -194,7 +206,7 @@ cdef class GaussianProcess:
             result -= log(self.covChol[i,i]) + .5*self.alpha[i]*self.y[i]
         return result
     
-    def optimizeParams(self, paramsGuess=None, tol=1e-3, logBounds=[(-10,10),(-5,5),(-10,10)]):
+    def optimizeParams(self, paramsGuess=None, tol=1e-3, logBounds=[(-10,10),(-5,5),(-10,10)], fixWhiteNoise=None):
         '''Attempts to locate the maximum likelihood parameters for the given x and y.
         
         args:
@@ -205,6 +217,8 @@ cdef class GaussianProcess:
             logBounds (optional): the bounds on the log of the parameters to be optimized.  This
                 is important for avoiding implausible parts of parameter space which would cause
                 positive-definite errors in the Cholesky computation.
+            whiteNoise (optional): a value to fix the white noise at.  If none, fits the white
+                noise along with the other parameters.
 
         Returns:
             The optimized parameters (which are also written to self.params).
@@ -212,8 +226,13 @@ cdef class GaussianProcess:
         if paramsGuess is None:
             paramsGuess = self.params
         assert len(paramsGuess) == self.nParams, "paramsGuess must be length " + str(self.nParams)
-        results = minimize(lambda p: -self.logLikelihood(np.exp(p)),np.log10(paramsGuess),tol=tol,bounds=logBounds)
-        self.params = np.exp(results.x)
+        if fixWhiteNoise is None:
+            results = minimize(lambda p: -self.logLikelihood(np.exp(p)),np.log10(paramsGuess),tol=tol,bounds=logBounds)
+            self.params = np.exp(results.x)
+        else:
+            results = minimize(lambda p: -self.logLikelihood(np.append(np.exp(p),fixWhiteNoise)),
+                               np.log10(paramsGuess[:2]),tol=tol,bounds=logBounds[:2])
+            self.params = np.append(np.exp(results.x),fixWhiteNoise)
         self.choleskyFresh = False
         self.alphaFresh = False
         return results

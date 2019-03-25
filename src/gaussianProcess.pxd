@@ -8,12 +8,13 @@ cdef double matern52Kernel(double scaledDist)
 cdef double matern52KernelDeriv(double scaledDist)
 
 # Covariance function builders
-cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?) except -1
+cdef int makeCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernel)(double) , double[:,:] xPrime=?, double[:] yErr=?) except -1
 # cdef int makeGradientCov(double[:,:] x, double[:] params, double[:,:] output, double(*kernelDeriv)(double), double[:] xPrime) except -1
 
 cdef class GaussianProcess:
     cdef readonly double[:,:] x
     cdef readonly double[:] y
+    cdef readonly double[:] yErr
     cdef readonly double[:] params
     cdef readonly double[:,:] covChol
     cdef double[:] alpha

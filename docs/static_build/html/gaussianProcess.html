@@ -49,7 +49,7 @@
 <span id="gaussian-process-class"></span><h1>Gaussian Process Class<a class="headerlink" href="#module-sam" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="sam.GaussianProcess">
-<em class="property">class </em><code class="descclassname">sam.</code><code class="descname">GaussianProcess</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>kernel='squaredExp'</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">sam.</code><code class="descname">GaussianProcess</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>yErr=None</em>, <em>kernel='squaredExp'</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess" title="Permalink to this definition">¶</a></dt>
 <dd><p>A class for doing Gaussian process computation and modeling.</p>
 <p>Initializes the Gaussian process (GP) object with the observations and a kernel type.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -138,7 +138,7 @@ computationally than subsequent draws.</li>
 
 <dl class="method">
 <dt id="sam.GaussianProcess.optimizeParams">
-<code class="descname">optimizeParams</code><span class="sig-paren">(</span><em>self, paramsGuess=None, tol=1e-3, logBounds=[(-10, 10), (-5, 5), (-10, 10)]</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess.optimizeParams" title="Permalink to this definition">¶</a></dt>
+<code class="descname">optimizeParams</code><span class="sig-paren">(</span><em>self, paramsGuess=None, tol=1e-3, logBounds=[(-10, 10), (-5, 5), (-10, 10)], fixWhiteNoise=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sam.GaussianProcess.optimizeParams" title="Permalink to this definition">¶</a></dt>
 <dd><p>Attempts to locate the maximum likelihood parameters for the given x and y.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -152,6 +152,8 @@ converged.</li>
 <li><strong>logBounds</strong> (<em>optional</em>) – the bounds on the log of the parameters to be optimized.  This
 is important for avoiding implausible parts of parameter space which would cause
 positive-definite errors in the Cholesky computation.</li>
+<li><strong>whiteNoise</strong> (<em>optional</em>) – a value to fix the white noise at.  If none, fits the white
+noise along with the other parameters.</li>
 </ul>
 </td>
 </tr>
