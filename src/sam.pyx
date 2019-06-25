@@ -1161,7 +1161,7 @@ cdef class Sam:
         self.acceptedView = self.accepted
         return 0
 
-    def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None):
+    def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None, extraMembers=[]):
         '''Instantiates the sampler class and sets the logProbability function.
 
         Args:
@@ -1179,6 +1179,10 @@ cdef class Sam:
                 boundaries are enforced efficiently, and so will not decrease
                 the acceptance rate.  If None, no boundaries are enforced.
             upperBounds: Same as lowerBounds, but defines the upper boundaries
+            extraMembers: If a subclass defines aditional members, listing their
+                names here (list of strings) will cause them to be handled
+                correctly when multiple threads are used, and available to save
+                in Sam.save.
 
         Returns:
             An instantiated object of the class.
@@ -1195,6 +1199,7 @@ cdef class Sam:
         cdef Size d
         self.readyToRun = False
         self.showProgress = True
+        self.extraMembers = extraMembers
         self._workingMemory_ = np.nan * np.ones(7*self.nDim,dtype=np.double)
         self.nSamples = 0
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
@@ -1229,7 +1234,7 @@ cdef class Sam:
         self.extraInitialization()
         return
 
-    def save(self,filename):
+    def save(self, filename, extraMembers=True):
         '''Saves the results of sampling and other information to an npz file.
 
         To be exact, it saves the current filename, the number of parameters,
@@ -1242,6 +1247,7 @@ cdef class Sam:
         Args:
             filename: The name of the file to save the information into.  The
             suffix '.npz' will automatically be added.
+            extraMembers: saves extra subclass members listed during the __init__;
 
         Returns:
             None
@@ -1254,6 +1260,10 @@ cdef class Sam:
             accept =  self.accepted.astype(np.double)/self.trials
         else:
             accept = np.nan
+        if extraMembers:
+            extraMembers = {i: getattr(self, i) for i in self.extraMembers}
+        else:
+            extraMembers = None
         try:
             logProbSource = inspect.getsource(self.pyLogProbability)
         except:
@@ -1263,7 +1273,7 @@ cdef class Sam:
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource,
-            samplesLogProb = self.samplesLogProb, stats=stats,)
+            samplesLogProb = self.samplesLogProb, stats=stats, extraMembers=extraMembers)
 
     def __getstate__(self):
         '''Prepares internal memory for pickling.
@@ -1274,10 +1284,11 @@ cdef class Sam:
         Returns:
             A pickleable tuple of the internal variables.
         '''
+        extra = {i: getattr(self, i) for i in self.extraMembers}
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
                 self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-                self.hasBoundaries, self.showProgress)
+                self.hasBoundaries, self.showProgress, extra)
         return info
 
     def __setstate__(self,info):
@@ -1296,7 +1307,9 @@ cdef class Sam:
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-         self.hasBoundaries, self.showProgress) = info
+         self.hasBoundaries, self.showProgress, extraMembers) = info
+        for k, v in extraMembers.items():
+            setattr(self, k, v)
         if (sys.version_info > (3, 0)):
             defaultEngine.setSeed(<unsigned long int>int(os.urandom(4).hex(),16))
             np.random.seed(int(os.urandom(4).hex(),16))

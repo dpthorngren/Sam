@@ -120,6 +120,7 @@ cdef class Sam:
     cdef vector[Accumulator] sampleStats
 
     # User Defined Functions
+    cdef public object extraMembers
     cdef object pyLogProbability
     cdef int pyLogProbArgNum
     cpdef double _logProbability_(self, double[:] position, double[:] gradient, bint computeGradient) except? 999.
