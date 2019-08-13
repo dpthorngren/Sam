@@ -1,6 +1,6 @@
 # distutils: language = c++
 import multiprocessing as mp
-from scipy.misc import logsumexp
+from scipy.special import logsumexp
 from scipy.optimize import minimize
 from scipy.linalg import solve_triangular
 import time
