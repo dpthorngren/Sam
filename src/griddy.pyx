@@ -149,6 +149,15 @@ cdef class Griddy:
                 return outputs[0]
             return outputs
 
+    cpdef double _interp1d_(self, double x, bint locate=True, bint debug=False) except? -1.:
+        # Interpolates quickly in the case that there is only one dimension
+        cdef double points[1]
+        points[0] = x
+        if self.nDim > 1:
+            raise ValueError("This function only works for one dimension!")
+        return self.interp(points, None, locate, debug)
+
+
     cpdef double interp(self,double[:] points, double [:] gradient=None, bint locate=True, bint debug=False) except? -1.:
         # Locate indices and compute weights, or return nan
         cdef Size b, d, offset

@@ -187,6 +187,7 @@ cdef class Griddy:
     cpdef Size ind(self, Size[:] p) except -1
     cpdef bint locatePoints(self, double[:] point) except? True
     cpdef double interp(self, double[:] points, double [:] gradient=?, bint locate=?, bint debug=?) except? -1.
+    cpdef double _interp1d_(self, double x, bint locate=?, bint debug=?) except? -1.
     cpdef int bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced) except -1
     cpdef double findEdge(self, Size index, Size dim) except? 999.
     cpdef int interpN(self,double[:,:] points, double[:] output) except -1
