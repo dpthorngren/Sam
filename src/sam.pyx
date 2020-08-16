@@ -1284,7 +1284,12 @@ cdef class Sam:
         Returns:
             A pickleable tuple of the internal variables.
         '''
-        extra = {i: getattr(self, i) for i in self.extraMembers}
+        extra = {}
+        for i in self.extraMembers:
+            attr = getattr(self, i)
+            if np.iterable(attr):
+                attr = np.array(attr)
+            extra[i] = attr
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
                 self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
