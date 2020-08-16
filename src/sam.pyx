@@ -1261,7 +1261,12 @@ cdef class Sam:
         else:
             accept = np.nan
         if extraMembers:
-            extraMembers = {i: getattr(self, i) for i in self.extraMembers}
+            extraMembers = {}
+            for i in self.extraMembers:
+                attr = getattr(self, i)
+                if np.iterable(attr):
+                    attr = np.array(attr)
+                extraMembers[i] = attr
         else:
             extraMembers = None
         try:
@@ -1273,7 +1278,7 @@ cdef class Sam:
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource,
-            samplesLogProb = self.samplesLogProb, stats=stats, extraMembers=extraMembers)
+            samplesLogProb = self.samplesLogProb, stats=stats, **extraMembers)
 
     def __getstate__(self):
         '''Prepares internal memory for pickling.
