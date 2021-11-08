@@ -8,7 +8,7 @@ Sam is a flexible MCMC sampler for Python and Cython (written in the latter).  I
 3. [Adaptive Metropolis](https://projecteuclid.org/euclid.bj/1080222083)
 4. [Gibbs](https://en.wikipedia.org/wiki/Gibbs_sampling)
 
-The sampler is working and usable, but development is still ongoing.  In particular, a Gaussian process HMC surrogate sampler is planned, and the whole project requires considerably more documentation.
+In addition, the sample supports Gaussian Process surrogate sampling, in which a Gaussian process is used to model the posterior probability to reduce the number of required likelihood calcuations in the case where they are expensive.  The surrogate includes gradient estimation, so HMC can be used with it even if the underlying posterior's gradients are unknown.
 
 Documentation
 ------------
