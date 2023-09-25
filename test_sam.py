@@ -108,7 +108,7 @@ class SamTester(unittest.TestCase):
         x = np.linspace(0, 10, 100)
         y = np.sin(x)
         y2 = np.cos(x)
-        f = sam.GaussianProcess(x, y, 'exp')
+        f = sam.GaussianProcess(x, y, None, 'exp')
         loglike = f.logLikelihood(np.array([10, .5, 0]))
         gpMean, gpVar = f.predict(np.array([5.]))
         gpVar = np.sqrt(np.diag(gpVar))
@@ -124,7 +124,7 @@ class SamTester(unittest.TestCase):
     def testGaussianProcess2D(self):
         x = np.linspace(0, 1, 400).reshape(200, 2)
         z = np.sin(np.sum(x, axis=-1))
-        f = sam.GaussianProcess(x, z, 'matern32')
+        f = sam.GaussianProcess(x, z, None, 'matern32')
         loglike = f.logLikelihood(np.array([1, .5, 0]))
         gpMean, gpVar = f.predict([[.5, .5]])
         gpVar = np.sqrt(np.diag(gpVar))

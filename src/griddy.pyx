@@ -111,10 +111,10 @@ cdef class Griddy:
             else:
                 low = 0
                 high = self.nPoints[d]-1
-                i = (low+high)/2
+                i = (low+high)//2
                 # Binary search for the correct indices
                 while not (self.axes[d,i] <= point[d] < self.axes[d,i+1]):
-                    i = (low+high)/2
+                    i = (low+high)//2
                     if point[d] > self.axes[d,i]:
                         low = i
                     else:
@@ -162,27 +162,27 @@ cdef class Griddy:
         # Locate indices and compute weights, or return nan
         cdef Size b, d, offset
         if debug:
-            print "Input:",
+            print("Input:", end=" ")
             for d in range(self.nDim):
-                print points[d],
-            print ""
+                print(points[d], end=" ")
+            print("")
         if locate:
             if(self.locatePoints(points)):
                 if debug:
-                    print "\tOut of Bounds: ",
+                    print("\tOut of Bounds: ", end=" ")
                     for d in range(self.nDim):
-                        print self.indices[d],
-                    print ""
+                        print(self.indices[d], end=" ")
+                    print("")
                 return nan
         if debug:
-            print "\tIndices:",
+            print("\tIndices:", end=" ")
             for d in range(self.nDim):
-                print self.indices[d],
-            print ""
-            print "\tWeights:",
+                print(self.indices[d], end=" ")
+            print("")
+            print("\tWeights:", end=" ")
             for d in range(self.nDim):
-                print self.weights[d],
-            print ""
+                print(self.weights[d], end=" ")
+            print("")
         cdef double result = 0.0
         cdef double netWeight, gradWeight, adjustment
         if gradient is not None:
@@ -202,10 +202,10 @@ cdef class Griddy:
                     netWeight *= 1.-self.weights[d]
             adjustment = netWeight*self.values[self.ind(self.tempIndices)]
             if debug:
-                print "\tPoint {0} (".format(b),
+                print("\tPoint {0} (".format(b), end=" ")
                 for d in range(self.nDim):
-                    print self.indices[d] + (b>>d&1),
-                print "): {0}, {1}".format(netWeight,self.values[self.ind(self.tempIndices)])
+                    print(self.indices[d] + (b>>d&1), end=" ")
+                print("): {0}, {1}".format(netWeight,self.values[self.ind(self.tempIndices)]))
             result += adjustment
             if gradient is not None:
                 for d in range(self.nDim):
@@ -215,14 +215,14 @@ cdef class Griddy:
                     else:
                         gradient[d] -= adjustment / ((1-self.weights[d])*self.widths[d])
         if debug:
-            print "\tOutput: {0}".format(result)
+            print("\tOutput: {0}".format(result))
             if gradient is None:
-                print "\tGradient: [disabled]"
+                print("\tGradient: [disabled]")
             else:
-                print "\tGradient:",
+                print("\tGradient:", end=" ")
                 for d in range(self.nDim):
-                    print gradient[d],
-                print ""
+                    print(gradient[d], end=" ")
+                print("")
         return result
 
     cpdef int bounceMove(self, double[:] x0, double[:] displacement, bint[:] bounced) except -1:
@@ -273,10 +273,10 @@ cdef class Griddy:
     cpdef object printInfo(self):
         cdef Size d, i
         for d in range(self.nDim):
-            print "Axis {0}:".format(d),
+            print("Axis {0}:".format(d), end=" ")
             if isnan(self.axes[d,1]):
-                print "{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,3])
+                print("{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,3]))
             else:
-                print "{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,self.nPoints[d]-1])
-        print "Strides:", np.asarray(self.strides)
+                print("{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,self.nPoints[d]-1]))
+        print("Strides:", np.asarray(self.strides))
         return

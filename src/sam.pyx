@@ -97,8 +97,8 @@ def gelmanRubin(x,warn=True):
     x = np.asarray(x)
     if x.ndim == 2:
         if warn:
-            print "Warning: the G.R. diagnostic was not designed for " +\
-                "the case where chains are not completely independent."
+            print("Warning: the G.R. diagnostic was not designed for " +\
+                "the case where chains are not completely independent.")
         x = np.stack([x[:x.shape[0]//2],x[x.shape[0]//2:]],axis=0)
     elif x.ndim != 3:
         raise ValueError("Input has an invalid shape: must be 3-d.")
@@ -681,23 +681,23 @@ cdef class Sam:
         '''
         cdef size_t s
         if self.samplers.size() == 0:
-            print "No samplers defined."
+            print("No samplers defined.")
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
-                print s, "Diagonal Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")"
-                print '\tdiag(C) =', np.asarray(self.scale)
+                print(s, "Diagonal Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")")
+                print('\tdiag(C) =', np.asarray(self.scale))
             elif self.samplers[s].samplerType == 1:
-                print s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
-                    self.samplers[s].idata[0], "steps with size", self.samplers[s].ddata[0]
+                print(s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
+                    self.samplers[s].idata[0], "steps with size", self.samplers[s].ddata[0])
             elif self.samplers[s].samplerType == 2:
-                print s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), Cov ="
+                print(s, "Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), Cov =")
                 n = self.samplers[s].dStop - self.samplers[s].dStart
                 a = np.asarray(self.samplers[s].ddata).reshape(n,n)
-                print np.matmul(a,a.T)
+                print(np.matmul(a,a.T))
             elif self.samplers[s].samplerType == 3:
-                print s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"),",\
+                print(s, "Adaptive Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"),",\
                     "Start adapting after", self.samplers[s].idata[1], \
-                    "steps, updating every", self.samplers[s].idata[2], "steps."
+                    "steps, updating every", self.samplers[s].idata[2], "steps.")
         return
 
     cpdef object clearSamplers(self):
@@ -846,7 +846,7 @@ cdef class Sam:
                     self.progressBar(i+1-self.burnIn,self.nSamples,"Sampling")
         if self.showProgress:
             self.progressBar(self.nSamples,self.nSamples,"Sampling")
-            print ""
+            print("")
         return self.samples, self.samplesLogProb, self.accepted
 
     cpdef object getStats(self):
@@ -997,7 +997,7 @@ cdef class Sam:
         output += '\n'
         if returnString:
             return output
-        print output
+        print(output)
         return
 
 
@@ -1122,7 +1122,7 @@ cdef class Sam:
             N: the total number of iterations to be done.
             header: a string to display before the progress bar.
         '''
-        f = (10*i)/N
+        f = (10*i)//N
         sys.stdout.write('\r'+header+': <'+f*"="+(10-f)*" "+'> ('+str(i)+" / " + str(N) + ")          ")
         sys.stdout.flush()
         return 0
