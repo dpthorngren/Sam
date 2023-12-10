@@ -67,7 +67,7 @@ s.run([1.,1.],samples=10000,burnIn=1000,thinning=10,threads=2)
 
 Examples
 -------------
-Documentation is still a work in progress, but here are a couple of examples.  First, consider a very simple case, sampling from a normal distribution:
+First, consider a very simple case, sampling from a normal distribution:
 ```python
 import sam
 
@@ -75,7 +75,7 @@ def logProb(x):
     return sam.normalLogPDF(x[0],3.5,1.2)
 
 s = sam.Sam(logProb,scale=[.5])
-s.run(100000,x0=[0.])
+s.run(100000,x=[0.])
 s.summary()
 
 # Sampling: <==========> (100000 / 100000)          
@@ -86,7 +86,7 @@ s.summary()
 For a more involved example, here is an example where we fit a [logistic regression](https://en.wikipedia.org/wiki/Logistic_regression) model to some data using an adaptive Metropolis sampler on four parallel chains:
 ```python
 import sam
-from scipy.special import expit, logit
+from scipy.special import expit, logit, norm
 from scipy.stats import bernoulli
 
 # Create data to use for sampling
@@ -103,7 +103,7 @@ def logProb(beta):
 # Run the MCMC
 s = sam.Sam(logProb,[1.,1.])
 s.addAdaptiveMetropolis()
-s.run(10000,x0=[1.,1.],burnIn=1000,thinning=10,threads=4)
+s.run(10000,x=[1.,1.],burnIn=1000,thinning=10,threads=4)
 s.summary()
 
 # Sampling: <==========> (10000 / 10000)          

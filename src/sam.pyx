@@ -1,6 +1,7 @@
 # distutils: language = c++
 import multiprocessing as mp
 from scipy.special import logsumexp
+from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 from scipy.linalg import solve_triangular
 import time
@@ -812,8 +813,8 @@ cdef class Sam:
     def __call__(self, double[:] x0):
         '''Internal function used to run the sampler.  Not for user use!
 
-        This function is an internal way to sampler, which assumes certain
-        other internal parameters have already been setup.  Users should call
+        This function is an internal way to sample, which assumes certain
+        other internal parameters have already been set up.  Users should call
         the run() function.  This function only exists because it makes running
         the sampler in parallel simpler to code.
 
@@ -1233,6 +1234,72 @@ cdef class Sam:
                 self.lowerBoundaries[d] = -inf
         self.extraInitialization()
         return
+
+
+    def laplaceApprox(self, initialGuess, newSampler=None, computeSamples=0, optArgs={}):
+        '''Applies the Laplace approximation to the posterior for better initialization.
+
+        The Laplace approximation efficiently finds a multivariate normal by setting the mean
+        to the posterior maximum (found numerically) and the covariance as the inverse hessian of
+        the posterior at that point.  If requested, this function can use this information to set
+        a good initial guess for the correlated Metropolis sampler or the adaptive sampler.
+
+        Args:
+            initialGuess: The starting point for the optimization.  Must be in bounds and finite.
+            newSampler: What to configure the samplers to "metropolis" or "adaptive".  If None
+                (the default), the samplers will not be changed.
+            computeSamples: If nonzero, the function will also fill the results array from the
+                approximate multivariate normal, as if sampling had been run.
+
+        Returns:
+            The mean (1-d array) and covariance (2-d array) estimated for the posterior.
+        '''
+        initialGuess = np.atleast_1d(initialGuess).astype(np.double)
+
+        if np.any(initialGuess <= self.lowerBoundaries) or np.any(initialGuess >= self.upperBoundaries):
+            raise ValueError("Initial guess was not inside the parameter bounds!")
+        if not np.isfinite(self.logProbability(initialGuess, initialGuess, False)):
+            raise ValueError("Initial guess was NaN or infinite!")
+        assert newSampler is None or newSampler in ["metropolis", "adaptive"], "Invalid newSampler argument."
+
+        def target(x):
+            # Impose soft boundary conditions for the optimizer, with a gradient pointing back in bounds
+            penalty = 0.
+            for i in range(self.nDim):
+                if x[i] <= self.lowerBoundaries[i]:
+                    penalty -= 5. * abs(1. + (self.lowerBoundaries[i]-x[i]) / self.scale[i])
+                elif x[i] >= self.upperBoundaries[i]:
+                    penalty -= 5. * abs(1. + (x[i]-self.upperBoundaries[i]) / self.scale[i])
+            x = np.clip(x, self.lowerBoundaries, self.upperBoundaries)
+            return -(self.logProbability(x, x, False) + penalty)
+
+        result = minimize(target, initialGuess, **optArgs)
+
+        if not result.success:
+            print("ERROR:", result.status, result.message)
+            raise ValueError("Code " + str(result.status) + ". "+ result.message)
+
+        if newSampler is not None:
+            if newSampler == "metropolis":
+                self.clearSamplers()
+                self.addMetropolis(result.hess_inv * 5.74 / self.nDim)
+            elif newSampler == "adaptive":
+                self.clearSamplers()
+                self.addAdaptiveMetropolis(
+                    result.hess_inv, adaptAfter=500, recordAfter=100, refreshPeriod=100)
+
+        if computeSamples > 0:
+            self.nSamples = computeSamples
+            self.trials = computeSamples
+            self.samples = np.atleast_2d(multivariate_normal.rvs(result.x, result.hess_inv, size=computeSamples).T).T
+            self.results = self.samples
+            self.samplesLogProb = np.nan*np.empty((self.nSamples),dtype=np.double)
+            self.resultsLogProb = self.samplesLogProb
+            for i in range(self.nDim):
+                self.accepted[i] = computeSamples
+
+        return result.x, result.hess_inv
+
 
     def save(self, filename, extraMembers=True):
         '''Saves the results of sampling and other information to an npz file.
