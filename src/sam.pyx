@@ -1276,8 +1276,11 @@ cdef class Sam:
         result = minimize(target, initialGuess, **optArgs)
 
         if not result.success:
-            print("ERROR:", result.status, result.message)
-            raise ValueError("Code " + str(result.status) + ". "+ result.message)
+            if result.status == 2:
+                print("Warning:", result.message)
+            else:
+                print("ERROR:", result.status, result.message)
+                raise ValueError("Code " + str(result.status) + ". "+ result.message)
 
         if newSampler is not None:
             if newSampler == "metropolis":
