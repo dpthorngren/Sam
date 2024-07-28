@@ -1236,7 +1236,7 @@ cdef class Sam:
         return
 
 
-    def laplaceApprox(self, initialGuess, newSampler=None, computeSamples=0, optArgs={}):
+    def laplaceApprox(self, initialGuess, newSampler=None, computeSamples=0, warnPrecision=False, optArgs={}):
         '''Applies the Laplace approximation to the posterior for better initialization.
 
         The Laplace approximation efficiently finds a multivariate normal by setting the mean
@@ -1271,16 +1271,22 @@ cdef class Sam:
                 elif x[i] >= self.upperBoundaries[i]:
                     penalty -= 5. * abs(1. + (x[i]-self.upperBoundaries[i]) / self.scale[i])
             x = np.clip(x, self.lowerBoundaries, self.upperBoundaries)
-            return -(self.logProbability(x, x, False) + penalty)
+            result = -(self.logProbability(x, x, False) + penalty)
+            return result if np.isfinite(result) else 1e12
 
-        result = minimize(target, initialGuess, **optArgs)
+        # Run once to ensure we're starting near the max, then again to get the inverse hessian
+        result = minimize(target, initialGuess, method="SLSQP", options={'ftol':0.1})
+        result = minimize(target, result.x, **optArgs)
 
         if not result.success:
             if result.status == 2:
-                print("Warning:", result.message)
+                if warnPrecision:
+                    print("Warning:", result.message)
             else:
                 print("ERROR:", result.status, result.message)
                 raise ValueError("Code " + str(result.status) + ". "+ result.message)
+
+        self.initialPosition = result.x
 
         if newSampler is not None:
             if newSampler == "metropolis":
