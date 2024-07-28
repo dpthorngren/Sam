@@ -53,10 +53,10 @@ class SamTester(unittest.TestCase):
         # This is a roundabout way to test them, but it does work
 
         def rightModel(x):
-            return sam.normalLogPDF(x, 0, 1.)
+            return sam.normalLogPDF(x[0], 0, 1.)
 
         def wrongModel(x):
-            return sam.normalLogPDF(x, 0, 2.)
+            return sam.normalLogPDF(x[0], 0, 2.)
 
         def flatPrior(x):
             return 0.
