@@ -120,6 +120,8 @@ cdef class Sam:
     cdef vector[Accumulator] sampleStats
 
     # User Defined Functions
+    cdef object _userParameters
+    cdef double[:] userParametersView
     cdef public object extraMembers
     cdef object pyLogProbability
     cdef int pyLogProbArgNum

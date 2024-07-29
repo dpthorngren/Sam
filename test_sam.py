@@ -29,6 +29,16 @@ def logProb4(x):
     return _logProb4_(x)
 
 
+def logProb5(x, params):
+    return sam.normalLogPDF(x[0], params[0], params[1])
+
+
+def logProb6(x, params, gradient, getGradient):
+    if getGradient:
+        gradient[0] = sam.betaDLDX(x[0], params[0], params[1])
+    return sam.betaLogPDF(x[0], params[0], params[1])
+
+
 def raisesLogProb(x):
     if x > np.inf:
         raise ValueError("x can never be good enough!")
@@ -283,6 +293,51 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(a.getStats()[1][0], sam.betaStd(20, 40), delta=.01)
         self.assertAlmostEqual(a.getStats()[0][1], 5, delta=.1)
         self.assertAlmostEqual(a.getStats()[1][1], 1, delta=.1)
+
+    def testUserParams(self):
+        a = sam.Sam(logProb5, [.4])
+        a.addMetropolis()
+        a.userParams = [0.5, 0.1]
+        samples = a.run(10000, [0.5], showProgress=False)
+        self.assertEqual(a.userParams[0], 0.5)
+        self.assertEqual(a.userParams[1], 0.1)
+        self.assertEqual(len(a.userParams), 2)
+        self.assertAlmostEqual(samples[:, 0].mean(), 0.5, delta=.1)
+        self.assertAlmostEqual(samples[:, 0].std(), 0.1, delta=.1)
+        a.userParams = [15.1, 0.35]
+        samples = a.run(10000, [14.], showProgress=False)
+        self.assertEqual(a.userParams[0], 15.1)
+        self.assertEqual(a.userParams[1], 0.35)
+        self.assertAlmostEqual(samples[:, 0].mean(), 15.1, delta=.3)
+        self.assertAlmostEqual(samples[:, 0].std(), 0.35, delta=.1)
+
+    def testUserParamsThreaded(self):
+        a = sam.Sam(logProb5, [.4])
+        a.addMetropolis()
+        a.userParams = [10.8, 0.25]
+        a.run(10000, [14.], threads=4, showProgress=False)
+        self.assertEqual(a.userParams[0], 10.8)
+        self.assertEqual(a.userParams[1], 0.25)
+        self.assertAlmostEqual(a.results[:, 0].mean(), 10.8, delta=.2)
+        self.assertAlmostEqual(a.results[:, 0].std(), 0.25, delta=.1)
+
+    def testUserParamsThreadedGradient(self):
+        a = sam.Sam(logProb6, [.1], lowerBounds=[0.], upperBounds=[1.])
+        a.addMetropolis()
+        with self.assertRaises(AttributeError):
+            a.run(10000, [.5], showProgress=False)
+        a.userParams = [10., 15.]
+        a.run(10000, [.5], threads=4, showProgress=False)
+        self.assertEqual(a.userParams[0], 10.)
+        self.assertEqual(a.userParams[1], 15.)
+        self.assertAlmostEqual(a.results[:, 0].mean(), sam.betaMean(10., 15.), delta=.1)
+        self.assertAlmostEqual(a.results[:, 0].std(), sam.betaStd(10., 15.), delta=.1)
+        a.userParams = [65., 12.]
+        a.run(10000, [.5], threads=4, showProgress=False)
+        self.assertEqual(a.userParams[0], 65.)
+        self.assertEqual(a.userParams[1], 12.)
+        self.assertAlmostEqual(a.results[:, 0].mean(), sam.betaMean(65., 12.), delta=.1)
+        self.assertAlmostEqual(a.results[:, 0].std(), sam.betaStd(65., 12.), delta=.1)
 
     def testExceptionsRaised(self):
         a = sam.Sam(None, np.ones(1))

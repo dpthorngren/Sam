@@ -175,7 +175,17 @@ cdef class Sam:
             if computeGradient:
                 raise AttributeError("Gradient information was requested, but the given logProbability function does not provide it.")
             return self.pyLogProbability(np.asarray(position))
-        return self.pyLogProbability(np.asarray(position),np.asarray(gradient),computeGradient)
+        elif self.pyLogProbArgNum == 2:
+            if computeGradient:
+                raise AttributeError("Gradient information was requested, but the given logProbability function does not provide it.")
+            if self.userParametersView.shape[0] == 0:
+                raise AttributeError("User parameters were requested but have not yet been set with setUserParameters(...).")
+            return self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView))
+        elif self.pyLogProbArgNum == 4:
+            if self.userParametersView.shape[0] == 0:
+                raise AttributeError("User parameters were requested but have not yet been set with setUserParameters(...).")
+            return self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView), np.asarray(gradient), computeGradient)
+        return self.pyLogProbability(np.asarray(position), np.asarray(gradient), computeGradient)
 
     cdef int sample(self) except -1:
         '''Conducts a single sampling step in the metropolis algorithm.
@@ -773,7 +783,7 @@ cdef class Sam:
         if recordStop < 0:
             recordStop = self.nDim
         self.recordStop = recordStop
-        self.accepted[:] = 0
+        self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.nSamples = nSamples
         self.burnIn = burnIn
         self.thinning = thinning
@@ -1001,6 +1011,14 @@ cdef class Sam:
         print(output)
         return
 
+    @property
+    def userParams(self):
+        return self._userParameters
+
+    @userParams.setter
+    def userParams(self, params):
+        self._userParameters = np.asarray(params).flatten().copy()
+        self.userParametersView = self._userParameters
 
     def getACF(self, length=50):
         assert self.trials > 0, "The number of trials must be greater than zero to compute the autocorrelation function."
@@ -1160,6 +1178,7 @@ cdef class Sam:
         self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
         self.acceptedView = self.accepted
+        self.userParametersView = self._userParameters
         return 0
 
     def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None, extraMembers=[]):
@@ -1205,6 +1224,7 @@ cdef class Sam:
         self.nSamples = 0
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.trials = 0
+        self._userParameters = np.array([])
         self._setMemoryViews_()
         self.pyLogProbability = logProbability
         if self.pyLogProbability is not None:
@@ -1212,7 +1232,7 @@ cdef class Sam:
                 self.pyLogProbArgNum = len(inspect.signature(self.pyLogProbability).parameters)
             else:
                 self.pyLogProbArgNum = len(inspect.getargspec(self.pyLogProbability).args)
-            assert ((self.pyLogProbArgNum == 1) or (self.pyLogProbArgNum == 3)), "The logProbability function must take either one or three arguments."
+            assert self.pyLogProbArgNum in [1,2,3,4], "The logProbability function must take one to four arguments."
         else:
             self.pyLogProbArgNum = -1
         for d in range(self.nDim):
@@ -1354,7 +1374,7 @@ cdef class Sam:
             thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource,
-            samplesLogProb = self.samplesLogProb, stats=stats, **extraMembers)
+            samplesLogProb = self.samplesLogProb, userParameters=self.userParameters, stats=stats, **extraMembers)
 
     def __getstate__(self):
         '''Prepares internal memory for pickling.
@@ -1374,7 +1394,7 @@ cdef class Sam:
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
                 self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
                 self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-                self.hasBoundaries, self.showProgress, extra)
+                self.hasBoundaries, self.showProgress, self._userParameters, extra)
         return info
 
     def __setstate__(self,info):
@@ -1393,7 +1413,7 @@ cdef class Sam:
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
          self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
          self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-         self.hasBoundaries, self.showProgress, extraMembers) = info
+         self.hasBoundaries, self.showProgress, self._userParameters, extraMembers) = info
         for k, v in extraMembers.items():
             setattr(self, k, v)
         if (sys.version_info > (3, 0)):
