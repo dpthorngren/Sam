@@ -85,7 +85,7 @@ cdef class Sam:
     cdef bint collectStats
     cdef bint readyToRun
     cdef vector[SamplerData] samplers
-    cdef double[:] scale
+    cdef double[:] _scale
     cdef double[:] upperBoundaries
     cdef double[:] lowerBoundaries
     cdef bint hasBoundaries
@@ -134,9 +134,9 @@ cdef class Sam:
     cpdef object run(self, Size nSamples, x, Size burnIn=?, Size thinning=?, Size recordStart=?, Size recordStop=?, bint collectStats=?, Size threads=?, bint showProgress=?)
     cpdef object getStats(self)
     cpdef object getAcceptance(self)
-    cpdef object getBIC(self,prior,nPoints)
-    cpdef object getAIC(self,prior)
-    cpdef object getDIC(self,prior)
+    cpdef object getBIC(self, prior, nPoints)
+    cpdef object getAIC(self, prior)
+    cpdef object getDIC(self, prior)
     cpdef object testGradient(self, x, double eps=?)
     cpdef object gradientDescent(self, x, double step=?, double eps=?)
     cpdef object simulatedAnnealing(self, x, Size nSteps=?, Size nQuench=?, double T0=?, double width=?)

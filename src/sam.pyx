@@ -94,8 +94,8 @@ def acf(x, length=50):
          return np.array([1]+[np.corrcoef(x[:-i],x[i:],0)[0,1] for i in range(1,length)])
 
 
-def gelmanRubin(x,warn=True):
-    x = np.asarray(x)
+def gelmanRubin(x, warn=True):
+    x = np.asarray(x, np.double, "C")
     if x.ndim == 2:
         if warn:
             print("Warning: the G.R. diagnostic was not designed for " +\
@@ -129,7 +129,7 @@ cdef class Sam:
         '''
         cdef Size i
         if self.useSurrogate:
-            scaledPosition = np.asarray(position)/np.asarray(self.scale)
+            scaledPosition = np.asarray(position)/np.asarray(self._scale)
             p, pErr = self.surrogate.predict(scaledPosition[None,:])
             p += self.surrogateOffset
             if pErr > self.surrogateTol:
@@ -256,14 +256,14 @@ cdef class Sam:
         for d in range(self.nDim):
             self.xPropose[d] = self.x[d]
             if d >= dStart and d < dStop:
-                self.momentum[d] = normalRand(0,1./self.scale[d])
+                self.momentum[d] = normalRand(0,1./self._scale[d])
             else:
                 self.momentum[d] = 0
 
         # Compute the kinetic energy part of the initial Hamiltonian
         cdef double kinetic = 0
         for d in range(dStart,dStop):
-            kinetic += self.momentum[d]*self.momentum[d]*self.scale[d]*self.scale[d] / 2.0
+            kinetic += self.momentum[d]*self.momentum[d]*self._scale[d]*self._scale[d] / 2.0
 
         # Simulate the trajectory
         if isnan(logP0):
@@ -279,7 +279,7 @@ cdef class Sam:
         # Compute the kinetic energy part of the proposal Hamiltonian
         cdef double kineticPropose = 0
         for d in range(dStart,dStop):
-            kineticPropose += self.momentum[d]*self.momentum[d]*self.scale[d]*self.scale[d]/2.0
+            kineticPropose += self.momentum[d]*self.momentum[d]*self._scale[d]*self._scale[d]/2.0
 
         # Decide whether to accept the new point
         if isnan(logP1) or isnan(logP0):
@@ -311,9 +311,9 @@ cdef class Sam:
         cdef Size d
         for d in range(dStart,dStop):
             if square:
-                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d] * self.scale[d]
+                self.xPropose[d] += self.momentum[d] * stepSize * self._scale[d] * self._scale[d]
             else:
-                self.xPropose[d] += self.momentum[d] * stepSize * self.scale[d]
+                self.xPropose[d] += self.momentum[d] * stepSize * self._scale[d]
             # Enforce boundary conditions
             # TODO: Make more efficient
             while self.hasBoundaries:
@@ -347,7 +347,7 @@ cdef class Sam:
             self.onlineCovar(mu,covar,self.x,t[0],scaling,eps)
         # TODO: Add update frequency option for adaptive step
         if (t[0] >= adaptAfter) and ((t[0]-adaptAfter)%refreshPeriod == 0):
-            chol = cholesky(np.asarray(covar))
+            chol = cholesky(np.asarray(covar, np.double, "C"))
             for i in range(covar.shape[0]):
                 for j in range(i):
                     covChol[i,j] = chol[i,j]
@@ -381,7 +381,7 @@ cdef class Sam:
         cdef double logP1
         for d in range(0,self.nDim):
             if d >= dStart and d < dStop:
-                self.xPropose[d] = normalRand(self.x[d],self.scale[d])
+                self.xPropose[d] = normalRand(self.x[d],self._scale[d])
                 if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
                     # TODO: Smart reflection, rather than rejection
@@ -579,7 +579,7 @@ cdef class Sam:
         if scaling <= 0:
             scaling = 5.74/self.nDim
         if covariance is None:
-            covariance = np.diag(np.asarray(self.scale)[dStart:dStop])**2
+            covariance = np.diag(np.asarray(self._scale)[dStart:dStop])**2
         assert covariance.shape[0] == covariance.shape[1] == dStop-dStart, "Misshapen covariance."
         cdef SamplerData samp
         covChol = cholesky(covariance)
@@ -626,7 +626,7 @@ cdef class Sam:
         self.samplers.push_back(samp)
         return
 
-    cpdef object enableSurrogate(self,xInit,yInit,kernel='matern32',tol=1e-2):
+    cpdef object enableSurrogate(self, xInit, yInit, kernel='matern32', tol=1e-2):
         '''Turns on surrogate sampling and initializes the surrogate GP.
 
         In order to get reasonable parameters for the Gaussian process, you
@@ -644,7 +644,7 @@ cdef class Sam:
         '''
         if self.useSurrogate:
             raise ValueError("Surrogate sampling is already enabled.")
-        scaledPosition = xInit/np.asarray(self.scale)[None,:]
+        scaledPosition = xInit/np.asarray(self._scale)[None,:]
         self.surrogateOffset = np.median(yInit)
         self.surrogate = GaussianProcess(scaledPosition,yInit-self.surrogateOffset,kernel)
         self.surrogate.optimizeParams()
@@ -670,9 +670,9 @@ cdef class Sam:
     cpdef object getProposalCov(self, unsigned int i=0):
         assert i < self.samplers.size()
         if self.samplers[i].samplerType == 0:
-            return np.diag(self.scale)
+            return np.diag(self._scale)
         elif self.samplers[i].samplerType == 1:
-            return np.diag(1./np.asarray(self.scale))
+            return np.diag(1./np.asarray(self._scale))
         elif self.samplers[i].samplerType == 2:
             n = self.samplers[i].dStop - self.samplers[i].dStart
             chol = np.asarray(self.samplers[i].ddata).reshape(n,n)
@@ -696,7 +696,7 @@ cdef class Sam:
         for s in range(self.samplers.size()):
             if self.samplers[s].samplerType == 0:
                 print(s, "Diagonal Metropolis ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+")")
-                print('\tdiag(C) =', np.asarray(self.scale))
+                print('\tdiag(C) =', np.asarray(self._scale))
             elif self.samplers[s].samplerType == 1:
                 print(s, "HMC ("+str(self.samplers[s].dStart)+":"+str(self.samplers[s].dStop)+"), ",\
                     self.samplers[s].idata[0], "steps with size", self.samplers[s].ddata[0])
@@ -1017,8 +1017,53 @@ cdef class Sam:
 
     @userParams.setter
     def userParams(self, params):
-        self._userParameters = np.asarray(params).flatten().copy()
+        self._userParameters = np.asarray(params, np.double, "C").flatten().copy()
         self.userParametersView = self._userParameters
+
+    @property
+    def scale(self):
+        return np.asarray(self._scale).copy()
+
+    @scale.setter
+    def scale(self, newScale):
+        newScale = np.asarray(newScale, np.double, "C").flatten()
+        assert len(newScale) == self.nDim, "New scale must have the same length as the sampler dimensions."
+        assert all(newScale > 0.), "Scale must be positive!"
+        assert all(np.isfinite(newScale)), "Scale must be finite!"
+        for d in range(self.nDim):
+            self._scale[d] = newScale[d]
+
+    @property
+    def lowerBounds(self):
+        if self.lowerBoundaries is None:
+            return None
+        else:
+            return np.asarray(self.lowerBoundaries).copy()
+
+    @lowerBounds.setter
+    def lowerBounds(self, newBounds):
+        assert len(newBounds) == self.nDim, "New scale must have the same length as the sampler dimensions."
+        assert not any(np.isnan(newBounds)), "Scale must be not be NaN (infinite is fine)."
+        if self.upperBoundaries is not None:
+            assert all(np.asarray(self.upperBoundaries) > newBounds), "New lower bounds must be less than upper bounds."
+        for d in range(self.nDim):
+            self.lowerBoundaries[d] = newBounds[d]
+
+    @property
+    def upperBounds(self):
+        if self.upperBoundaries is None:
+            return None
+        else:
+            return np.asarray(self.upperBoundaries).copy()
+
+    @upperBounds.setter
+    def upperBounds(self, newBounds):
+        assert len(newBounds) == self.nDim, "New scale must have the same length as the sampler dimensions."
+        assert not any(np.isnan(newBounds)), "Scale must be not be NaN (infinite is fine)."
+        if self.lowerBoundaries is not None:
+            assert all(np.asarray(self.upperBoundaries) > newBounds), "New upper bounds must be greater than lower bounds."
+        for d in range(self.nDim):
+            self.upperBoundaries[d] = newBounds[d]
 
     def getACF(self, length=50):
         assert self.trials > 0, "The number of trials must be greater than zero to compute the autocorrelation function."
@@ -1054,13 +1099,13 @@ cdef class Sam:
         cdef object output = np.empty(self.nDim,dtype=np.double)
         cdef double[:] outputView = output
         for d in range(self.nDim):
-            x0[d] += self.scale[d]*eps
-            estimate = (self.logProbability(x0,self.momentum,False) - central)/(self.scale[d]*eps)
+            x0[d] += self._scale[d]*eps
+            estimate = (self.logProbability(x0,self.momentum,False) - central)/(self._scale[d]*eps)
             try:
                 outputView[d] = (estimate-self.gradient[d])/(estimate+self.gradient[d])
             except:
                 outputView[d] = nan
-            x0[d] -= self.scale[d]*eps
+            x0[d] -= self._scale[d]*eps
         return output
 
     cpdef object gradientDescent(self, x, double step=.1, double eps=1e-10):
@@ -1076,12 +1121,12 @@ cdef class Sam:
             self.logProbability(self.x,self.gradient,True)
             done = True
             for d in range(self.nDim):
-                xNew = self.x[d] + step*self.scale[d]*self.scale[d]*self.gradient[d]
+                xNew = self.x[d] + step*self._scale[d]*self._scale[d]*self.gradient[d]
                 if xNew < self.lowerBoundaries[d]:
                     xNew = self.lowerBoundaries[d]
                 if xNew > self.upperBoundaries[d]:
                     xNew = self.upperBoundaries[d]
-                if abs(xNew - self.x[d]) > abs(eps * self.scale[d]):
+                if abs(xNew - self.x[d]) > abs(eps * self._scale[d]):
                     done = False
                 self.x[d] = xNew
         output = np.zeros(self.nDim)
@@ -1102,7 +1147,7 @@ cdef class Sam:
         for i in range(nSteps):
             temperature = T0*(1. - (<double>i)/(nSteps))
             for d in range(self.nDim):
-                self.xPropose[d] = normalRand(self.x[d],width*self.scale[d])
+                self.xPropose[d] = normalRand(self.x[d],width*self._scale[d])
                 if(self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
                     outOfBounds = True
@@ -1116,7 +1161,7 @@ cdef class Sam:
                     energy = energyPropose
         for i in range(nQuench):
             for d in range(self.nDim):
-                self.xPropose[d] = normalRand(self.x[d],width*self.scale[d]/5.)
+                self.xPropose[d] = normalRand(self.x[d],width*self._scale[d]/5.)
                 if(self.xPropose[d] > self.upperBoundaries[d] or
                    self.xPropose[d] < self.lowerBoundaries[d]):
                     outOfBounds = True
@@ -1174,7 +1219,7 @@ cdef class Sam:
         self.xPropose = self._workingMemory_[self.nDim:2*self.nDim]
         self.momentum = self._workingMemory_[2*self.nDim:3*self.nDim]
         self.gradient = self._workingMemory_[3*self.nDim:4*self.nDim]
-        self.scale = self._workingMemory_[4*self.nDim:5*self.nDim]
+        self._scale = self._workingMemory_[4*self.nDim:5*self.nDim]
         self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
         self.acceptedView = self.accepted
@@ -1236,7 +1281,7 @@ cdef class Sam:
         else:
             self.pyLogProbArgNum = -1
         for d in range(self.nDim):
-            self.scale[d] = scale[d]
+            self._scale[d] = scale[d]
         self.hasBoundaries = False
         if upperBounds is not None:
             self.hasBoundaries = True
@@ -1287,9 +1332,9 @@ cdef class Sam:
             penalty = 0.
             for i in range(self.nDim):
                 if x[i] <= self.lowerBoundaries[i]:
-                    penalty -= 5. * abs(1. + (self.lowerBoundaries[i]-x[i]) / self.scale[i])
+                    penalty -= 5. * abs(1. + (self.lowerBoundaries[i]-x[i]) / self._scale[i])
                 elif x[i] >= self.upperBoundaries[i]:
-                    penalty -= 5. * abs(1. + (x[i]-self.upperBoundaries[i]) / self.scale[i])
+                    penalty -= 5. * abs(1. + (x[i]-self.upperBoundaries[i]) / self._scale[i])
             x = np.clip(x, self.lowerBoundaries, self.upperBoundaries)
             result = -(self.logProbability(x, x, False) + penalty)
             return result if np.isfinite(result) else 1e12
@@ -1371,7 +1416,7 @@ cdef class Sam:
             logProbSource = "Source code not available."
         np.savez_compressed(
             filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn,
-            thinning=self.thinning, scale=np.asarray(self.scale), upperBounds=self.upperBoundaries,
+            thinning=self.thinning, scale=np.asarray(self._scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
             samples = self.samples, acceptance = accept, logProbSource = logProbSource,
             samplesLogProb = self.samplesLogProb, userParameters=self.userParameters, stats=stats, **extraMembers)

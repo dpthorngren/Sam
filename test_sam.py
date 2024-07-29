@@ -339,6 +339,46 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(a.results[:, 0].mean(), sam.betaMean(65., 12.), delta=.1)
         self.assertAlmostEqual(a.results[:, 0].std(), sam.betaStd(65., 12.), delta=.1)
 
+    def testScaleChange(self):
+        # Intentionally bad scale to catch if it's not changed
+        a = sam.Sam(logProb2, [1e-12], 0. ,1.)
+        self.assertEqual(a.scale.ndim, 1)
+        self.assertEqual(len(a.scale), 1)
+        self.assertEqual(a.scale[0], 1e-12)
+        a.scale = [0.5]
+        samps0 = a.run(2500, [0.3], threads=4, showProgress=False)
+        a.scale = [0.35]
+        samps1 = a.run(2500, [0.5], threads=4, showProgress=False)
+        self.assertAlmostEqual(samps0.mean(), samps1.mean(), delta=.01)
+        self.assertAlmostEqual(samps0.std(), samps1.std(), delta=.1)
+        with self.assertRaises(AssertionError):
+            a.scale = [-15.]
+        with self.assertRaises(AssertionError):
+            a.scale = [.3, .2]
+        with self.assertRaises(AssertionError):
+            a.scale = [np.inf]
+
+    def testBoundsChange(self):
+        # Intentionally invalid bounds to catch if they aren't changed
+        a = sam.Sam(logProb2, .5, -3.2, 1e5)
+        self.assertEqual(a.lowerBounds[0], -3.2)
+        self.assertEqual(a.upperBounds[0], 1e5)
+        a.lowerBounds = [0.]
+        a.upperBounds = [1.]
+        samples = a.run(100000, 0.5, showProgress=False)
+        self.assertGreaterEqual(a.getAcceptance()[0], 0.)
+        self.assertLessEqual(a.getAcceptance()[0], 1.)
+        self.assertTrue((samples >= 0).all())
+        self.assertTrue((samples <= 1).all())
+        self.assertAlmostEqual(samples.mean(), sam.betaMean(15, 20), delta=.01)
+        self.assertAlmostEqual(samples.std(), sam.betaStd(15, 20), delta=.01)
+        a.scale = [0.1]
+        a.lowerBounds = [0.41]
+        a.upperBounds = [0.49]
+        samples = a.run(100000, 0.45, showProgress=False)
+        self.assertTrue((samples >= .41).all())
+        self.assertTrue((samples <= .49).all())
+
     def testExceptionsRaised(self):
         a = sam.Sam(None, np.ones(1))
         with self.assertRaises(RuntimeError):
