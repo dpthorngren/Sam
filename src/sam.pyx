@@ -803,16 +803,22 @@ cdef class Sam:
             p = mp.Pool(threads)
             try:
                 self.samples, self.samplesLogProb, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
-                p.terminate()
+            except KeyboardInterrupt:
+                print("ERROR: Sampling terminated by keyboard interrupt.")
+                self.readyToRun=False
+            except Exception as e:
+                print("ERROR: Sam parent thread encountered an exception:", e.message)
+                self.readyToRun=False
+            p.terminate()
+            p.close()
+            if self.readyToRun:
                 self.samples = np.array(self.samples)
                 self.samplesLogProb = np.array(self.samplesLogProb)
                 self.accepted = np.array(self.accepted)
                 self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
                 self.resultsLogProb = np.reshape(self.samplesLogProb,(threads*self.nSamples))
-                return self.samples
-            except KeyboardInterrupt:
-                p.terminate()
                 self.readyToRun = False
+                return self.samples
             return None
         else:
             self(x0)
