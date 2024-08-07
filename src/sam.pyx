@@ -784,6 +784,7 @@ cdef class Sam:
             recordStop = self.nDim
         self.recordStop = recordStop
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
+        self.acceptedView = self.accepted
         self.nSamples = nSamples
         self.burnIn = burnIn
         self.thinning = thinning
