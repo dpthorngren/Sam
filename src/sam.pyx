@@ -271,7 +271,17 @@ cdef class Sam:
         for i in range(nSteps):
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
-            self.bouncingMove(stepSize, True, dStart, dStop)
+                self.xPropose[d] += self.momentum[d] * stepSize * self._scale[d] * self._scale[d]
+                while self.hasBoundaries:
+                    if self.xPropose[d] >= self.upperBoundaries[d]:
+                        self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
+                        self.momentum[d] = -self.momentum[d]
+                        continue
+                    if self.xPropose[d] <= self.lowerBoundaries[d]:
+                        self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
+                        self.momentum[d] = -self.momentum[d]
+                        continue
+                    break
             logP1 = self._logProbability_(self.xPropose, self.gradient,True)
             for d in range(dStart,dStop):
                 self.momentum[d] += stepSize * self.gradient[d] / 2.0
@@ -290,43 +300,6 @@ cdef class Sam:
                 self.x[d] = self.xPropose[d]
             return logP1
         return logP0
-
-    cdef int bouncingMove(self, double stepSize, bint square, Size dStart, Size dStop) except -1:
-        '''Attempts to move self.xPropose, bouncing off of any boundaries.
-
-        The update rule is: x_p[n+1] = x_p[n] + p[n] * stepSize * scale,
-        where x_p is the proposed x position (self.xProposed, p is the momentum
-        (self.momentum), and scale is the global scaling vector (self.scale).
-        If a boundary is encountered, the particle bounces of the boundary
-        normal vector and continues moving.
-
-        Args:
-            stepSize: Scales the distance traveled (see above).  In classical
-                mechanics, this is the time-step.
-            square:  Whether to square the scale factor -- typically this is
-                True for HMC and False for metropolis.
-            dStart: The index of the first parameter to be included.
-            dStop: The index of the last parameter to be included, plus one.
-        '''
-        cdef Size d
-        for d in range(dStart,dStop):
-            if square:
-                self.xPropose[d] += self.momentum[d] * stepSize * self._scale[d] * self._scale[d]
-            else:
-                self.xPropose[d] += self.momentum[d] * stepSize * self._scale[d]
-            # Enforce boundary conditions
-            # TODO: Make more efficient
-            while self.hasBoundaries:
-                if self.xPropose[d] >= self.upperBoundaries[d]:
-                    self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
-                    self.momentum[d] = -self.momentum[d]
-                    continue
-                if self.xPropose[d] <= self.lowerBoundaries[d]:
-                    self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
-                    self.momentum[d] = -self.momentum[d]
-                    continue
-                break
-        return 0
 
     cdef double adaptiveStep(self, Size dStart, Size dStop, vector[double]* ddata, vector[int]* idata, double logP0=nan) except 999.:
         # TODO: Documentation
@@ -381,11 +354,15 @@ cdef class Sam:
         cdef double logP1
         for d in range(0,self.nDim):
             if d >= dStart and d < dStop:
-                self.xPropose[d] = normalRand(self.x[d],self._scale[d])
-                if self.hasBoundaries and (self.xPropose[d] > self.upperBoundaries[d] or
-                   self.xPropose[d] < self.lowerBoundaries[d]):
-                    # TODO: Smart reflection, rather than rejection
-                    return logP0
+                self.xPropose[d] = normalRand(self.x[d], self._scale[d])
+                while self.hasBoundaries:
+                    if self.xPropose[d] >= self.upperBoundaries[d]:
+                        self.xPropose[d] = 2*self.upperBoundaries[d] - self.xPropose[d]
+                        continue
+                    if self.xPropose[d] <= self.lowerBoundaries[d]:
+                        self.xPropose[d] = 2*self.lowerBoundaries[d] - self.xPropose[d]
+                        continue
+                    break
             else:
                 self.xPropose[d] = self.x[d]
         if isnan(logP0):
