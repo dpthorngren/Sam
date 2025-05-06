@@ -280,3 +280,14 @@ cdef class Griddy:
                 print("{0} ({1}:{2})".format(self.nPoints[d],self.axes[d,0],self.axes[d,self.nPoints[d]-1]))
         print("Strides:", np.asarray(self.strides))
         return
+
+    def __reduce__(self):
+        inputAxes = []
+        for d in range(self.nDim):
+            if np.isnan(self.axes[d,1]):
+                axLen = int(1.1 + (self.axes[d,3] - self.axes[d,0]) / self.axes[d,2])
+                ax = np.linspace(self.axes[d,0], self.axes[d,3], axLen)
+                inputAxes.append(ax)
+            else:
+                inputAxes.append(np.array(self.axes[d]))
+        return self.__class__, (inputAxes, np.array(self.values))
