@@ -5,7 +5,7 @@ cimport scipy.linalg.cython_lapack as lapack
 cimport scipy.linalg.cython_blas as blas
 
 # Standard library
-from libc.math cimport log, log10, abs, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan
+from libc.math cimport log, log10, abs, sqrt, exp, sin, cos, tan, acos, asin, atan, atan2, sinh, cosh, tanh, M_PI as pi, INFINITY as inf, NAN as nan, isnan, isfinite
 from libcpp.vector cimport vector
 
 # Boost library (RNG functions declared separately in distributions.pxd)
@@ -156,7 +156,6 @@ cdef class Sam:
     cdef int _setMemoryViews_(self) except -1
     cdef int record(self,Size i) except -1
     cdef int recordStats(self) except -1
-    cdef int bouncingMove(self, double stepSize, bint square, Size dStart, Size dStop) except -1
     cdef int onlineCovar(self, double[:] mu, double[:,:] covar, double[:] x, int t, double scaling, double eps=?) except -1
 
     # Sampling functions
