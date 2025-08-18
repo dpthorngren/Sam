@@ -82,6 +82,7 @@ cdef class Sam:
     cdef Size nDim, nSamples
     cdef Size burnIn, thinning
     cdef Size recordStart, recordStop
+    cdef Size nBlobs
     cdef bint collectStats
     cdef bint readyToRun
     cdef vector[SamplerData] samplers
@@ -100,6 +101,7 @@ cdef class Sam:
     cdef double[:] xPropose
     cdef double[:] momentum
     cdef double[:] gradient
+    cdef double[:] blob
     cdef double lastLogProb
     cdef public GaussianProcess surrogate
     cdef Size surrogateSamples
@@ -111,8 +113,11 @@ cdef class Sam:
     cdef readonly object results
     cdef readonly object samplesLogProb
     cdef readonly object resultsLogProb
+    cdef readonly object blobs
+    cdef readonly object resultsBlobs
     cdef public object initialPosition
     cdef double[:,:] sampleView
+    cdef double[:,:] blobsView
     cdef double[:] samplesLogProbView
     cdef public object accepted
     cdef int[:] acceptedView

@@ -1,10 +1,8 @@
 # distutils: language = c++
 import multiprocessing as mp
-from scipy.special import logsumexp
 from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 from scipy.linalg import solve_triangular
-import time
 import sys
 import numpy as np
 import inspect
@@ -168,24 +166,32 @@ cdef class Sam:
             given point.  If a gradient was requested, it will have been
             written to the gradient argument.
         '''
+        cdef Size i
         if self.pyLogProbability is None:
             raise NotImplementedError("You haven't defined the log probability,"+
                 "but the sampler called it.")
         if self.pyLogProbArgNum == 1:
             if computeGradient:
                 raise AttributeError("Gradient information was requested, but the given logProbability function does not provide it.")
-            return self.pyLogProbability(np.asarray(position))
+            pyLogProb = self.pyLogProbability(np.asarray(position))
         elif self.pyLogProbArgNum == 2:
             if computeGradient:
                 raise AttributeError("Gradient information was requested, but the given logProbability function does not provide it.")
             if self.userParametersView.shape[0] == 0:
                 raise AttributeError("User parameters were requested but have not yet been set with setUserParameters(...).")
-            return self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView))
+            pyLogProb = self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView))
         elif self.pyLogProbArgNum == 4:
             if self.userParametersView.shape[0] == 0:
                 raise AttributeError("User parameters were requested but have not yet been set with setUserParameters(...).")
-            return self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView), np.asarray(gradient), computeGradient)
-        return self.pyLogProbability(np.asarray(position), np.asarray(gradient), computeGradient)
+            pyLogProb = self.pyLogProbability(np.asarray(position), np.asarray(self.userParametersView), np.asarray(gradient), computeGradient)
+        else:
+            pyLogProb = self.pyLogProbability(np.asarray(position), np.asarray(gradient), computeGradient)
+        if type(pyLogProb) is tuple:
+            assert len(pyLogProb) == 2, "logProbability must return one float (+ an array if blobs are enabled)"
+            for i in range(self.nBlobs):
+                self.blob[i] = np.atleast_1d(pyLogProb[1])[i]
+            return pyLogProb[0]
+        return pyLogProb
 
     cdef int sample(self) except -1:
         '''Conducts a single sampling step in the metropolis algorithm.
@@ -706,6 +712,8 @@ cdef class Sam:
         for d in range(self.recordStart,self.recordStop):
             self.sampleView[i,d-self.recordStart] = self.x[d]
             self.samplesLogProbView[i] = self.lastLogProb
+        for d in range(self.nBlobs):
+            self.blobsView[i,d] = self.blob[d]
         return 0
 
     cdef int recordStats(self) except -1:
@@ -780,12 +788,12 @@ cdef class Sam:
                 x0 = np.array([x0]*threads)
             p = mp.Pool(threads)
             try:
-                self.samples, self.samplesLogProb, self.accepted = zip(*p.map_async(self,list(x0)).get(1000000000))
+                self.samples, self.samplesLogProb, self.accepted, self.blobs = zip(*p.map_async(self,list(x0)).get(1000000000))
             except KeyboardInterrupt:
                 print("ERROR: Sampling terminated by keyboard interrupt.")
                 self.readyToRun=False
             except Exception as e:
-                print("ERROR: Sam parent thread encountered an exception:", e.message)
+                print("ERROR: Sam parent thread encountered an exception:", str(e))
                 self.readyToRun=False
             p.terminate()
             p.close()
@@ -795,6 +803,8 @@ cdef class Sam:
                 self.accepted = np.array(self.accepted)
                 self.results = np.reshape(self.samples,(threads*self.nSamples,self.nDim))
                 self.resultsLogProb = np.reshape(self.samplesLogProb,(threads*self.nSamples))
+                self.blobs = np.array(self.blobs)
+                self.resultsBlobs = np.reshape(self.blobs, (threads*self.nSamples, self.nBlobs))
                 self.readyToRun = False
                 return self.samples
             return None
@@ -802,6 +812,8 @@ cdef class Sam:
             self(x0)
             self.results = self.samples
             self.resultsLogProb = self.samplesLogProb
+            self.resultsBlobs = self.blobs
+            self.readyToRun = False
             return self.samples
 
     def __call__(self, double[:] x0):
@@ -826,6 +838,8 @@ cdef class Sam:
         self.samplesLogProb = np.empty((self.nSamples),dtype=np.double)
         self.sampleView = self.samples
         self.samplesLogProbView = self.samplesLogProb
+        self.blobs = np.zeros((self.nSamples, self.nBlobs), dtype=np.double)
+        self.blobsView = self.blobs
         cdef Size totalDraws = self.nSamples + self.burnIn
         for i in range(totalDraws):
             for j in range(self.thinning+1):
@@ -842,7 +856,7 @@ cdef class Sam:
         if self.showProgress:
             self.progressBar(self.nSamples,self.nSamples,"Sampling")
             print("")
-        return self.samples, self.samplesLogProb, self.accepted
+        return self.samples, self.samplesLogProb, self.accepted, self.blobs
 
     cpdef object getStats(self):
         '''Returns running-average and standard deviation statistics.
@@ -1206,11 +1220,12 @@ cdef class Sam:
         self._scale = self._workingMemory_[4*self.nDim:5*self.nDim]
         self.upperBoundaries = self._workingMemory_[5*self.nDim:6*self.nDim]
         self.lowerBoundaries = self._workingMemory_[6*self.nDim:7*self.nDim]
+        self.blob = self._workingMemory_[7*self.nDim:7*self.nDim+self.nBlobs]
         self.acceptedView = self.accepted
         self.userParametersView = self._userParameters
         return 0
 
-    def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None, extraMembers=[]):
+    def __init__(self, logProbability, scale, lowerBounds=None, upperBounds=None, extraMembers=[], nBlobs=0):
         '''Instantiates the sampler class and sets the logProbability function.
 
         Args:
@@ -1232,6 +1247,8 @@ cdef class Sam:
                 names here (list of strings) will cause them to be handled
                 correctly when multiple threads are used, and available to save
                 in Sam.save.
+            nBlobs: length of the double array to allocate for storing extra
+                data from the logProbability function.
 
         Returns:
             An instantiated object of the class.
@@ -1245,11 +1262,13 @@ cdef class Sam:
         if lowerBounds is not None:
             lowerBounds = np.atleast_1d(lowerBounds)
             assert lowerBounds.size == self.nDim, "The lower boundaries given have the wrong number of dimensions."
+        assert nBlobs >= 0
         cdef Size d
         self.readyToRun = False
         self.showProgress = True
         self.extraMembers = extraMembers
-        self._workingMemory_ = np.nan * np.ones(7*self.nDim,dtype=np.double)
+        self.nBlobs = nBlobs
+        self._workingMemory_ = np.nan * np.ones(7*self.nDim+self.nBlobs,dtype=np.double)
         self.nSamples = 0
         self.accepted = np.zeros(self.nDim,dtype=np.intc)
         self.trials = 0
@@ -1421,9 +1440,10 @@ cdef class Sam:
                 attr = np.array(attr)
             extra[i] = attr
         info = (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
-                self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
-                self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-                self.hasBoundaries, self.showProgress, self._userParameters, extra)
+                self.recordStop, self.collectStats, self.nBlobs, self.readyToRun,
+                self.samplers, self.lastLogProb, self._workingMemory_, self.accepted,
+                self.pyLogProbability, self.pyLogProbArgNum, self.hasBoundaries,
+                self.showProgress, self._userParameters, extra)
         return info
 
     def __setstate__(self,info):
@@ -1440,9 +1460,10 @@ cdef class Sam:
             None
         '''
         (self.nDim, self.nSamples, self.burnIn, self.thinning, self.recordStart,
-         self.recordStop, self.collectStats, self.readyToRun, self.samplers, self.lastLogProb,
-         self._workingMemory_, self.accepted, self.pyLogProbability, self.pyLogProbArgNum,
-         self.hasBoundaries, self.showProgress, self._userParameters, extraMembers) = info
+         self.recordStop, self.collectStats, self.nBlobs, self.readyToRun, self.samplers,
+         self.lastLogProb, self._workingMemory_, self.accepted, self.pyLogProbability,
+         self.pyLogProbArgNum, self.hasBoundaries, self.showProgress,
+         self._userParameters, extraMembers) = info
         for k, v in extraMembers.items():
             setattr(self, k, v)
         if (sys.version_info > (3, 0)):

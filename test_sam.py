@@ -30,7 +30,7 @@ def logProb4(x):
 
 
 def logProb5(x, params):
-    return sam.normalLogPDF(x[0], params[0], params[1])
+    return sam.normalLogPDF(x[0], params[0], params[1]), params[0]
 
 
 def logProb6(x, params, gradient, getGradient):
@@ -295,7 +295,7 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(a.getStats()[1][1], 1, delta=.1)
 
     def testUserParams(self):
-        a = sam.Sam(logProb5, [.4])
+        a = sam.Sam(logProb5, [.4], nBlobs=1)
         a.addMetropolis()
         a.userParams = [0.5, 0.1]
         samples = a.run(10000, [0.5], showProgress=False)
@@ -304,6 +304,8 @@ class SamTester(unittest.TestCase):
         self.assertEqual(len(a.userParams), 2)
         self.assertAlmostEqual(samples[:, 0].mean(), 0.5, delta=.1)
         self.assertAlmostEqual(samples[:, 0].std(), 0.1, delta=.1)
+        self.assertAlmostEqual(a.resultsBlobs.mean(), 0.5, delta=1e-5)
+        self.assertAlmostEqual(a.resultsBlobs.std(), 0.0, delta=1e-5)
         a.userParams = [15.1, 0.35]
         samples = a.run(10000, [14.], showProgress=False)
         self.assertEqual(a.userParams[0], 15.1)
@@ -312,7 +314,7 @@ class SamTester(unittest.TestCase):
         self.assertAlmostEqual(samples[:, 0].std(), 0.35, delta=.1)
 
     def testUserParamsThreaded(self):
-        a = sam.Sam(logProb5, [.4])
+        a = sam.Sam(logProb5, [.4], nBlobs=1)
         a.addMetropolis()
         a.userParams = [10.8, 0.25]
         a.run(10000, [14.], threads=4, showProgress=False)
