@@ -1412,7 +1412,7 @@ cdef class Sam:
                     attr = np.array(attr)
                 extraMembers[i] = attr
         else:
-            extraMembers = None
+            extraMembers = {}
         try:
             logProbSource = inspect.getsource(self.pyLogProbability)
         except:
@@ -1421,7 +1421,7 @@ cdef class Sam:
             filename, nDim=self.nDim, nSamples=self.nSamples, burnIn = self.burnIn,
             thinning=self.thinning, scale=np.asarray(self._scale), upperBounds=self.upperBoundaries,
             lowerBounds=self.lowerBoundaries, initialPosition=self.initialPosition,
-            samples = self.samples, acceptance = accept, logProbSource = logProbSource,
+            samples = self.samples, blobs = self.blobs, acceptance = accept, logProbSource = logProbSource,
             samplesLogProb = self.samplesLogProb, userParameters=self.userParameters, stats=stats, **extraMembers)
 
     def __getstate__(self):
