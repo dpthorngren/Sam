@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.interpolate.interpnd import _ndim_coords_from_arrays
+# from scipy.interpolate.interpnd import _ndim_coords_from_arrays
 
 # TODO: Fix for 2 points grids
 cdef class Griddy:
@@ -128,7 +128,8 @@ cdef class Griddy:
         # Using the RegularGridInterpolator system for sanity
         cdef Size d, i, nInputs
         cdef double[:,:] gradsView
-        cdef double[:,:] inputs = np.atleast_2d(_ndim_coords_from_arrays(x, ndim=self.nDim))
+        # cdef double[:,:] inputs = np.atleast_2d(_ndim_coords_from_arrays(x, ndim=self.nDim))
+        cdef double[:,:] inputs = np.atleast_2d(x)
         if inputs.shape[1] != self.nDim:
             raise ValueError("Wrong number of dimensions in argument.")
         nInputs = inputs.shape[0]
